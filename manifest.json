@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Vinland",
+  "version": "19.34",
+  "description": "Vinland Command Interface - Terminal New Tab By Rhyon",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": [
+    "bookmarks",
+    "tabs",
+    "storage",
+    "unlimitedStorage"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "background.mp4",
+        "icon.png",
+        "*.jpg",
+        "*.png",
+        "*.gif",
+        "*.webp"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
