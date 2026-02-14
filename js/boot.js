@@ -254,7 +254,7 @@ async function boot() {
     // D. Initialize Weather
     // FIX: Trigger weather fetch if location is set
     Config.applyTheme(); // Ensure theme applied
-    if (typeof fetchWeather === 'function' && State.CONFIG.location) {
+    if (typeof fetchWeather === 'function') {
         fetchWeather();
     }
     

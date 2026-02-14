@@ -204,6 +204,7 @@ export const Notes = {
         // V88: Legacy Schema Migration
         if (PageManager.migrateNotesToPathSchema) PageManager.migrateNotesToPathSchema();
         if (PageManager.migrateNotesToBlockSchema) PageManager.migrateNotesToBlockSchema();
+        if (PageManager.migrateLegacyTasks) PageManager.migrateLegacyTasks(); // V101
 
         this.renderSidebar();
 

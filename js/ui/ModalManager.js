@@ -12,24 +12,25 @@ export const ModalManager = {
             var modal = document.getElementById('confirm-modal');
             if (!modal) return;
             
-            document.getElementById('confirm-title').innerText = title;
-            document.getElementById('confirm-msg').innerText = msg;
+            // V103: Scoped Selectors for Safety
+            var titleEl = modal.querySelector('#confirm-title') || document.getElementById('confirm-title');
+            var msgEl = modal.querySelector('#confirm-msg') || document.getElementById('confirm-msg');
             
-            var okBtn = document.getElementById('confirm-btn-ok');
-            var cancelBtn = document.getElementById('confirm-btn-cancel');
+            if(titleEl) titleEl.innerText = title;
+            else console.warn('Confirm Modal Title Element Missing');
             
-            // create distinct secondary button if needed, or use existing hook?
-            // Easier: Manipulate DOM of 'modal-actions'
+            if(msgEl) msgEl.innerText = msg;
+            
+            // Container for buttons
             var actionsDiv = modal.querySelector('.modal-actions');
             if (!actionsDiv) return;
             actionsDiv.innerHTML = ''; // Clear existing
             
-            // 1. CANCEL BUTTON (Always present, acts as "Stay" or "Abort")
+            // 1. CANCEL BUTTON (Always present)
             var btnCancel = document.createElement('button');
             btnCancel.className = 'btn';
             btnCancel.innerText = 'CANCEL';
             btnCancel.onclick = function() {
-                // If NO secondary text, this act as the legacy secondary (Cancel) handler
                 if (!secondaryText && onSecondary) onSecondary();
                 ModalManager.close('confirm-modal');
             };
@@ -38,7 +39,7 @@ export const ModalManager = {
             // 2. SECONDARY BUTTON (Optional: "DISCARD")
             if (secondaryText) {
                 var btnSec = document.createElement('button');
-                btnSec.className = 'btn confirm-btn-danger'; // Red styling for discard
+                btnSec.className = 'btn danger-btn'; // V103: Fixed class name from 'confirm-btn-danger' to global 'danger-btn'
                 btnSec.innerText = secondaryText;
                 btnSec.style.marginLeft = '10px';
                 btnSec.onclick = function() {
@@ -48,9 +49,15 @@ export const ModalManager = {
                 actionsDiv.appendChild(btnSec);
             }
             
-            // 3. PRIMARY BUTTON (SAVE/CONFIRM)
+            // 3. PRIMARY BUTTON (SAVE/CONFIRM/DELETE)
             var btnOk = document.createElement('button');
             btnOk.className = 'btn primary-btn';
+            
+            // V103: If intent is destructive (delete), style appropriately
+            if (title.toLowerCase().includes('remove') || title.toLowerCase().includes('delete')) {
+                btnOk.className = 'btn danger-btn';
+            }
+            
             btnOk.innerText = primaryText || 'CONFIRM';
             btnOk.style.marginLeft = '10px';
             btnOk.onclick = function() {
