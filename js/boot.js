@@ -26,6 +26,7 @@ import { Background } from './ui/Background.js';
 import { fetchWeather } from './features/Weather.js';
 import { safeCalculate } from './core/SafeCalc.js';
 import { startPomodoro } from './features/Pomodoro.js';
+import { CommandRegistry } from './core/CommandRegistry.js';
 
 // 2. EXPORT TO WINDOW (Fixes HTML onclick="" errors)
 window.State = State;
@@ -209,6 +210,129 @@ function bindGlobals() {
     if (pomoAck) pomoAck.onclick = function() { window.Pomodoro ? window.Pomodoro.acknowledgeComplete() : null; };
 }
 // Call this in boot
+function registerSystemCommands() {
+    console.log('[Boot] Registering System Commands...');
+
+    // --- NOTES ---
+    CommandRegistry.register({
+        id: 'notes:create',
+        trigger: 'note',
+        title: 'Create New Note',
+        icon: '📝',
+        hint: '[content]',
+        action: (args) => { if(window.Notes) window.Notes.addNote(args); }
+    });
+
+    CommandRegistry.register({
+        id: 'notes:toggle',
+        trigger: 'notes',
+        title: 'Toggle Notes Panel',
+        icon: '📂',
+        action: () => { if(window.Notes) window.Notes.toggleSidebar(); }
+    });
+    
+    CommandRegistry.register({
+        id: 'nav:daily',
+        trigger: 'daily',
+        title: 'Open Daily Note',
+        icon: '📅',
+        action: () => {
+            if (!window.Notes) return;
+            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const title = `Daily Log ${today}`;
+            const exists = window.Notes.openByTitle(title);
+            if (!exists) {
+                window.Notes.addNote(title, '/Journal');
+            }
+        }
+    });
+
+    CommandRegistry.register({
+        id: 'nav:random',
+        trigger: 'random',
+        title: 'Open Random Note',
+        icon: '🎲',
+        action: () => {
+             if (window.State && State.NOTES && State.NOTES.length > 0) {
+                const rnd = Math.floor(Math.random() * State.NOTES.length);
+                window.Notes.open(State.NOTES[rnd].id);
+            }
+        }
+    });
+
+    // --- TASKS ---
+    CommandRegistry.register({
+        id: 'task:add',
+        trigger: 'task',
+        title: 'Add Task',
+        icon: '✅',
+        hint: '[text]',
+        action: (args) => { if(window.addTask) window.addTask(args); }
+    });
+    
+    CommandRegistry.register({
+        id: 'task:clear-done',
+        trigger: 'clear done',
+        title: 'Clear Completed Tasks',
+        icon: '🧹',
+        action: () => { if(window.clearCompletedTasks) window.clearCompletedTasks(); }
+    });
+    
+    // --- SYSTEM ---
+    CommandRegistry.register({
+        id: 'sys:reload',
+        trigger: 'reload',
+        title: 'Reload System',
+        icon: '🔄',
+        action: () => { window.location.reload(); }
+    });
+    
+    CommandRegistry.register({
+        id: 'sys:theme',
+        trigger: 'theme',
+        title: 'Switch Theme',
+        icon: '🎨',
+        hint: '[name]',
+        action: (args) => { 
+             // Need to implement loadThemePreset in Settings or exposing it
+             console.log('Switching theme to', args);
+             if (window.SettingsUI && window.SettingsUI.applyThemePreset) {
+                 window.SettingsUI.applyThemePreset(args);
+             }
+        }
+    });
+    
+    CommandRegistry.register({
+        id: 'ui:zen',
+        trigger: 'zen',
+        title: 'Toggle Zen Mode',
+        icon: '🧘',
+        action: () => {
+            document.body.classList.toggle('zen-mode');
+            const isZen = document.body.classList.contains('zen-mode');
+            if (window.showNotification) window.showNotification(`ZEN MODE: ${isZen ? 'ON' : 'OFF'}`);
+        }
+    });
+    
+    CommandRegistry.register({
+        id: 'ui:kill',
+        trigger: 'kill',
+        title: 'Close All Modals',
+        icon: '💥',
+        action: () => {
+            if(window.ModalManager) window.ModalManager.closeAll();
+        }
+    });
+
+    // --- KANBAN ---
+    CommandRegistry.register({
+        id: 'kanban:open',
+        trigger: 'board',
+        title: 'Open Kanban Board',
+        icon: '📋',
+        action: () => { if(window.KanbanManager) window.KanbanManager.open(); }
+    });
+}
 
 
 // 4. THE BOOT SEQUENCE
@@ -235,6 +359,9 @@ async function boot() {
     
     if(KanbanManager) KanbanManager.init(); 
     if(SettingsUI) SettingsUI.init();
+
+    // 2.5 Register Commands (New Registry System)
+    registerSystemCommands();
     if(CommandLine) CommandLine.init();
     if(Pomodoro) Pomodoro.init();
     if(Bookmarks) Bookmarks.init();

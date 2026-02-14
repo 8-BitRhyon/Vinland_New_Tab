@@ -4,6 +4,7 @@ import { saveConfig } from '../core/Config.js';
 import { ModalManager } from '../ui/ModalManager.js';
 import { Notes, addNote, clearNotes, toggleNotesPanel, renderNotes } from '../modules/NotesController.js';
 import { safeText } from '../core/Utils.js';
+import { CommandRegistry } from '../core/CommandRegistry.js';
 
 /* =========================================
    COMMAND LINE INTERFACE
@@ -43,394 +44,217 @@ export const CommandLine = {
     },
 
     handleInput: function(e) {
-        var val = e.target.value;
-        var hint = document.getElementById('command-hint');
-        var suggestionsBox = document.getElementById('suggestions');
-
-        historyIndex = -1;
-
-        var valLower = val.toLowerCase();
-
-        if (valLower.startsWith('task')) {
-            hint.innerHTML = '<span class="hint-syntax">task [!!|!|~] [@category] [text] [time] or task [text] at [time]</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('focus')) {
-            hint.innerHTML = '<span class="hint-syntax">focus [25 | 1:30 | 90s]</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('note')) {
-            hint.innerHTML = '<span class="hint-syntax">note [text]</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('done')) {
-            hint.innerHTML = '<span class="hint-syntax">done [#]</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('clear')) {
-            hint.innerHTML = '<span class="hint-syntax">clear [tasks | task # | task name | notes | note # | all]</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('hide')) {
-            hint.innerHTML = '<span class="hint-syntax">hide done</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('show')) {
-            hint.innerHTML = '<span class="hint-syntax">show done</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('quote')) {
-            hint.innerHTML = '<span class="hint-syntax">quote - Display random motivational quote</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('history')) {
-            hint.innerHTML = '<span class="hint-syntax">history - Show command history</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('gcal') || valLower.startsWith('gtasks') || valLower.startsWith('gmail') || valLower.startsWith('gdrive')) {
-            hint.innerHTML = '<span class="hint-syntax">gcal | gtasks | gmail | gdrive | gdocs</span>';
-            hint.style.display = 'block';
-        } else if (valLower.startsWith('calc')) {
-            var expr = val.substring(4).trim();
-            var preview = '';
-            if (expr && window.safeCalculate) {
-                var res = window.safeCalculate(expr);
-                if (res !== 'ERROR' && res !== 'INVALID') {
-                    preview = ' = ' + res;
-                }
-            }
-            hint.innerHTML = '<span class="hint-syntax">calc [expression]</span><span class="hint-value" style="color:var(--main-color); margin-left:10px; font-weight:bold;">' + preview + '</span>';
-            hint.style.display = 'block';
-        } else {
-            hint.innerHTML = '';
-            hint.style.display = 'none';
-        }
-
-        if (State.CONFIG.show_bookmarks && val.toLowerCase().startsWith('b ') && val.length > 2) {
-            var query = val.slice(2).toLowerCase();
-            var matches = (State.FLAT_BOOKMARKS || []).filter(function (b) { return b.title.toLowerCase().includes(query); }).slice(0, 8);
-            currentSuggestions = matches;
-            this.renderSuggestions(matches);
-        } else {
+        const val = e.target.value;
+        const suggestionsBox = document.getElementById('suggestions');
+        const hintBox = document.getElementById('command-hint');
+        
+        if (!val.trim()) {
             suggestionsBox.style.display = 'none';
-            currentSuggestions = [];
-        }
-    },
-
-    renderSuggestions: function(matches) {
-        var box = document.getElementById('suggestions');
-        if (!box) return;
-        box.innerHTML = '';
-        suggestionIndex = -1;
-
-        if (!matches || matches.length === 0) {
-            box.style.display = 'none';
+            if (hintBox) hintBox.style.display = 'none';
             return;
         }
 
-        var self = this;
-        matches.forEach(function (match, idx) {
-            var div = document.createElement('div');
+        // 1. Search Registry
+        const matches = CommandRegistry.search(val);
+        
+        // 2. Render Suggestions
+        this.renderSuggestions(matches, val);
+
+        // 3. Render Hint (if exact trigger match found)
+        const exactMatch = matches.find(m => val.toLowerCase().startsWith(m.trigger));
+        if (exactMatch && exactMatch.hint && hintBox) {
+            hintBox.innerHTML = `<span class="hint-syntax">${safeText(exactMatch.trigger)} ${safeText(exactMatch.hint)}</span>`;
+            hintBox.style.display = 'block';
+        } else if (hintBox) {
+            hintBox.style.display = 'none';
+        }
+    },
+
+    renderSuggestions: function(matches, query) {
+        const box = document.getElementById('suggestions');
+        if (!box) return;
+        box.innerHTML = '';
+        suggestionIndex = -1;
+        
+        // Add Bookmark suggestions if B command
+        if (State.CONFIG.show_bookmarks && query.toLowerCase().startsWith('b ') && query.length > 2) {
+             const bmQuery = query.slice(2).toLowerCase();
+             const bmMatches = (State.FLAT_BOOKMARKS || []).filter(b => b.title.toLowerCase().includes(bmQuery)).slice(0, 5);
+             if (bmMatches.length > 0) {
+                 bmMatches.forEach((bm, idx) => {
+                     const div = document.createElement('div');
+                     div.className = 'suggestion-item';
+                     div.innerHTML = `<span>Example: ${safeText(bm.title)}</span><span class="type-badge">BOOKMARK</span>`;
+                     div.onclick = () => { window.location.href = bm.url; };
+                     box.appendChild(div);
+                 });
+                 // Return to avoid mixing? actually we can mix, but let's keep simple
+             }
+        }
+
+        if (matches.length === 0) {
+            if (box.children.length === 0) box.style.display = 'none';
+            else box.style.display = 'block'; // Keep showing bookmarks if any
+            return;
+        }
+
+        matches.slice(0, 5).forEach((cmd, idx) => {
+            const div = document.createElement('div');
             div.className = 'suggestion-item';
-            div.setAttribute('data-index', idx);
-            var typeText = match.type === 'folder' ? 'FOLDER' : 'BOOKMARK';
-            div.innerHTML = '<span>' + safeText(match.title) + '</span><span class="type-badge">' + typeText + '</span>';
-            div.onclick = function () { 
-                if (match.type === 'folder') {
-                    if (window.NAV_STACK) window.NAV_STACK.push(State.CURRENT_BOOKMARK_FOLDER); // Assuming globals for now
-                    if (window.renderBottomBar) window.renderBottomBar(match.id);
-                    document.getElementById('cmd-input').value = '';
-                    document.getElementById('suggestions').style.display = 'none';
-                } else if (match.url) {
-                    window.location.href = match.url; 
+            // Highlight matching part
+            div.innerHTML = `
+                <span class="cmd-icon" style="margin-right:10px; color:var(--main-color);">${cmd.icon}</span>
+                <span class="cmd-trigger" style="color:#fff; font-weight:bold;">${cmd.trigger}</span>
+                <span class="cmd-title" style="color:#888;"> - ${cmd.title}</span>
+            `;
+            div.onclick = () => {
+                // If command accepts args, autocomplete it
+                if (cmd.hint) {
+                    const input = document.getElementById('cmd-input');
+                    input.value = cmd.trigger + ' ';
+                    input.focus();
+                } else {
+                    this.execute(cmd, '');
                 }
             };
             box.appendChild(div);
         });
+        
         box.style.display = 'block';
-    },
-
-    updateSuggestionHighlight: function() {
-        var box = document.getElementById('suggestions');
-        if (!box) return;
-        var items = box.querySelectorAll('.suggestion-item');
-        items.forEach(function (item, i) {
-            if (i === suggestionIndex) item.classList.add('active');
-            else item.classList.remove('active');
-        });
+        currentSuggestions = matches; // Store for arrow nav
     },
 
     handleKeydown: function(e) {
-        var input = document.getElementById('cmd-input');
-        var suggestionsBox = document.getElementById('suggestions');
-
-        if (e.key === 'ArrowUp') {
+        const input = document.getElementById('cmd-input');
+        const box = document.getElementById('suggestions');
+        const items = box.querySelectorAll('.suggestion-item');
+        
+        // Arrow Navigation
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             e.preventDefault();
-            if (currentSuggestions.length > 0 && suggestionsBox.style.display !== 'none') {
-                suggestionIndex = suggestionIndex > 0 ? suggestionIndex - 1 : currentSuggestions.length - 1;
-                this.updateSuggestionHighlight();
-            } else if (State.COMMAND_HISTORY.length > 0) {
-                if (historyIndex === -1) historyIndex = State.COMMAND_HISTORY.length - 1;
-                else if (historyIndex > 0) historyIndex--;
-                input.value = State.COMMAND_HISTORY[historyIndex] || '';
-            }
-            return;
-        }
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (currentSuggestions.length > 0 && suggestionsBox.style.display !== 'none') {
-                suggestionIndex = suggestionIndex < currentSuggestions.length - 1 ? suggestionIndex + 1 : 0;
-                this.updateSuggestionHighlight();
-            } else if (historyIndex !== -1) {
-                if (historyIndex < State.COMMAND_HISTORY.length - 1) {
-                    historyIndex++;
-                    input.value = State.COMMAND_HISTORY[historyIndex] || '';
-                } else {
-                    historyIndex = -1;
-                    input.value = '';
+            if (items.length === 0) {
+                // History Nav Fallback
+                if (State.COMMAND_HISTORY.length > 0) {
+                    if (e.key === 'ArrowUp') {
+                        if (historyIndex === -1) historyIndex = State.COMMAND_HISTORY.length - 1;
+                        else if (historyIndex > 0) historyIndex--;
+                        input.value = State.COMMAND_HISTORY[historyIndex] || '';
+                    } else {
+                         if (historyIndex !== -1 && historyIndex < State.COMMAND_HISTORY.length - 1) {
+                            historyIndex++;
+                            input.value = State.COMMAND_HISTORY[historyIndex] || '';
+                        } else {
+                            historyIndex = -1;
+                            input.value = '';
+                        }
+                    }
                 }
+                return;
+            }
+            
+            if (suggestionIndex > -1 && items[suggestionIndex]) items[suggestionIndex].classList.remove('active');
+            
+            if (e.key === 'ArrowDown') {
+                suggestionIndex = suggestionIndex < items.length - 1 ? suggestionIndex + 1 : 0;
+            } else {
+                suggestionIndex = suggestionIndex > 0 ? suggestionIndex - 1 : items.length - 1;
+            }
+            
+            if (items[suggestionIndex]) {
+                items[suggestionIndex].classList.add('active');
+                items[suggestionIndex].scrollIntoView({ block: 'nearest' });
             }
             return;
         }
 
         if (e.key === 'Enter') {
+            // Suggestion Selection
             if (suggestionIndex >= 0 && currentSuggestions[suggestionIndex]) {
-                var selectedMatch = currentSuggestions[suggestionIndex];
-                if (selectedMatch.url) window.location.href = selectedMatch.url;
+                e.preventDefault();
+                const cmd = currentSuggestions[suggestionIndex];
+                if (cmd.hint && !input.value.includes(' ')) {
+                     input.value = cmd.trigger + ' '; // Autocomplete trigger
+                     return;
+                }
+                this.execute(cmd, '');
                 return;
             }
 
-            var raw = input.value.trim();
+            const raw = input.value.trim();
             if (!raw) return;
-
-            this.addToHistory(raw);
-
-            var funcMatch = raw.match(/^(\w+)\s*=\s*(\w+)\(\s*(.*?)\s*\)$/);
-            if (funcMatch) {
-                var baseCmd = funcMatch[1].toLowerCase();
-                var action = funcMatch[2].toLowerCase();
-                var args = funcMatch[3];
-                if (baseCmd === 'task' && action === 'create') { 
-                    if (window.addTask) window.addTask(args); 
-                    input.value = ''; return; 
-                }
-                if (baseCmd === 'mail' && action === 'create') { 
-                    window.location.href = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(args); 
-                    return; 
-                }
-            }
-
-            var firstSpace = raw.indexOf(' ');
-            var cmd = firstSpace === -1 ? raw : raw.substring(0, firstSpace);
-            var query = firstSpace === -1 ? '' : raw.substring(firstSpace + 1);
-            var cmdLower = cmd.toLowerCase();
-
-            if (cmdLower === 'help' || cmdLower === 'man') { ModalManager.open('help-modal'); input.value = ''; return; }
-            if (cmdLower === 'history') { this.showHistory(); input.value = ''; return; }
-            if (cmdLower === 'notes') { toggleNotesPanel(); input.value = ''; return; }
-            if (cmdLower === 'focus') { if (window.startPomodoro) window.startPomodoro(query); input.value = ''; return; }
-            if (cmdLower === 'task') { 
-                if (query) { if (window.addTask) window.addTask(query); }
-                else window.location.href = 'https://calendar.google.com/calendar/u/0/r/tasks'; 
-                input.value = ''; return; 
-            }
-            if (cmdLower === 'note') { if (query) addNote(query); input.value = ''; return; }
-            if (cmdLower === 'done') { 
-                var idx = parseInt(query) - 1; 
-                if (!isNaN(idx) && idx >= 0 && State.TASKS[idx]) {
-                    if (window.toggleTaskComplete) window.toggleTaskComplete(idx);
-                }
-                input.value = ''; return; 
-            }
-
-            if (cmdLower === 'hide' && query.toLowerCase() === 'done') {
-                State.CONFIG.hide_completed_tasks = true;
-                saveConfig();
-                if (window.renderMissions) window.renderMissions();
-                // showNotification('COMPLETED TASKS HIDDEN');
-                input.value = '';
-                return;
-            }
-            if (cmdLower === 'show' && query.toLowerCase() === 'done') {
-                State.CONFIG.hide_completed_tasks = false;
-                saveConfig();
-                if (window.renderMissions) window.renderMissions();
-                // showNotification('COMPLETED TASKS VISIBLE');
-                input.value = '';
-                return;
+            
+            // Execute logic
+            // 1. Split Trigger vs Args
+            // Handle "task buy milk" -> trigger="task", args="buy milk"
+            // Handle "clear done" -> trigger="clear done", args=""
+            
+            let bestCmd = null;
+            let bestArgs = '';
+            
+            // Sort matches by length desc to capture "clear done" before "clear"
+            const matches = CommandRegistry.commands.filter(c => raw.toLowerCase().startsWith(c.trigger));
+            matches.sort((a,b) => b.trigger.length - a.trigger.length);
+            
+            if (matches.length > 0) {
+                bestCmd = matches[0];
+                bestArgs = raw.substring(bestCmd.trigger.length).trim();
             }
             
-            if (cmdLower === 'clear') {
-                var qLower = query.toLowerCase();
-                if (qLower === 'notes' || qLower === 'note') {
-                    clearNotes();
-                } else if (qLower.startsWith('note ') || qLower.startsWith('notes ')) {
-                    var noteNum = parseInt(query.split(' ')[1]) - 1;
-                    if (!isNaN(noteNum) && noteNum >= 0 && State.NOTES[noteNum]) {
-                        State.NOTES.splice(noteNum, 1);
-                        saveData();
-                        renderNotes();
-                        // showNotification('NOTE ' + (noteNum + 1) + ' DELETED');
-                    }
-                } else if (qLower.startsWith('task ')) {
-                    var taskArg = query.substring(5).trim();
-                    var taskNum = parseInt(taskArg);
-                    if (!isNaN(taskNum) && taskNum > 0) {
-                        var idx = taskNum - 1;
-                        if (idx >= 0 && State.TASKS[idx]) {
-                            State.TASKS.splice(idx, 1);
-                            saveData();
-                            if (window.renderMissions) window.renderMissions();
-                            if (window.updateProgressBar) window.updateProgressBar();
-                        }
+            if (bestCmd) {
+                this.execute(bestCmd, bestArgs);
+            } else {
+                // Fallback: Google Search or Custom
+                // Check custom commands first
+                const custom = (State.CONFIG.custom_commands || []).find(c => c.trigger === raw.split(' ')[0].toLowerCase());
+                if (custom) {
+                    if (custom.url.startsWith('sys:')) {
+                        // legacy format support?
                     } else {
-                        // Clear by name
-                        var searchName = taskArg.toLowerCase();
-                        var matchingIndices = [];
-                        for (var i = 0; i < State.TASKS.length; i++) {
-                            if (State.TASKS[i].text.toLowerCase().includes(searchName)) {
-                                matchingIndices.push(i);
-                            }
-                        }
-                        if (matchingIndices.length > 0) {
-                            for (var j = matchingIndices.length - 1; j >= 0; j--) {
-                                State.TASKS.splice(matchingIndices[j], 1);
-                            }
-                            saveData();
-                            if (window.renderMissions) window.renderMissions();
-                            if (window.updateProgressBar) window.updateProgressBar();
-                        }
+                        window.location.href = custom.url;
                     }
-                } else if (qLower === 'tasks' || qLower === 'task' || qLower === '') {
-                    State.TASKS = [];
-                    saveData();
-                    if (window.renderMissions) window.renderMissions();
-                    if (window.updateProgressBar) window.updateProgressBar();
-                } else if (qLower === 'history') {
-                    State.COMMAND_HISTORY = [];
-                    saveData();
-                } else if (qLower === 'all') {
-                    // clearAllData(); // Can call global
-                    if (window.clearAllData) window.clearAllData();
-                }
-                input.value = '';
-                return;
-            }
-
-            if (cmdLower === 'weather') {
-                if (query.toLowerCase().startsWith('set ')) {
-                    var newLoc = query.substring(4).trim();
-                    if (newLoc) {
-                        State.CONFIG.location = newLoc;
-                        State.WEATHER_CACHE = null; 
-                        saveConfig();
-                        if (window.fetchWeather) window.fetchWeather();
-                    }
+                } else if (raw.startsWith('http')) {
+                    window.location.href = raw;
                 } else {
-                    if (window.fetchWeather) window.fetchWeather();
-                }
-                input.value = '';
-                return;
-            }
-
-            if (cmdLower === 'mail') { window.location.href = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(query); return; }
-            
-            if (cmdLower === 'sheet') {
-                var queryLower = query.toLowerCase();
-                if (queryLower === 'habit') {
-                    if (State.CONFIG.habit_id) window.location.href = 'https://docs.google.com/spreadsheets/d/' + State.CONFIG.habit_id;
-                } else if (queryLower === 'life') {
-                    if (State.CONFIG.life_id) window.location.href = 'https://docs.google.com/spreadsheets/d/' + State.CONFIG.life_id;
-                } else {
-                    window.location.href = 'https://docs.google.com/spreadsheets';
-                }
-                return;
-            }
-
-            if (cmdLower === 'trello') { if (State.CONFIG.trello_board) window.location.href = 'https://trello.com/b/' + State.CONFIG.trello_board; else window.location.href = 'https://trello.com'; return; }
-            if (cmdLower === 'notion') { if (State.CONFIG.notion_page) window.location.href = 'https://notion.so/' + State.CONFIG.notion_page; else window.location.href = 'https://notion.so'; return; }
-            if (cmdLower === 'github') { if (State.CONFIG.github_user) window.location.href = 'https://github.com/' + State.CONFIG.github_user; else window.location.href = 'https://github.com'; return; }
-
-            if (cmdLower === 'gcal' || cmdLower === 'calendar') { window.location.href = 'https://calendar.google.com'; return; }
-            if (cmdLower === 'gtasks' || cmdLower === 'tasks') { window.location.href = 'https://tasks.google.com'; return; }
-            if (cmdLower === 'gmail' || cmdLower === 'email') { window.location.href = 'https://mail.google.com'; return; }
-            if (cmdLower === 'gdrive' || cmdLower === 'drive') { window.location.href = 'https://drive.google.com'; return; }
-            if (cmdLower === 'gdocs' || cmdLower === 'docs') { window.location.href = 'https://docs.google.com'; return; }
-
-            if (cmdLower === 'yt') { window.location.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query); return; }
-
-            if (cmdLower === 'roll' || cmdLower === 'dice') { 
-                var res = Math.floor(Math.random() * 6) + 1;
-                navigator.clipboard.writeText(res.toString());
-                showNotification("DICE: " + res + " (COPIED)"); 
-                input.value = ''; return; 
-            }
-            if (cmdLower === 'coin' || cmdLower === 'flip') { 
-                var res = Math.random() > 0.5 ? "HEADS" : "TAILS";
-                navigator.clipboard.writeText(res);
-                showNotification("COIN: " + res + " (COPIED)"); 
-                input.value = ''; return; 
-            }
-            if (cmdLower === 'quote') { 
-                var quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-                navigator.clipboard.writeText(quote);
-                showNotification(quote + " (COPIED)"); 
-                input.value = ''; return; 
-            }
-            
-            if (cmdLower === 'calc') {
-                if (window.safeCalculate) {
-                   var result = window.safeCalculate(query);
-                   if (result !== 'ERROR' && result !== 'INVALID') {
-                       navigator.clipboard.writeText(result.toString());
-                       showNotification("RESULT: " + result + " (COPIED)");
-                   } else {
-                       showNotification("CALC ERROR");
-                   }
-                }
-                input.value = '';
-                return;
-            }
-
-            if (cmdLower === 'b') {
-                if (query && currentSuggestions.length > 0) {
-                    var selectedMatch = currentSuggestions[0];
-                    if (selectedMatch.type === 'folder') {
-                        if (window.NAV_STACK) window.NAV_STACK.push(State.CURRENT_BOOKMARK_FOLDER);
-                        if (window.renderBottomBar) window.renderBottomBar(selectedMatch.id);
-                        input.value = '';
-                        return;
-                    } else if (selectedMatch.url) {
-                        window.location.href = selectedMatch.url;
-                        return;
+                    // Search Engine
+                    let searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(raw);
+                     var engine = State.CONFIG.search_engine || 'google';
+                    switch (engine) {
+                        case 'ddg': searchUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(raw); break;
+                        case 'bing': searchUrl = 'https://www.bing.com/search?q=' + encodeURIComponent(raw); break;
+                        case 'brave': searchUrl = 'https://search.brave.com/search?q=' + encodeURIComponent(raw); break;
+                        case 'perplexity': searchUrl = 'https://www.perplexity.ai/search?q=' + encodeURIComponent(raw); break;
+                        case 'chatgpt': searchUrl = 'https://chat.openai.com/?q=' + encodeURIComponent(raw); break;
+                        case 'youtube': searchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(raw); break;
                     }
+                    window.location.href = searchUrl;
                 }
-                if (query) raw = query; else return;
             }
-
-            var custom = null;
-            if (State.CONFIG.custom_commands && Array.isArray(State.CONFIG.custom_commands)) {
-                custom = State.CONFIG.custom_commands.find(function (c) { return c.trigger === cmdLower; });
-            }
-            if (custom) {
-                if (custom.url.startsWith('sys:')) {
-                    var sysAction = custom.url.split(':')[1];
-                    if (sysAction === 'note') addNote(query);
-                    else if (sysAction === 'task') { if (window.addTask) window.addTask(query); }
-                    input.value = '';
-                    return;
-                }
-                window.location.href = custom.url;
-                return;
-            }
-
-            if (raw.startsWith('http://') || raw.startsWith('https://')) { window.location.href = raw; return; }
-
-            var searchUrl;
-            var engine = State.CONFIG.search_engine || 'google';
-            switch (engine) {
-                case 'ddg': searchUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(raw); break;
-                case 'bing': searchUrl = 'https://www.bing.com/search?q=' + encodeURIComponent(raw); break;
-                case 'brave': searchUrl = 'https://search.brave.com/search?q=' + encodeURIComponent(raw); break;
-                case 'perplexity': searchUrl = 'https://www.perplexity.ai/search?q=' + encodeURIComponent(raw); break;
-                case 'chatgpt': searchUrl = 'https://chat.openai.com/?q=' + encodeURIComponent(raw); break;
-                case 'youtube': searchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(raw); break;
-                default: searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(raw);
-            }
-            window.location.href = searchUrl;
         }
+    },
+
+    execute: function(cmd, args) {
+        const input = document.getElementById('cmd-input');
+        
+        console.log(`[CLI] Executing ${cmd.id} with args: "${args}"`);
+        try {
+            cmd.action(args);
+            // V105: visual feedback
+             if (window.showNotification) showNotification(`COMMAND: ${cmd.title}`);
+        } catch(e) {
+            console.error(e);
+            if (window.showNotification) showNotification(`ERROR: ${e.message}`, 'error');
+        }
+        
+        // Cleanup
+        input.value = '';
+        const sBox = document.getElementById('suggestions');
+        if(sBox) sBox.style.display = 'none';
+        
+        const hBox = document.getElementById('command-hint');
+        if(hBox) hBox.style.display = 'none';
+        
+        // Save to history
+        this.addToHistory(cmd.trigger + (args ? ' ' + args : ''));
     },
 
     addToHistory: function(cmd) {

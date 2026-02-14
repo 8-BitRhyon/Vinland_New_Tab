@@ -1359,6 +1359,24 @@
             color: #000;
         }
 
+        /* V102: ZEN MODE */
+        body.zen-mode #status-bar,
+        body.zen-mode #weather-widget,
+        body.zen-mode #config-btn,
+        body.zen-mode #help-btn,
+        body.zen-mode #notes-toggle-btn,
+        body.zen-mode .notes-sidebar,
+        body.zen-mode #dock,
+        body.zen-mode #greeting,
+        body.zen-mode #progress-container {
+            display: none !important;
+            opacity: 0; 
+            pointer-events: none;
+        }
+
+        /* Center the HUD if it isn't already */
+        /* body.zen-mode .hud-container - Already centered */
+
         /* HUD ELEMENTS */
         .hud-container {
             position: absolute;
@@ -4205,10 +4223,7 @@
             .toggle-row,
             .slider-row {
                 flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
             }
-
             .config-input,
             .config-select {
                 width: 100%;
