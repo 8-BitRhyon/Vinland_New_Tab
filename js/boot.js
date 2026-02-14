@@ -178,12 +178,7 @@ function bindGlobals() {
     const dlNoteBtn = document.getElementById('note-download-btn');
     if (dlNoteBtn) dlNoteBtn.onclick = function() { window.Notes.downloadNotes(); };
 
-    // 7. Page Actions (Context Menu)
-    const pageActionToggle = document.getElementById('page-actions-btn');
-    if (pageActionToggle) pageActionToggle.onclick = function(e) { 
-        e.stopPropagation();
-        window.PageActions.toggle(); 
-    };
+    // 7. Page Actions (Context Menu) — init() handles click binding
 
     const pinNoteBtn = document.getElementById('pin-note-btn');
     if (pinNoteBtn) pinNoteBtn.onclick = function() { window.Notes.togglePin(); };

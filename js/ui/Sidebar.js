@@ -34,6 +34,24 @@ export function buildDirectoryStructure(notes) {
         current.__files__.push(note);
     });
 
+    // V87: Inject explicit (empty) folders so they persist in the tree
+    var Notes = window.Notes;
+    if (Notes && Notes.explicitFolders) {
+        Notes.explicitFolders.forEach(function(folderPath) {
+            var parts = folderPath.split('/').filter(function(p) { return p.length > 0; });
+            var current = root;
+            var currentPath = '';
+
+            parts.forEach(function(part) {
+                currentPath += '/' + part;
+                if (!current[part]) {
+                    current[part] = { __files__: [], __path__: currentPath };
+                }
+                current = current[part];
+            });
+        });
+    }
+
     return root;
 }
 

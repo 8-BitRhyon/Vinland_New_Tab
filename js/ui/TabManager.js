@@ -123,6 +123,28 @@ export const TabManager = {
 
     closeTab: function(index) {
         if (index < 0 || index >= this.tabs.length) return;
+        
+        // V87: Auto-delete untitled/empty notes when tab is closed
+        var closedTab = this.tabs[index];
+        if (closedTab && closedTab.noteId && typeof Notes !== 'undefined') {
+            var note = State.NOTES.find(function(n) { return n.id === closedTab.noteId; });
+            if (note) {
+                var isUntitled = !note.title || note.title === 'Untitled' || note.title === 'Untitled Note';
+                var hasNoContent = !note.content || !note.content.trim();
+                var hasNoBlocks = !note.blocks || note.blocks.length === 0 || 
+                    (note.blocks.length === 1 && (!note.blocks[0].content || !note.blocks[0].content.trim()));
+                
+                if (isUntitled && hasNoContent && hasNoBlocks) {
+                    // Remove the empty note entirely
+                    State.NOTES = State.NOTES.filter(function(n) { return n.id !== note.id; });
+                    if (typeof window.State !== 'undefined') window.State.NOTES = State.NOTES;
+                    if (typeof saveData === 'function') saveData();
+                    else if (typeof window.saveData === 'function') window.saveData();
+                    Notes.renderSidebar();
+                }
+            }
+        }
+        
         this.tabs.splice(index, 1);
         
         if (this.tabs.length === 0) {

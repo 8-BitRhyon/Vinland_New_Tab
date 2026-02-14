@@ -21,6 +21,13 @@
             --font-secondary: 'Space Mono', monospace;
             --dim-color: #555555;
             --board-color: #00d4ff;
+
+            /* V87: Knowledge Graph Cluster Palette */
+            --graph-col-1: #00FF41; /* Green (Main) */
+            --graph-col-2: #00E5FF; /* Cyan */
+            --graph-col-3: #FF0055; /* Red/Pink */
+            --graph-col-4: #FFB800; /* Orange */
+            --graph-col-5: #9D00FF; /* Purple */
         }
 
         /* UPDATE: Prevent text selection generally, allow on inputs */
@@ -486,7 +493,8 @@
         .config-input::-webkit-scrollbar,
         #dock-list::-webkit-scrollbar,
         #mission-log::-webkit-scrollbar,
-        #custom-cmd-list::-webkit-scrollbar {
+        #custom-cmd-list::-webkit-scrollbar,
+        .page-actions-list::-webkit-scrollbar {
             width: 8px;
             display: block !important;
         }
@@ -499,7 +507,8 @@
         .config-input::-webkit-scrollbar-thumb,
         #dock-list::-webkit-scrollbar-thumb,
         #mission-log::-webkit-scrollbar-thumb,
-        #custom-cmd-list::-webkit-scrollbar-thumb {
+        #custom-cmd-list::-webkit-scrollbar-thumb,
+        .page-actions-list::-webkit-scrollbar-thumb {
             background: var(--main-color);
             border-radius: 4px;
             border: 2px solid var(--bg-overlay);
@@ -513,7 +522,8 @@
         .config-input::-webkit-scrollbar-track,
         #dock-list::-webkit-scrollbar-track,
         #mission-log::-webkit-scrollbar-track,
-        #custom-cmd-list::-webkit-scrollbar-track {
+        #custom-cmd-list::-webkit-scrollbar-track,
+        .page-actions-list::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 4px;
         }
@@ -669,6 +679,14 @@
             margin-right: 10px;
             flex-shrink: 0;
             color: var(--main-color);
+        }
+
+        /* V89: Fix for Preview Checkbox Alignment */
+        .block-task-preview {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 5px;
         }
 
         /* V68: Preview Alignment Support for Flex Items */
@@ -1666,6 +1684,38 @@
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             background: rgba(5, 5, 8, 0.95) !important;
+        }
+
+        /* V87: Graph Mode Toggle Button */
+        .graph-mode-toggle {
+            background: transparent;
+            border: 1px solid var(--main-color);
+            color: var(--main-color);
+            font-family: var(--font-main);
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        .graph-mode-toggle:hover {
+            background: var(--main-color);
+            color: #000;
+        }
+        .graph-mode-toggle.active {
+            background: var(--main-color);
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* V87: Active node pulse animation */
+        @keyframes graphNodePulse {
+            0%, 100% { filter: drop-shadow(0 0 4px currentColor); }
+            50% { filter: drop-shadow(0 0 12px currentColor); }
+        }
+        .graph-node-active circle {
+            animation: graphNodePulse 2s ease-in-out infinite;
         }
 
         /* V3.9: Maximized Note Editor */
@@ -3389,7 +3439,8 @@
             transition: background 0.15s;
         }
 
-        .page-action-item:hover {
+        .page-action-item:hover,
+        .page-action-item.highlighted {
             background: rgba(var(--main-color-rgb, 0, 255, 65), 0.1);
         }
 
@@ -4206,8 +4257,61 @@
             width: 100%;
         }
 
-        /* 2. Drag Handle is absolute (keeps position) */
-        
+        /* 2. Drag Handle — fades in on hover */
+        .block-drag-handle {
+            position: absolute;
+            left: 4px;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            cursor: grab;
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            font-size: 0.85rem;
+            transition: opacity 0.15s;
+            user-select: none;
+            z-index: 1;
+        }
+        .block-drag-handle::before { content: '⠿'; }
+        .block-wrapper:hover .block-drag-handle { opacity: 1; }
+
+        /* Dragging State */
+        .block-wrapper.dragging {
+            opacity: 0.4;
+            border: 1px dashed var(--main-color);
+        }
+
+        /* Drag Target Indicator */
+        .block-wrapper.drag-over {
+            border-top: 2px solid var(--main-color);
+        }
+
+        /* Multi-Block Selection */
+        .block-wrapper.block-selected {
+            background: rgba(255, 255, 255, 0.06);
+            border-left: 2px solid var(--main-color);
+        }
+
+        /* V88: Flash on Reorder / Type Change */
+        @keyframes blockFlash {
+            0%   { background: rgba(255, 215, 0, 0.15); }
+            100% { background: transparent; }
+        }
+        .block-wrapper.block-flash {
+            animation: blockFlash 0.45s ease-out;
+        }
+
+        /* Selection Box (rubber-band style) */
+        .block-selection-box {
+            position: absolute;
+            border: 1px dashed var(--main-color);
+            background: rgba(255, 255, 255, 0.04);
+            pointer-events: none;
+            z-index: 10;
+        }
         /* 3. The Content determines width */
         .block-content { 
             width: 100%; /* Default: span full width */
@@ -4395,9 +4499,10 @@
 
         .block-divider {
             border: none;
-            border-top: 1px dashed #222;
+            border-top: 1px dashed #666; /* V90: Brightened for visibility */
             margin: 24px 0;
             flex: 1;
+            width: auto; /* V91: Let flex handle width so button sits next to it */
         }
         
         /* V43: Divider wrapper and delete button */
@@ -4406,10 +4511,11 @@
             align-items: center;
             gap: 10px;
             position: relative;
+            flex: 1; /* V90: Allow wrapper to expand in parent flex container */
+            width: 100%; /* V90: Force full width */
         }
         .divider-delete-btn {
-            position: absolute;
-            right: 0;
+            position: relative; /* V91: No longer absolute */
             background: transparent;
             border: 1px solid var(--dim-color);
             color: var(--dim-color);
@@ -6081,6 +6187,21 @@
         </div>
     </div>
 
+    <!-- V87: GENERIC INPUT MODAL (used by ModalManager.openInput) -->
+    <div id="input-modal" class="modal">
+        <div class="config-header">
+            <span id="input-modal-title">INPUT //</span>
+            <span class="close-modal" id="input-modal-close">X</span>
+        </div>
+        <div style="padding: 20px; text-align: center;">
+            <input type="text" id="input-modal-field" class="config-input" placeholder="..." autocomplete="off"
+                style="width: 100%; margin-bottom: 15px; text-align: center;">
+            <div class="modal-actions" style="justify-content: center; gap: 10px;">
+                <button id="input-modal-cancel" class="btn">CANCEL</button>
+                <button id="input-modal-confirm" class="btn primary-btn">CONFIRM</button>
+            </div>
+        </div>
+    </div>
 
     <!-- THEME MODAL (V17) -->
     <div id="theme-modal" class="modal">
@@ -6186,13 +6307,18 @@
                         <div id="page-actions-menu" class="page-actions-menu">
                             <input type="text" id="page-actions-search" class="page-actions-search" placeholder="Search actions...">
                             <div class="page-actions-list">
+                                <div class="page-action-item" data-action="pin-toggle"><span>Pin Note</span><kbd>CMD+P</kbd></div>
                                 <div class="page-action-item" data-action="duplicate"><span>Duplicate Note</span><kbd>CMD+D</kbd></div>
                                 <div class="page-action-item" data-action="move-to"><span>Move to Folder</span><kbd>CMD+SHIFT+P</kbd></div>
                                 <div class="page-action-divider"></div>
+                                <div class="page-action-item" data-action="copy-content"><span>Copy Content</span></div>
                                 <div class="page-action-item" data-action="export-md"><span>Export as Markdown</span></div>
                                 <div class="page-action-item" data-action="import-md"><span>Import Markdown</span></div>
                                 <div class="page-action-divider"></div>
-                                <div class="page-action-item danger" data-action="trash"><span>Delete Note</span><kbd>CMD+SHIFT+D</kbd></div>
+                                <div class="page-action-item" data-action="convert-board"><span>Convert to Board</span></div>
+                                <div class="page-action-item" data-action="show-graph"><span>Show in Graph</span></div>
+                                <div class="page-action-divider"></div>
+                                <div class="page-action-item danger" data-action="trash"><span>Move to Trash</span><kbd>CMD+SHIFT+D</kbd></div>
                             </div>
                             <div class="page-actions-footer">
                                 <span id="page-action-word-count">0 words</span>
@@ -6237,19 +6363,14 @@
             <div style="display:flex; align-items:center; gap:15px; flex-grow:1; margin-left:20px;">
                 <input type="text" id="graph-search" placeholder="Filter nodes..." autocomplete="off"
                     style="width:200px; background:rgba(255,255,255,0.03); border:1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3); color:var(--main-color); padding:5px 10px; font-family:monospace; font-size:0.8rem; border-radius: 2px; outline: none;">
+                <button class="graph-mode-toggle" id="graph-mode-toggle">GLOBAL</button>
             </div>
             <span class="close-modal" id="graph-modal-close">X</span>
         </div>
         <div id="graph-container" style="flex-grow:1; position:relative; overflow:hidden; background:transparent;">
         </div>
-        <div class="graph-legend"
-            style="position:absolute; bottom:20px; right:20px; background:rgba(0,0,0,0.6); border:1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.2); backdrop-filter: blur(5px); padding:10px; font-size:0.7rem; color:#888; display:flex; gap:15px; pointer-events:none; z-index:10; border-radius: 4px;">
-            <div class="legend-item" style="display:flex; align-items:center; gap:5px;"><span class="dot"
-                    style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--main-color)"></span>
-                NOTE</div>
-            <div class="legend-item" style="display:flex; align-items:center; gap:5px;"><span class="dot"
-                    style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#444"></span> LINK
-            </div>
+        <div class="graph-legend" id="graph-legend"
+            style="position:absolute; bottom:20px; right:20px; background:rgba(0,0,0,0.6); border:1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.2); backdrop-filter: blur(5px); padding:10px; font-size:0.7rem; color:#888; display:flex; gap:15px; flex-wrap:wrap; pointer-events:none; z-index:10; border-radius: 4px;">
         </div>
     </div>
 

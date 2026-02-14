@@ -1,12 +1,11 @@
 import { State } from '../core/Store.js';
 import { saveData } from '../core/Storage.js';
 import { Notes } from '../modules/NotesController.js';
+import { PageManager, parseContentToBlocks } from '../editor/PageManager.js';
 import { TabManager } from './TabManager.js';
+import { ModalManager } from './ModalManager.js';
 
 // Helper to access globals that might be on window or imported
-// Ideally showNotification and showConfirmModal should be imported from a standard UI module or Utils.
-// For now, checking window or defining stub.
-
 function getShowNotification() {
     return window.showNotification || function(msg) { console.log('Notify:', msg); };
 }
@@ -17,8 +16,12 @@ function getShowConfirmModal() {
 
 export const PageActions = {
     isOpen: false,
+    highlightIndex: -1, // V87: Keyboard nav index
 
     init: function() {
+        if (this._initialized) return;
+        this._initialized = true;
+
         var self = this;
         var btn = document.getElementById('page-actions-btn');
         var menu = document.getElementById('page-actions-menu');
@@ -50,11 +53,65 @@ export const PageActions = {
             });
         }
         
-        // Search filter
+        // Search filter + V87: Keyboard navigation
         if (search) {
             search.addEventListener('input', function() {
                 self.filter(this.value);
+                self.highlightIndex = -1;
+                self.updateHighlight();
             });
+
+            search.addEventListener('keydown', function(e) {
+                var visible = self.getVisibleItems();
+                if (visible.length === 0) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    self.highlightIndex = Math.min(self.highlightIndex + 1, visible.length - 1);
+                    self.updateHighlight();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    self.highlightIndex = Math.max(self.highlightIndex - 1, 0);
+                    self.updateHighlight();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (self.highlightIndex >= 0 && self.highlightIndex < visible.length) {
+                        var action = visible[self.highlightIndex].dataset.action;
+                        self.execute(action);
+                        self.close();
+                    } else if (visible.length === 1) {
+                        // If only one result, execute it
+                        self.execute(visible[0].dataset.action);
+                        self.close();
+                    }
+                } else if (e.key === 'Escape') {
+                    self.close();
+                }
+            });
+        }
+    },
+
+    // V87: Get currently visible (non-hidden) action items (excludes dividers)
+    getVisibleItems: function() {
+        var items = document.querySelectorAll('.page-action-item:not(.page-action-divider)');
+        var visible = [];
+        items.forEach(function(item) {
+            if (item.style.display !== 'none') {
+                visible.push(item);
+            }
+        });
+        return visible;
+    },
+
+    // V87: Update keyboard highlight on menu items
+    updateHighlight: function() {
+        var items = document.querySelectorAll('.page-action-item');
+        items.forEach(function(item) { item.classList.remove('highlighted'); });
+        
+        var visible = this.getVisibleItems();
+        if (this.highlightIndex >= 0 && this.highlightIndex < visible.length) {
+            visible[this.highlightIndex].classList.add('highlighted');
+            visible[this.highlightIndex].scrollIntoView({ block: 'nearest' });
         }
     },
 
@@ -67,9 +124,13 @@ export const PageActions = {
         if (menu) {
             menu.classList.add('active');
             this.isOpen = true;
+            this.highlightIndex = -1;
             var search = document.getElementById('page-actions-search');
             if (search) { search.value = ''; search.focus(); }
             this.filter('');
+            
+            // V87: Update dynamic pin label
+            this.updatePinLabel();
             
             // V63.2: Populate footer with word count and last edited
             if (Notes.activeNoteId) {
@@ -98,15 +159,28 @@ export const PageActions = {
         if (menu) {
             menu.classList.remove('active');
             this.isOpen = false;
+            this.highlightIndex = -1;
         }
     },
 
     filter: function(query) {
         var items = document.querySelectorAll('.page-action-item');
+        var dividers = document.querySelectorAll('.page-action-divider');
         var q = query.toLowerCase();
+
+        // Hide/show action items based on query
         items.forEach(function(item) {
             var text = item.textContent.toLowerCase();
             item.style.display = text.includes(q) ? '' : 'none';
+        });
+
+        // V87: Hide dividers when searching, show when query is empty
+        dividers.forEach(function(div) {
+            if (q) {
+                div.style.display = 'none';
+            } else {
+                div.style.display = '';
+            }
         });
     },
 
@@ -127,14 +201,24 @@ export const PageActions = {
             case 'import-md':
                 this.importMarkdown();
                 break;
-            case 'move-to':
-                this.focusPathInput();
-                break;
             case 'word-count':
                 this.showWordCount();
                 break;
             case 'trash':
                 this.moveToTrash();
+                break;
+            // V87: New actions
+            case 'pin-toggle':
+                this.togglePin();
+                break;
+            case 'copy-content':
+                this.copyContent();
+                break;
+            case 'convert-board':
+                this.convertToBoard();
+                break;
+            case 'show-graph':
+                this.showInGraph();
                 break;
         }
     },
@@ -154,12 +238,10 @@ export const PageActions = {
         if (!Notes.activeNoteId) return;
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
         if (note) {
-            // V70: FIX DUPLICATE NOTE BUG
-            // Deep copy blocks to prevent reference issues
+            // V70: Deep copy blocks to prevent reference issues
             var newBlocks = [];
             if (note.blocks && note.blocks.length > 0) {
                 newBlocks = JSON.parse(JSON.stringify(note.blocks));
-                // Regenerate IDs for all blocks to maintain uniqueness
                 newBlocks.forEach(function(block) {
                     block.id = 'blk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
                 });
@@ -169,10 +251,10 @@ export const PageActions = {
                 id: Date.now().toString(),
                 title: note.title + ' (Copy)',
                 content: note.content,
-                blocks: newBlocks, // Assign the processed blocks
+                blocks: newBlocks,
                 path: note.path,
                 created: Date.now(),
-                updated: Date.now()
+                modified: Date.now()
             };
             
             State.NOTES.push(newNote);
@@ -183,15 +265,22 @@ export const PageActions = {
         }
     },
 
+    // V87: Replaced native prompt() with ModalManager.openInput()
     moveToFolder: function() {
-        // Open folder picker modal or prompt
-        var newPath = prompt('Enter new path (e.g. /Projects/Work):');
-        if (newPath && Notes.activeNoteId) {
-            Notes.moveNote(Notes.activeNoteId, newPath);
-            getShowNotification()('Moved to ' + newPath);
-        }
+        if (!Notes.activeNoteId) return;
+
+        ModalManager.openInput(
+            'MOVE_NOTE //',
+            'Enter new path (e.g. /Projects)',
+            function(newPath) {
+                if (newPath) {
+                    Notes.moveNote(Notes.activeNoteId, newPath);
+                }
+            }
+        );
     },
 
+    // V87: Gentler filename sanitization — preserves spaces, dashes, underscores
     exportMarkdown: function() {
         if (!Notes.activeNoteId) return;
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
@@ -200,37 +289,47 @@ export const PageActions = {
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
             a.href = url;
-            a.download = (note.title || 'note').replace(/[^a-z0-9]/gi, '_') + '.md';
+            a.download = (note.title || 'note').replace(/[^a-z0-9 \-_]/gi, '').trim() + '.md';
             a.click();
             URL.revokeObjectURL(url);
             getShowNotification()('Exported as Markdown');
         }
     },
 
+    // V87: Multi-file import support
     importMarkdown: function() {
         var input = document.createElement('input');
         input.type = 'file';
+        input.multiple = true;
         input.accept = '.md,.markdown,.txt';
         input.onchange = function(e) {
-            var file = e.target.files[0];
-            if (file) {
+            var files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            var importedCount = 0;
+            var lastNoteId = null;
+
+            files.forEach(function(file) {
                 var reader = new FileReader();
                 reader.onload = function(ev) {
                     var content = ev.target.result;
                     var title = file.name.replace(/\.[^.]+$/, '');
                     
-                    // V63.2: Split content into blocks by newlines
                     var blocks = [];
-                    var lines = content.split('\n');
-                    var now = Date.now();
-                    
-                    lines.forEach(function(line, idx) {
-                        blocks.push({
-                            id: 'block_' + now + '_' + idx,
-                            type: 'p',
-                            content: line
+                    var now = Date.now() + importedCount; // Offset to prevent ID collision
+                    // V88: Use robust parser to detect headings/lists/dividers etc.
+                    if (typeof parseContentToBlocks === 'function') {
+                        blocks = parseContentToBlocks(content);
+                    } else {
+                        // Fallback manual parse
+                        var lines = content.split('\n');
+                        lines.forEach(function(line, idx) {
+                            blocks.push({
+                                id: 'block_' + (Date.now() + importedCount) + '_' + idx,
+                                type: 'p',
+                                content: line
+                            });
                         });
-                    });
+                    }
                     
                     if (blocks.length === 0) {
                         blocks.push({ id: 'block_' + now, type: 'p', content: '' });
@@ -247,14 +346,19 @@ export const PageActions = {
                         pinned: false
                     };
                     State.NOTES.push(newNote);
-                    saveData();
+                    lastNoteId = newNote.id;
+                    importedCount++;
                     
-                    Notes.open(newNote.id);
-                    Notes.renderSidebar();
-                    getShowNotification()('Imported: ' + title);
+                    // When all files processed, save and render
+                    if (importedCount === files.length) {
+                        saveData();
+                        Notes.renderSidebar();
+                        if (lastNoteId) Notes.open(lastNoteId);
+                        getShowNotification()('Imported ' + importedCount + ' note' + (importedCount > 1 ? 's' : ''));
+                    }
                 };
                 reader.readAsText(file);
-            }
+            });
         };
         input.click();
     },
@@ -270,31 +374,126 @@ export const PageActions = {
         }
     },
 
+    // V87: Soft-delete — moves note to /.trash/ path instead of permanent splice
     moveToTrash: function() {
         if (!Notes.activeNoteId) return;
         getShowConfirmModal()(
-            'Delete Note',
-            'This note will be deleted. Continue?',
+            'TRASH_NOTE //',
+            'Move this note to Trash? You can recover it from the /.trash/ folder.',
             function() {
                 var noteIdToDelete = Notes.activeNoteId;
+                var note = State.NOTES.find(function(n) { return n.id === noteIdToDelete; });
                 
-                // Find and close the tab for this note
-                var tabIdx = TabManager.tabs.findIndex(t => t.noteId === noteIdToDelete);
-                if (tabIdx !== -1) {
-                    TabManager.closeTab(tabIdx);
-                }
-                
-                // Delete the note
-                var idx = State.NOTES.findIndex(n => n.id === noteIdToDelete);
-                if (idx !== -1) {
-                    State.NOTES.splice(idx, 1);
+                if (note) {
+                    // Move to trash path instead of permanently deleting
+                    note.path = '/.trash';
+                    note.modified = Date.now();
                     saveData();
+                    
+                    // Close tab for this note
+                    var tabIdx = TabManager.tabs.findIndex(function(t) { return t.noteId === noteIdToDelete; });
+                    if (tabIdx !== -1) {
+                        TabManager.closeTab(tabIdx);
+                    }
+                    
                     Notes.renderSidebar();
+                    getShowNotification()('Moved to Trash');
                 }
-                
-                getShowNotification()('Note deleted');
             }
         );
+    },
+
+    // V87: Pin/Unpin toggle from menu
+    togglePin: function() {
+        if (!Notes.activeNoteId) return;
+        var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
+        if (note) {
+            note.pinned = !note.pinned;
+            saveData();
+            Notes.renderSidebar();
+            
+            // Update header pin button
+            var pinBtn = document.getElementById('pin-note-btn');
+            if (pinBtn) pinBtn.textContent = note.pinned ? 'UNPIN' : 'PIN';
+            
+            getShowNotification()(note.pinned ? 'Note pinned' : 'Note unpinned');
+        }
+    },
+
+    // V87: Update pin label text dynamically when menu opens
+    updatePinLabel: function() {
+        var item = document.querySelector('[data-action="pin-toggle"] span');
+        if (!item) return;
+        if (!Notes.activeNoteId) return;
+        var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
+        if (note) {
+            item.textContent = note.pinned ? 'Unpin Note' : 'Pin Note';
+        }
+    },
+
+    // V87: Copy raw markdown content to clipboard
+    copyContent: function() {
+        if (!Notes.activeNoteId) return;
+        var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
+        if (note && note.content) {
+            navigator.clipboard.writeText(note.content).then(function() {
+                getShowNotification()('Content copied to clipboard');
+            });
+        } else {
+            getShowNotification()('No content to copy');
+        }
+    },
+
+    // V87: Convert current note's task blocks into a Kanban board
+    convertToBoard: function() {
+        if (!Notes.activeNoteId) return;
+        if (typeof KanbanManager === 'undefined' && typeof window.KanbanManager === 'undefined') {
+            getShowNotification()('Board system not available');
+            return;
+        }
+        var KM = window.KanbanManager || KanbanManager;
+        var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
+        if (!note) return;
+
+        // Create a board with the note's name
+        var board = KM.createBoard(note.title || 'Untitled Board');
+
+        // Find task blocks and create cards for them
+        if (note.blocks && note.blocks.length > 0) {
+            var defaultColumn = board.columns && board.columns.length > 0 ? board.columns[0] : null;
+            note.blocks.forEach(function(block) {
+                if (block.type === 'todo' || block.type === 'task') {
+                    if (defaultColumn) {
+                        defaultColumn.cards = defaultColumn.cards || [];
+                        defaultColumn.cards.push({
+                            id: 'card_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                            content: block.content || '',
+                            created: Date.now()
+                        });
+                    }
+                }
+            });
+        }
+
+        KM.open(board.id);
+        Notes.renderSidebar();
+        getShowNotification()('Board created from "' + note.title + '"');
+    },
+
+    // V87: Open graph view focused on current note
+    showInGraph: function() {
+        if (!Notes.activeNoteId) return;
+        // Open the graph modal
+        if (typeof ModalManager !== 'undefined') {
+            ModalManager.open('graph-modal');
+        }
+        // Set the graph to local mode focused on this note
+        // The graph init code checks for Notes.activeNoteId
+        var modeBtn = document.getElementById('graph-mode-toggle');
+        if (modeBtn && modeBtn.textContent === 'GLOBAL') {
+            modeBtn.click(); // Switch to LOCAL to focus on active note
+        }
+        getShowNotification()('Graph focused on current note');
     },
 
     focusPathInput: function() {

@@ -22,6 +22,7 @@ export const Notes = {
     selectedNotes: [], // Multi-select for batch delete
     isSelectionMode: false,
     expandedFolders: [], // Track open folders
+    explicitFolders: [], // V87: Persist empty folders
     graphLayout: {}, // Store node positions {id: {x, y}}
     
     // V3.5: Markdown Preview
@@ -60,6 +61,52 @@ export const Notes = {
         // If #notes-panel is the "Quick Notes" list, it should probably be visible if sidebar is open.
         // I will rely on CSS structure: if sidebar is collapsed, content is hidden.
         // So just toggling sidebar class is sufficient.
+    },
+
+    // V86: Plain-text preview extractor for Quick Notes teaser
+    getPlainTextPreview: function(text) {
+        if (!text) return '';
+        var t = text;
+        // Strip code fences
+        t = t.replace(/```[\w]*\n[\s\S]*?```/g, '');
+        // Strip images
+        t = t.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
+        // Strip kanban markers
+        t = t.replace(/%%KANBAN:[^%]+%%/g, '');
+        t = t.replace(/\[\[KANBAN:[^\]]+\]\]/g, '');
+        // Strip dividers
+        t = t.replace(/^---$/gm, '');
+        // Strip headers (keep text)
+        t = t.replace(/^#{1,6}\s+/gm, '');
+        // Strip blockquotes (keep text)
+        t = t.replace(/^>\s?/gm, '');
+        // Strip task markers (keep text)
+        t = t.replace(/^\s*- \[[ x]\]\s*/gm, '');
+        // Strip bullet markers (keep text)
+        t = t.replace(/^\s*[-*]\s+/gm, '');
+        // Strip numbered list markers (keep text)
+        t = t.replace(/^\s*\d+\.\s+/gm, '');
+        // Strip links [text](url) → text
+        t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        // Strip wiki links [[title|label]] → label, [[title]] → title
+        t = t.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '$2');
+        t = t.replace(/\[\[([^\]]+)\]\]/g, '$1');
+        // Strip bold/italic markers
+        t = t.replace(/\*\*(.+?)\*\*/g, '$1');
+        t = t.replace(/\*(.+?)\*/g, '$1');
+        // Strip underline tags
+        t = t.replace(/<\/?u>/g, '');
+        // Strip inline code backticks
+        t = t.replace(/`([^`]+)`/g, '$1');
+        // Strip alignment markers
+        t = t.replace(/%%align:(left|center|right)%%/g, '');
+        // Strip table rows (lines starting/ending with |)
+        t = t.replace(/^\|.*\|$/gm, '');
+        // Collapse whitespace
+        t = t.replace(/\n{2,}/g, ' · ');
+        t = t.replace(/\n/g, ' ');
+        t = t.replace(/\s{2,}/g, ' ');
+        return t.trim().substring(0, 150);
     },
 
     renderNotes: function() {
@@ -117,8 +164,8 @@ export const Notes = {
                 '<span class="note-item-meta">' + dateStr + time + '</span>' +
                 '</div>';
 
-            // Teaser (Truncated Content)
-            var teaserHtml = '<div class="note-item-teaser">' + safeText(contentDisplay) + '</div>';
+            // V86: Plain-text teaser preview
+            var teaserHtml = '<div class="note-item-teaser">' + safeText(Notes.getPlainTextPreview(contentDisplay)) + '</div>';
 
             div.innerHTML = headerHtml + teaserHtml;
 
@@ -146,8 +193,13 @@ export const Notes = {
 
             var layout = localStorage.getItem('VINLAND_GRAPH_LAYOUT');
             if (layout) this.graphLayout = JSON.parse(layout);
+
+            // V87: Load explicit (empty-safe) folders
+            var folders = localStorage.getItem('VINLAND_EXPLICIT_FOLDERS');
+            if (folders) this.explicitFolders = JSON.parse(folders);
         } catch (e) {
             this.expandedFolders = [];
+            this.explicitFolders = [];
             this.graphLayout = {};
         }
 
@@ -249,9 +301,32 @@ export const Notes = {
                  var sidebar = document.querySelector('.notes-sidebar');
                  if(sidebar) {
                      sidebar.classList.toggle('collapsed');
-                     // Update button text? Or assume CSS handles visuals
                  }
              };
+        }
+
+        // V87: Path input change listener — persist path when user edits it
+        var pathInput = document.getElementById('note-current-path');
+        if (pathInput) {
+            pathInput.addEventListener('change', function() {
+                if (!self.activeNoteId) return;
+                var newPath = pathInput.value.trim();
+                if (!newPath) newPath = '/';
+                // Ensure leading slash
+                if (!newPath.startsWith('/')) newPath = '/' + newPath;
+                // Strip trailing slash (unless root)
+                if (newPath.length > 1 && newPath.endsWith('/')) newPath = newPath.slice(0, -1);
+                // V87: /root is the display name for actual root path /
+                if (newPath === '/root') newPath = '/';
+                self.moveNote(self.activeNoteId, newPath);
+            });
+            // Also commit on Enter key
+            pathInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    pathInput.blur(); // triggers change event
+                }
+            });
         }
 
         var maxBtn = document.getElementById('note-maximize-btn');
@@ -295,15 +370,37 @@ export const Notes = {
         var addFolderBtn = document.getElementById('add-folder-btn-sidebar');
         if(addFolderBtn) {
             addFolderBtn.onclick = function() {
-                var name = prompt("New Folder Name:");
-                if(name) {
-                    // Logic to create empty folder? 
-                    // File system creates folders implicitly by path.
-                    // We can create a placeholder note inside?
-                    // Or just let user manage paths in note creation.
-                    // Legacy behavior: Vinland didn't have strict empty folders unless represented by object.
-                    // We'll create a "README" in that folder to init it.
-                    self.create('README', '/' + sanitizePath(name));
+                // V87: Use existing folder-create-modal from index.html
+                var modal = document.getElementById('folder-create-modal');
+                var input = document.getElementById('folder-name-input');
+                var confirmBtn = document.getElementById('folder-modal-confirm');
+                var cancelBtn = document.getElementById('folder-modal-cancel');
+                var closeBtn = document.getElementById('folder-modal-close');
+                
+                if (modal && input && ModalManager) {
+                    input.value = '';
+                    ModalManager.open('folder-create-modal');
+                    setTimeout(function() { input.focus(); }, 50);
+                    
+                    confirmBtn.onclick = function() {
+                        var name = input.value.trim();
+                        if (name) {
+                            var folderPath = '/' + sanitizePath(name);
+                            self.registerFolder(folderPath); // V87: Persist empty folder
+                            self.create('README', folderPath);
+                            ModalManager.close('folder-create-modal');
+                        }
+                    };
+                    cancelBtn.onclick = function() {
+                        ModalManager.close('folder-create-modal');
+                    };
+                    if (closeBtn) closeBtn.onclick = function() {
+                        ModalManager.close('folder-create-modal');
+                    };
+                    input.onkeydown = function(e) {
+                        if (e.key === 'Enter') confirmBtn.click();
+                        if (e.key === 'Escape') cancelBtn.click();
+                    };
                 }
             };
         }
@@ -312,11 +409,13 @@ export const Notes = {
         if(addBoardBtn) {
              addBoardBtn.onclick = function() {
                  if(typeof KanbanManager !== 'undefined') {
-                     var name = prompt("New Board Name:");
-                     if(name) {
-                         var board = KanbanManager.createBoard(name);
-                         KanbanManager.open(board.id);
-                         self.renderSidebar(); // Update boards list
+                     // V87: Use custom input modal instead of native prompt()
+                     if (typeof ModalManager !== 'undefined' && ModalManager.openInput) {
+                         ModalManager.openInput('NEW_BOARD //', 'board_name', function(name) {
+                             var board = KanbanManager.createBoard(name);
+                             KanbanManager.open(board.id);
+                             self.renderSidebar();
+                         });
                      }
                  }
              };
@@ -499,7 +598,7 @@ export const Notes = {
             if (blockEditorEl) blockEditorEl.style.display = 'none';
             if (preview) {
                 if (PageManager) PageManager.syncContent(note.id);
-                preview.innerHTML = this.renderMarkdown(note.content || '');
+                preview.innerHTML = Notes.renderMarkdown(note.content || '');
                 preview.classList.add('active');
                 preview.style.display = 'block';
             }
@@ -548,17 +647,14 @@ export const Notes = {
     },
 
     create: function (initialTitle, initialPath) {
-        // V76: Enforce Untitled Note Guard for ALL creation entry points
+        // V87: Enforce Untitled Note Guard for ALL creation entry points
+        // Catches both empty titles AND the default 'Untitled' title
         if (this.activeNoteId) {
             var currentNote = State.NOTES.find(function(n) { return n.id === Notes.activeNoteId; });
-            if (currentNote && (!currentNote.title || currentNote.title.trim() === '')) {
-                // If the current note is empty (no content, no unique blocks), we might just allow reusing it?
-                // But specifically user asked for the Guard.
-                // Guard: "Infinite untitled files" prevention.
-                
-                // Allow creation if we passed a specific title (e.g. Daily Note)
+            if (currentNote && (!currentNote.title || currentNote.title.trim() === '' || currentNote.title.trim() === 'Untitled')) {
+                // Allow creation if we passed a specific title (e.g. Daily Note, README)
                 if (!initialTitle) {
-                    if (typeof showNotification === 'function') showNotification('Please name your current note first');
+                    if (typeof showNotification === 'function') showNotification('NAME_CURRENT_NOTE // before creating another');
                     var titleInput = document.getElementById('active-note-title');
                     if (titleInput) titleInput.focus();
                     return;
@@ -662,6 +758,130 @@ export const Notes = {
         this.updateWordCount();
     },
 
+    // V87: Persist folder expand/collapse state (called by Sidebar.js)
+    saveExpandedState: function() {
+        localStorage.setItem('OPERATOR_EXPANDED_FOLDERS', JSON.stringify(this.expandedFolders));
+    },
+
+    // V87: Register an explicit folder so it persists even when empty
+    registerFolder: function(path) {
+        if (!path || path === '/') return;
+        if (this.explicitFolders.indexOf(path) === -1) {
+            this.explicitFolders.push(path);
+            localStorage.setItem('VINLAND_EXPLICIT_FOLDERS', JSON.stringify(this.explicitFolders));
+        }
+    },
+
+    // V87: Unregister an explicit folder
+    unregisterFolder: function(path) {
+        var idx = this.explicitFolders.indexOf(path);
+        if (idx !== -1) {
+            this.explicitFolders.splice(idx, 1);
+            // Also remove any subfolders
+            this.explicitFolders = this.explicitFolders.filter(function(f) {
+                return !(f.startsWith(path + '/'));
+            });
+            localStorage.setItem('VINLAND_EXPLICIT_FOLDERS', JSON.stringify(this.explicitFolders));
+        }
+    },
+
+    // V87: Move note to a new path
+    moveNote: function(noteId, newPath) {
+        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        if (!note) return;
+
+        note.path = newPath;
+        note.modified = Date.now();
+        saveData();
+
+        this.renderSidebar();
+
+        // Update path display if this is the active note
+        if (this.activeNoteId === noteId) {
+            var pathEl = document.getElementById('note-current-path');
+            if (pathEl) pathEl.value = newPath === '/' ? '/root' : newPath;
+        }
+
+        if (window.showNotification) {
+            window.showNotification('Moved to ' + newPath);
+        }
+    },
+
+    // V87: Move an entire folder (and all notes under it) to a new parent path
+    moveFolder: function(oldPath, newParentPath) {
+        if (!oldPath || oldPath === '/') return;
+
+        // Get folder name from oldPath
+        var pathParts = oldPath.split('/').filter(Boolean);
+        var folderName = pathParts[pathParts.length - 1];
+
+        // Construct new path
+        var newPath = (newParentPath === '/' ? '' : newParentPath) + '/' + folderName;
+
+        // Prevent moving folder into itself
+        if (newPath.startsWith(oldPath + '/') || newPath === oldPath) {
+            if (window.showNotification) window.showNotification('CANNOT_MOVE // folder into itself');
+            return;
+        }
+
+        var changed = false;
+        State.NOTES.forEach(function(note) {
+            if (note.path === oldPath || note.path.startsWith(oldPath + '/')) {
+                note.path = newPath + note.path.substring(oldPath.length);
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            saveData();
+            this.renderSidebar();
+            if (window.showNotification) window.showNotification('Folder moved to ' + newParentPath);
+        }
+    },
+
+    // V87: Delete a folder and all notes within it
+    deleteFolder: function(path) {
+        if (!path || path === '/') return;
+
+        var self = this;
+        var confirmFn = window.showConfirmModal || function(t, m, y) { if (confirm(t + '\n' + m)) y(); };
+
+        // Count notes in folder
+        var noteCount = State.NOTES.filter(function(n) {
+            return n.path === path || n.path.startsWith(path + '/');
+        }).length;
+
+        confirmFn(
+            'DELETE_FOLDER',
+            'Permanently delete "' + path + '"?' + (noteCount > 0 ? ' (' + noteCount + ' note' + (noteCount !== 1 ? 's' : '') + ' will be removed)' : ''),
+            function() {
+                // V87: Always unregister from explicit folders
+                self.unregisterFolder(path);
+
+                if (noteCount > 0) {
+                    State.NOTES = State.NOTES.filter(function(n) {
+                        return !(n.path === path || n.path.startsWith(path + '/'));
+                    });
+                    if (typeof window.State !== 'undefined') window.State.NOTES = State.NOTES;
+                    saveData();
+
+                    // If active note was in deleted folder, reset
+                    if (self.activeNoteId) {
+                        var activeExists = State.NOTES.find(function(n) { return n.id === self.activeNoteId; });
+                        if (!activeExists) {
+                            self.activeNoteId = null;
+                            if (State.NOTES.length > 0) {
+                                self.open(State.NOTES[0].id);
+                            }
+                        }
+                    }
+                }
+                self.renderSidebar();
+                if (window.showNotification) window.showNotification('Folder deleted');
+            }
+        );
+    },
+
     autoSave: function () {
         var status = document.getElementById('save-status');
         if (status) {
@@ -694,7 +914,7 @@ export const Notes = {
             // Sync blocks to text before rendering
             if (typeof PageManager !== 'undefined' && PageManager.syncContent) PageManager.syncContent(this.activeNoteId);
             
-            preview.innerHTML = this.renderMarkdown(note.content || '');
+            preview.innerHTML = Notes.renderMarkdown(note.content || '');
             preview.classList.add('active');
             preview.style.display = 'block';
             editor.style.display = 'none';
@@ -850,7 +1070,7 @@ export const Notes = {
     },
     
     // Markdown Rendering Engine
-    renderMarkdown: function (text) {
+    renderMarkdown: function (text, isTeaser) {
         var self = this;
         var html = text || '';
 
@@ -876,19 +1096,19 @@ export const Notes = {
                     calcHtml += '</div>';
                     
                     codeBlocks.push(calcHtml);
-                    return '%%CODE_BLOCK_' + idx + '%%';
+                    return isTeaser ? '<span class="teaser-tag">[CALC]</span> ' : '%%CODE_BLOCK_' + idx + '%%';
                 }
 
                 // V78: Use BlockEditor.highlightSyntax if available for same look
                 if (typeof BlockEditor !== 'undefined' && BlockEditor.highlightSyntax) {
                     var highlighted = BlockEditor.highlightSyntax(code, lang);
                     codeBlocks.push('<pre class="block-code"><code class="code-inner language-' + (lang || 'plain') + '">' + highlighted + '</code><span class="code-lang-label">' + (lang || 'plain').toUpperCase() + '</span></pre>');
-                    return '%%CODE_BLOCK_' + idx + '%%';
+                    return isTeaser ? '<span class="teaser-tag">[CODE: ' + (lang || 'TEXT') + ']</span> ' : '%%CODE_BLOCK_' + idx + '%%';
                 }
 
                 var escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 codeBlocks.push('<pre class="block-code"><code class="code-inner language-' + (lang || 'plain') + '">' + escapedCode + '</code><span class="code-lang-label">' + (lang || 'plain').toUpperCase() + '</span></pre>');
-                return '%%CODE_BLOCK_' + idx + '%%';
+                return isTeaser ? '<span class="teaser-tag">[CODE]</span> ' : '%%CODE_BLOCK_' + idx + '%%';
             });
             
             // Extract image blocks BEFORE HTML escape to preserve base64 URLs
@@ -896,7 +1116,7 @@ export const Notes = {
             html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, url) {
                 var idx = imageBlocks.length;
                 imageBlocks.push('<div class="preview-image-container"><img src="' + url + '" alt="' + alt + '" class="preview-img"><div class="preview-image-caption">' + alt + '</div></div>');
-                return '%%IMAGE_BLOCK_' + idx + '%%';
+                return isTeaser ? '<span class="teaser-tag">[IMAGE]</span> ' : '%%IMAGE_BLOCK_' + idx + '%%';
             });
             
             // Extract Kanban blocks BEFORE HTML escape
@@ -906,14 +1126,14 @@ export const Notes = {
                 var idx = kanbanBlocks.length;
                 var hudHtml = self.getKanbanPreviewHtml(id);
                 kanbanBlocks.push(hudHtml);
-                return '%%KANBAN_BLOCK_' + idx + '%%';
+                return isTeaser ? '<span class="teaser-tag">[KANBAN: ' + title + ']</span> ' : '%%KANBAN_BLOCK_' + idx + '%%';
             });
             // Also handle fallback format [[KANBAN:id]]
             html = html.replace(/\[\[KANBAN:([^\]]+)\]\]/g, function(match, id) {
                 var idx = kanbanBlocks.length;
                 var hudHtml = self.getKanbanPreviewHtml(id);
                 kanbanBlocks.push(hudHtml);
-                return '%%KANBAN_BLOCK_' + idx + '%%';
+                return isTeaser ? '<span class="teaser-tag">[KANBAN]</span> ' : '%%KANBAN_BLOCK_' + idx + '%%';
             });
             
             // Alignment Marker Extraction
@@ -954,7 +1174,7 @@ export const Notes = {
                 var level = (indent.length / 2);
     
                 return '<div class="block-task-preview" style="margin-left:' + (level * 20) + 'px; opacity:' + (isChecked ? '0.5' : '1') + '">' + 
-                       '<input type="checkbox" class="task-checkbox" ' + (isChecked ? 'checked' : '') + ' data-task-index="' + (taskIndex++) + '">' +
+                       '<input type="checkbox" class="task-checkbox-inline" ' + (isChecked ? 'checked' : '') + ' data-task-index="' + (taskIndex++) + '">' +
                        '<span>' + content + '</span>' + 
                        '</div>';
             });
@@ -1030,7 +1250,7 @@ export const Notes = {
                     }
                 } else {
                     if (inTable && tableLines.length > 0) {
-                        outputLines.push(processTableLines(tableLines));
+                        if (isTeaser) outputLines.push('<span class="teaser-tag">[TABLE]</span>'); else outputLines.push(processTableLines(tableLines));
                         tableLines = [];
                         inTable = false;
                     }
@@ -1038,7 +1258,7 @@ export const Notes = {
                 }
             }
             if (inTable && tableLines.length > 0) {
-                outputLines.push(processTableLines(tableLines));
+                if (isTeaser) outputLines.push('<span class="teaser-tag">[TABLE]</span>'); else outputLines.push(processTableLines(tableLines));
             }
             
             function processTableLines(tLines) {
@@ -1532,7 +1752,7 @@ export function renderNotes() {
         var titleText = item.note.title || (contentDisplay ? contentDisplay.split('\n')[0].substring(0, 20) : 'Untitled');
         
         div.innerHTML = '<div class="note-item-header"><span class="note-item-title-quick">' + safeText(titleText) + '</span></div>' +
-                        '<div class="note-item-teaser">' + safeText(contentDisplay) + '</div>';
+                        '<div class="note-item-teaser">' + safeText(Notes.getPlainTextPreview(contentDisplay)) + '</div>';
 
         div.addEventListener('click', function () {
             Notes.open(item.note.id);

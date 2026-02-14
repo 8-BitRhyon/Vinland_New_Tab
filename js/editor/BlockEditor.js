@@ -536,7 +536,12 @@ export const BlockEditor = {
         this.container = document.getElementById(containerId);
         if (!this.container) return;
 
-        this.container.addEventListener('keydown', this.handleKeydown.bind(this));
+        // V88: Listen on document to catch keys even when focus is lost (e.g. after drag-select blur)
+        document.addEventListener('keydown', function(e) {
+            if (self.container && self.container.offsetParent !== null) {
+                self.handleKeydown(e);
+            }
+        });
         this.container.addEventListener('input', this.handleInput.bind(this));
         this.container.addEventListener('click', this.handleClick.bind(this));
         this.container.addEventListener('paste', this.handlePaste.bind(this));
@@ -707,6 +712,11 @@ export const BlockEditor = {
         var el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-content');
         if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .task-text');
         if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .code-inner');
+        if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-divider-wrapper');
+        if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-image-wrapper');
+        if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-image'); // Fallback
+        if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .kanban-hud-wrapper');
+        if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-table');
         if (el) {
             el.focus();
             var range = document.createRange();
@@ -971,7 +981,9 @@ export const BlockEditor = {
             case 'image':
                 content = document.createElement('div');
                 content.classList.add('block-image');
+                content.classList.add('block-image');
                 content.contentEditable = false;
+                content.tabIndex = 0; // V88: Allow focus for keyboard delete
                 var innerWrapper = document.createElement('div');
                 innerWrapper.className = 'image-inner-wrapper';
                 var img = document.createElement('img');
@@ -1003,7 +1015,9 @@ export const BlockEditor = {
             case 'kanban_ref':
                 content = document.createElement('div');
                 content.classList.add('kanban-hud-wrapper'); 
+                content.classList.add('kanban-hud-wrapper'); 
                 content.contentEditable = false;
+                content.tabIndex = 0; // V88: Allow focus for keyboard delete
                 var BOARDS = State.BOARDS || [];
                 var board = BOARDS.find(function(b) { return b.id === block.boardId; });
                 
@@ -1170,7 +1184,9 @@ export const BlockEditor = {
             case 'table':
                 content = document.createElement('div');
                 content.classList.add('block-table');
+                content.classList.add('block-table');
                 content.contentEditable = false;
+                content.tabIndex = 0; // V88: Allow focus for keyboard delete
                 
                 // Initialize tableData if missing
                 if (!block.tableData) {
@@ -1481,7 +1497,9 @@ export const BlockEditor = {
             case 'divider':
                 content = document.createElement('div');
                 content.classList.add('block-divider-wrapper');
+                content.classList.add('block-divider-wrapper');
                 content.contentEditable = false;
+                content.tabIndex = 0; // V88: Allow focus for keyboard delete
                 var hr = document.createElement('hr');
                 hr.className = 'block-divider';
                 var deleteBtn = document.createElement('button');
@@ -1506,6 +1524,13 @@ export const BlockEditor = {
     },
 
     handleKeydown: function (e) {
+        // V88: Guard - Only run if editor is open
+        if (!this.container || this.container.offsetParent === null) return;
+        
+        // V88: Scope Guard - If no selection, only handle if target is inside editor
+        // If there IS a selection, we handle it globally (because drag-select blurs focus to body)
+        if (this.selectedBlockIds.length === 0 && !this.container.contains(e.target)) return;
+
         if (e.key === 'Escape' && this.selectedBlockIds.length > 0) {
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -1579,6 +1604,29 @@ export const BlockEditor = {
         if ((e.key === 'Backspace' || e.key === 'Delete') && this.selectedBlockIds.length >= 1) {
             // Only intercept if we have multi-select OR if focus is outside editable content
             if (!isEditingContent || this.selectedBlockIds.length > 1) {
+                e.preventDefault();
+                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                if (!page) return;
+                
+                // V88: Handle delete for single focused non-editable block
+                if (this.selectedBlockIds.length === 0) {
+                     var blockEl = e.target.closest('.block-wrapper');
+                     if (blockEl) {
+                         var bType = blockEl.getAttribute('data-block-type');
+                         // If it's a non-text block (divider, image, etc) that has focus
+                         if (['divider', 'image', 'table', 'kanban_ref'].includes(bType)) {
+                             var bId = blockEl.getAttribute('data-block-id');
+                             if (bId) {
+                                  PageManager.deleteBlock(BlockEditor.activePageId, bId);
+                                  this.render(this.activePageId);
+                                  saveData();
+                                  return;
+                             }
+                         }
+                     }
+                }
+
+                // Delete all selected blocks
                 e.preventDefault();
                 var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
                 if (!page) return;
@@ -1716,6 +1764,7 @@ export const BlockEditor = {
                     page.blocks[idx] = temp;
                     this.render(this.activePageId);
                     this.focusBlock(blockId);
+                    this.flashBlock(blockId);
                     saveData(); // V80: Persist logic
                 } else if (e.key === 'ArrowDown' && idx < page.blocks.length - 1) {
                     var temp = page.blocks[idx + 1];
@@ -1723,6 +1772,7 @@ export const BlockEditor = {
                     page.blocks[idx] = temp;
                     this.render(this.activePageId);
                     this.focusBlock(blockId);
+                    this.flashBlock(blockId);
                     saveData(); // V80: Persist logic
                 }
             }
@@ -1913,6 +1963,60 @@ export const BlockEditor = {
         }
     },
 
+    // V88: Flash a block briefly (visual feedback for reorder / type change)
+    flashBlock: function(blockId) {
+        var el = this.container.querySelector('[data-block-id="' + blockId + '"]');
+        if (!el) return;
+        el.classList.remove('block-flash');
+        // Force reflow so re-adding the class restarts the animation
+        void el.offsetWidth;
+        el.classList.add('block-flash');
+        el.addEventListener('animationend', function handler() {
+            el.classList.remove('block-flash');
+            el.removeEventListener('animationend', handler);
+        });
+    },
+
+    // V88: Markdown Input Rules — auto-convert paragraph blocks on trigger patterns
+    checkInputRules: function(blockId, content) {
+        var rules = [
+            { pattern: /^### $/, type: 'h3',       strip: '### ' },
+            { pattern: /^## $/,  type: 'h2',       strip: '## ' },
+            { pattern: /^# $/,   type: 'h1',       strip: '# ' },
+            { pattern: /^- $/,   type: 'bullet',   strip: '- ' },
+            { pattern: /^\* $/,  type: 'bullet',   strip: '* ' },
+            { pattern: /^1\. $/,  type: 'numbered', strip: '1. ' },
+            { pattern: /^> $/,   type: 'quote',    strip: '> ' },
+            { pattern: /^\[\] $/, type: 'task',     strip: '[] ' },
+            { pattern: /^\[ \] $/,type: 'task',     strip: '[ ] ' },
+            { pattern: /^---$/,  type: 'divider',   strip: '---' }
+        ];
+
+        for (var i = 0; i < rules.length; i++) {
+            if (rules[i].pattern.test(content)) {
+                var remaining = content.replace(rules[i].strip, '');
+                var updates = { type: rules[i].type, content: remaining };
+                if (rules[i].type === 'task') updates.checked = false;
+                PageManager.updateBlock(this.activePageId, blockId, updates);
+                this.render(this.activePageId);
+                if (rules[i].type === 'divider') {
+                    // Add a new empty paragraph after divider and focus it
+                    var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                    if (page) {
+                        var newBlock = PageManager.addBlock(page, 'p', '', blockId);
+                        this.render(this.activePageId);
+                        if (newBlock) this.focusBlock(newBlock.id);
+                    }
+                } else {
+                    this.focusBlock(blockId);
+                }
+                this.flashBlock(blockId);
+                return true; // Rule matched
+            }
+        }
+        return false;
+    },
+
     handleInput: function (e) {
         var blockEl = e.target.closest('.block-wrapper');
         if (!blockEl) return;
@@ -1922,6 +2026,13 @@ export const BlockEditor = {
         
         // V77: Use innerText to preserve newlines for Code Blocks etc.
         var newContent = e.target.innerText || '';
+        
+        // V88: Markdown Input Rules (only on paragraph blocks) - CHECK FIRST
+        // Fix race condition where '---' saved as content before converting to divider
+        if (blockType === 'p') {
+            if (this.checkInputRules(blockId, newContent)) return;
+        }
+
         PageManager.updateBlock(this.activePageId, blockId, { content: newContent });
         
         if (typeof SlashMenu !== 'undefined' && SlashMenu.visible) {
@@ -1950,7 +2061,13 @@ export const BlockEditor = {
         if (this.selectedBlockIds && this.selectedBlockIds.length > 0) return;
         var blockEl = e.target.closest('.block-wrapper');
         if (blockEl) {
-            this.focusedBlockId = blockEl.getAttribute('data-block-id');
+            var id = blockEl.getAttribute('data-block-id');
+            this.focusedBlockId = id;
+            var type = blockEl.getAttribute('data-block-type');
+            // V88: Explicitly focus non-editable blocks to enable keyboard delete
+            if (['divider', 'image', 'table', 'kanban_ref'].includes(type)) {
+                this.focusBlock(id);
+            }
         } else {
              // Clicked outside blocks (empty space at bottom)
              // Check if last block is non-text or the list is empty

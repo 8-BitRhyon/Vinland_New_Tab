@@ -8,18 +8,42 @@ export const GraphManager = {
     svg: null,
     width: 0,
     height: 0,
-    containerId: 'graph-container', // Matches HTML
-    
+    containerId: 'graph-container',
+    isLocalMode: false, // V87: Local Focus Mode state
+
     init: function() {
         // Initial setup if needed
     },
 
     open: function() {
         ModalManager.open('graph-modal');
+        // V87: Bind toggle button (CSP-safe, no inline onclick)
+        var toggleBtn = document.getElementById('graph-mode-toggle');
+        if (toggleBtn) {
+            var self = this;
+            toggleBtn.onclick = function() { self.toggleLocalMode(); };
+        }
         // V61: Longer delay + safety fallback to ensure layout is ready
         setTimeout(() => {
             this.render();
         }, 300);
+    },
+
+    // V87: Toggle between Global and Local (1-degree neighbor) view
+    toggleLocalMode: function() {
+        this.isLocalMode = !this.isLocalMode;
+        var btn = document.getElementById('graph-mode-toggle');
+        if (btn) {
+            btn.textContent = this.isLocalMode ? 'LOCAL' : 'GLOBAL';
+            btn.classList.toggle('active', this.isLocalMode);
+        }
+        this.render();
+    },
+
+    // V87: Helper — calculate node radius from degree
+    getNodeRadius: function(node) {
+        var base = node.type === 'board' ? 8 : 5;
+        return base + (Math.sqrt(node.degree || 0) * 3);
     },
 
     render: function() {
@@ -43,7 +67,7 @@ export const GraphManager = {
         var validNotes = State.NOTES.filter(n => n.title && n.title !== 'Untitled');
         
         // Map Notes to Nodes
-        var nodes = validNotes.map(n => ({
+        var allNodes = validNotes.map(n => ({
             id: n.id,
             name: n.title,
             type: 'note',
@@ -54,13 +78,12 @@ export const GraphManager = {
         // Add Boards if available
         if (typeof window.BOARDS !== 'undefined' && Array.isArray(window.BOARDS)) {
             window.BOARDS.forEach(b => {
-                 nodes.push({ id: b.id, name: b.title, type: 'board', group: 'BOARD', val: 2 });
+                 allNodes.push({ id: b.id, name: b.title, type: 'board', group: 'BOARD', val: 2 });
             });
         }
 
-        console.log('[Graph] Nodes:', nodes.length);
-
-        var links = [];
+        // Generate all links
+        var allLinks = [];
         var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
 
         validNotes.forEach(source => {
@@ -78,14 +101,12 @@ export const GraphManager = {
                 var target = validNotes.find(n => n.title && n.title.trim().toLowerCase() === targetTitle);
                 
                 if (target && target.id !== source.id) {
-                    // Check if both exist in nodes
-                    var sourceExists = nodes.some(n => n.id === source.id);
-                    var targetExists = nodes.some(n => n.id === target.id);
+                    var sourceExists = allNodes.some(n => n.id === source.id);
+                    var targetExists = allNodes.some(n => n.id === target.id);
                     
                     if (sourceExists && targetExists) {
-                         // Avoid duplicates
-                        var exists = links.some(l => (l.source === source.id && l.target === target.id));
-                        if (!exists) links.push({ source: source.id, target: target.id });
+                        var exists = allLinks.some(l => (l.source === source.id && l.target === target.id));
+                        if (!exists) allLinks.push({ source: source.id, target: target.id });
                     }
                 }
             }
@@ -94,17 +115,90 @@ export const GraphManager = {
             if (source.blocks) {
                 source.blocks.forEach(block => {
                     if (block.type === 'kanban_ref' && block.boardId) {
-                        if (nodes.some(n => n.id === block.boardId)) {
-                             links.push({ source: source.id, target: block.boardId });
+                        if (allNodes.some(n => n.id === block.boardId)) {
+                             allLinks.push({ source: source.id, target: block.boardId });
                         }
                     }
                 });
             }
         });
 
-        console.log('[Graph] Links:', links.length);
+        // ─── V87: DEGREE CENTRALITY ─────────────────────────────
+        var degrees = new Map();
+        allNodes.forEach(n => degrees.set(n.id, 0));
+        allLinks.forEach(l => {
+            var s = l.source.id || l.source;
+            var t = l.target.id || l.target;
+            degrees.set(s, (degrees.get(s) || 0) + 1);
+            degrees.set(t, (degrees.get(t) || 0) + 1);
+        });
+        allNodes.forEach(n => {
+            n.degree = degrees.get(n.id) || 0;
+        });
 
-        // 2. D3 Simulation
+        // ─── V87: LOCAL FOCUS MODE ──────────────────────────────
+        var nodes, links;
+        if (this.isLocalMode && Notes && Notes.activeNoteId) {
+            var focusId = Notes.activeNoteId;
+            // 1-degree neighbors
+            var neighborIds = new Set([focusId]);
+            allLinks.forEach(l => {
+                var s = l.source.id || l.source;
+                var t = l.target.id || l.target;
+                if (s === focusId) neighborIds.add(t);
+                if (t === focusId) neighborIds.add(s);
+            });
+            nodes = allNodes.filter(n => neighborIds.has(n.id));
+            links = allLinks.filter(l => {
+                var s = l.source.id || l.source;
+                var t = l.target.id || l.target;
+                return neighborIds.has(s) && neighborIds.has(t);
+            });
+        } else {
+            nodes = allNodes;
+            links = allLinks;
+        }
+
+        console.log('[Graph] Nodes:', nodes.length, '| Links:', links.length, '| Mode:', this.isLocalMode ? 'LOCAL' : 'GLOBAL');
+
+        // ─── V87: CLUSTER COLORING ──────────────────────────────
+        var groups = [...new Set(nodes.map(n => n.group))].filter(g => g !== 'BOARD').sort();
+        var graphColors = [
+            'var(--graph-col-1)',
+            'var(--graph-col-2)',
+            'var(--graph-col-3)',
+            'var(--graph-col-4)',
+            'var(--graph-col-5)'
+        ];
+        var getColor = function(group) {
+            if (group === 'BOARD') return 'var(--board-color, #00d4ff)';
+            var idx = groups.indexOf(group) % 5;
+            return graphColors[idx >= 0 ? idx : 0];
+        };
+
+        // ─── V87: DYNAMIC LEGEND ────────────────────────────────
+        var legend = document.getElementById('graph-legend');
+        if (legend) {
+            var legendHtml = '';
+            groups.forEach(function(g, i) {
+                var displayName = g.toUpperCase();
+                var colorIdx = i % 5;
+                legendHtml += '<div style="display:flex; align-items:center; gap:5px;">' +
+                    '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:' + graphColors[colorIdx] + '"></span>' +
+                    displayName + '</div>';
+            });
+            // Always add BOARD if any boards exist
+            if (nodes.some(n => n.type === 'board')) {
+                legendHtml += '<div style="display:flex; align-items:center; gap:5px;">' +
+                    '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--board-color, #00d4ff)"></span>' +
+                    'BOARD</div>';
+            }
+            legend.innerHTML = legendHtml;
+        }
+
+        // ─── D3 SIMULATION ──────────────────────────────────────
+        var self = this;
+
         this.svg = d3.select('#' + this.containerId).append("svg")
             .attr("width", '100%')
             .attr("height", '100%')
@@ -118,9 +212,11 @@ export const GraphManager = {
 
         this.simulation = d3.forceSimulation(nodes)
             .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-            .force("charge", d3.forceManyBody().strength(-200))
+            .force("charge", d3.forceManyBody().strength(-300)) // V87: Stronger repulsion for larger nodes
             .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-            .force('collision', d3.forceCollide().radius(50));
+            .force('collision', d3.forceCollide().radius(function(d) {
+                return self.getNodeRadius(d) + 5; // V87: Dynamic collision + padding
+            }));
 
         var link = g.append("g")
             .attr("class", "links")
@@ -136,30 +232,37 @@ export const GraphManager = {
             .selectAll("g")
             .data(nodes)
             .join("g")
+            .classed('graph-node-active', function(d) {
+                return Notes && d.id === Notes.activeNoteId;
+            })
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
                 .on("end", dragended));
 
+        // V87: Dynamic radius + cluster color
         node.append("circle")
-            .attr("r", d => d.type === 'board' ? 8 : 6)
-            .attr("fill", d => d.type === 'board' ? 'var(--board-color, #ff9900)' : 'var(--main-color, #00ff41)')
-            .attr("class", d => (Notes && d.id === Notes.activeNoteId) ? 'active' : '');
+            .attr("r", function(d) { return self.getNodeRadius(d); })
+            .attr("fill", function(d) { return getColor(d.group); })
+            .attr("class", function(d) { return (Notes && d.id === Notes.activeNoteId) ? 'active' : ''; })
+            .attr("stroke", "#000")
+            .attr("stroke-width", "1.5px");
 
+        // V87: Scale text size slightly for high-degree nodes
         node.append("text")
             .text(d => d.name)
-            .attr('x', 12)
+            .attr('x', function(d) { return self.getNodeRadius(d) + 6; })
             .attr('y', 4)
-            .style("font-size", "10px")
+            .style("font-size", function(d) {
+                return (d.degree > 3) ? "12px" : "10px";
+            })
             .style("fill", "#ccc")
-            .style("pointer-events", "none"); // Prevent text blocking clicks
+            .style("pointer-events", "none");
             
         // 3. Build Adjacency List for fast traversal
         this.adjacencyList = new Map();
         nodes.forEach(n => this.adjacencyList.set(n.id, []));
         links.forEach(l => {
-            // Note: D3 replaces source/target with objects after simulation starts, 
-            // but initially they are IDs. We handle both just in case.
             const s = l.source.id || l.source;
             const t = l.target.id || l.target;
             
@@ -225,7 +328,6 @@ export const GraphManager = {
             }
         });
 
-        var self = this;
         this.simulation.on("tick", () => {
             link
                 .attr("x1", d => d.source.x)
