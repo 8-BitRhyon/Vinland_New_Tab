@@ -218,7 +218,7 @@ function registerSystemCommands() {
         id: 'notes:create',
         trigger: 'note',
         title: 'Create New Note',
-        icon: '📝',
+
         hint: '[content]',
         action: (args) => { if(window.Notes) window.Notes.addNote(args); }
     });
@@ -227,7 +227,7 @@ function registerSystemCommands() {
         id: 'notes:toggle',
         trigger: 'notes',
         title: 'Toggle Notes Panel',
-        icon: '📂',
+
         action: () => { if(window.Notes) window.Notes.toggleSidebar(); }
     });
     
@@ -235,7 +235,7 @@ function registerSystemCommands() {
         id: 'nav:daily',
         trigger: 'daily',
         title: 'Open Daily Note',
-        icon: '📅',
+
         action: () => {
             if (!window.Notes) return;
             const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
@@ -251,7 +251,7 @@ function registerSystemCommands() {
         id: 'nav:random',
         trigger: 'random',
         title: 'Open Random Note',
-        icon: '🎲',
+
         action: () => {
              if (window.State && State.NOTES && State.NOTES.length > 0) {
                 const rnd = Math.floor(Math.random() * State.NOTES.length);
@@ -265,7 +265,7 @@ function registerSystemCommands() {
         id: 'task:add',
         trigger: 'task',
         title: 'Add Task',
-        icon: '✅',
+
         hint: '[text]',
         action: (args) => { if(window.addTask) window.addTask(args); }
     });
@@ -274,7 +274,7 @@ function registerSystemCommands() {
         id: 'task:clear-done',
         trigger: 'clear done',
         title: 'Clear Completed Tasks',
-        icon: '🧹',
+
         action: () => { if(window.clearCompletedTasks) window.clearCompletedTasks(); }
     });
     
@@ -283,7 +283,7 @@ function registerSystemCommands() {
         id: 'sys:reload',
         trigger: 'reload',
         title: 'Reload System',
-        icon: '🔄',
+
         action: () => { window.location.reload(); }
     });
     
@@ -291,7 +291,7 @@ function registerSystemCommands() {
         id: 'sys:theme',
         trigger: 'theme',
         title: 'Switch Theme',
-        icon: '🎨',
+
         hint: '[name]',
         action: (args) => { 
              // Need to implement loadThemePreset in Settings or exposing it
@@ -306,7 +306,7 @@ function registerSystemCommands() {
         id: 'ui:zen',
         trigger: 'zen',
         title: 'Toggle Zen Mode',
-        icon: '🧘',
+
         action: () => {
             document.body.classList.toggle('zen-mode');
             const isZen = document.body.classList.contains('zen-mode');
@@ -318,7 +318,7 @@ function registerSystemCommands() {
         id: 'ui:kill',
         trigger: 'kill',
         title: 'Close All Modals',
-        icon: '💥',
+
         action: () => {
             if(window.ModalManager) window.ModalManager.closeAll();
         }
@@ -329,7 +329,7 @@ function registerSystemCommands() {
         id: 'kanban:open',
         trigger: 'board',
         title: 'Open Kanban Board',
-        icon: '📋',
+
         action: () => { if(window.KanbanManager) window.KanbanManager.open(); }
     });
 }

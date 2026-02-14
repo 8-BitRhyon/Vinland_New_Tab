@@ -103,7 +103,6 @@ export const CommandLine = {
             div.className = 'suggestion-item';
             // Highlight matching part
             div.innerHTML = `
-                <span class="cmd-icon" style="margin-right:10px; color:var(--main-color);">${cmd.icon}</span>
                 <span class="cmd-trigger" style="color:#fff; font-weight:bold;">${cmd.trigger}</span>
                 <span class="cmd-title" style="color:#888;"> - ${cmd.title}</span>
             `;
