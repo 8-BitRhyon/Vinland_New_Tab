@@ -293,5 +293,41 @@ export const PageManager = {
             }
             return prefix + content + suffix;
         }).join('\n');
+    },
+
+    // V88: Migration - Path Schema
+    migrateNotesToPathSchema: function() {
+        if (!State.NOTES) return;
+        var changed = false;
+        State.NOTES.forEach(function(note) {
+            if (!note.path) {
+                note.path = '/';
+                changed = true;
+            }
+        });
+        if (changed) {
+            saveData();
+            console.log('[PageManager] Migrated notes to path schema');
+        }
+    },
+
+    // V88: Migration - Block Schema
+    migrateNotesToBlockSchema: function() {
+        if (!State.NOTES) return;
+        var changed = false;
+        State.NOTES.forEach(function(note) {
+            if (!note.blocks || note.blocks.length === 0) {
+                if (note.content) {
+                    note.blocks = parseContentToBlocks(note.content);
+                    changed = true;
+                } else {
+                    note.blocks = [];
+                }
+            }
+        });
+        if (changed) {
+            saveData();
+            console.log('[PageManager] Migrated notes to block schema');
+        }
     }
 };

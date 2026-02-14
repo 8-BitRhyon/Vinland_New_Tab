@@ -7,9 +7,8 @@ import { SlashMenu } from '../editor/SlashMenu.js';
 import { ModalManager } from '../ui/ModalManager.js';
 import { TabManager } from '../ui/TabManager.js';
 import { renderSidebar } from '../ui/Sidebar.js';
-import { sanitizePath } from '../editor/PageManager.js'; // Assuming it might be there or I define it
-
-// Helper for path sanitization imported from PageManager
+import { sanitizePath } from '../editor/PageManager.js';
+import { GraphManager } from './GraphManager.js';
 
 
 /* =========================================
@@ -197,11 +196,18 @@ export const Notes = {
             // V87: Load explicit (empty-safe) folders
             var folders = localStorage.getItem('VINLAND_EXPLICIT_FOLDERS');
             if (folders) this.explicitFolders = JSON.parse(folders);
+
         } catch (e) {
-            this.expandedFolders = [];
-            this.explicitFolders = [];
-            this.graphLayout = {};
+            console.warn('[Notes] Error loading State:', e);
         }
+        
+        // V88: Legacy Schema Migration
+        if (PageManager.migrateNotesToPathSchema) PageManager.migrateNotesToPathSchema();
+        if (PageManager.migrateNotesToBlockSchema) PageManager.migrateNotesToBlockSchema();
+
+        this.renderSidebar();
+
+
 
         // Initialize components
         if (typeof BlockEditor !== 'undefined' && BlockEditor.init) BlockEditor.init('block-editor');
@@ -1504,216 +1510,11 @@ export const Notes = {
 
     // Knowledge Graph
     openGraph: function () {
-        var self = this;
-        if (typeof ModalManager !== 'undefined') ModalManager.open('graph-modal');
-        setTimeout(function () {
-            self.renderGraph();
-        }, 300);
+        if (GraphManager) GraphManager.open();
     },
 
     closeGraph: function () {
         if (typeof ModalManager !== 'undefined') ModalManager.closeTop(true);
-    },
-
-    renderGraph: function () {
-        var container = document.getElementById('graph-container');
-        if (!container || typeof d3 === 'undefined') return;
-
-        container.innerHTML = '';
-        var width = container.clientWidth || 1200;
-        var height = container.clientHeight || 800;
-
-        // Prepare Data
-        var searchInput = document.getElementById('graph-search');
-        var filterTerm = (searchInput ? searchInput.value : '').toLowerCase();
-
-        var NOTES = State.NOTES || [];
-        var BOARDS = State.BOARDS || [];
-        
-        var filteredNotes = NOTES;
-        if (filterTerm) {
-            filteredNotes = NOTES.filter(function(n) {
-                return (n.title && n.title.toLowerCase().includes(filterTerm)) ||
-                    (n.content && n.content.toLowerCase().includes(filterTerm)) ||
-                    (n.path && n.path.toLowerCase().includes(filterTerm));
-            });
-        }
-
-        var self = this;
-        var nodes = filteredNotes.map(function(n) {
-            var nodeObj = { id: n.id, name: n.title || 'Untitled', type: 'note', path: n.path || '/' };
-            if (self.graphLayout[n.id]) {
-                nodeObj.fx = self.graphLayout[n.id].x;
-                nodeObj.fy = self.graphLayout[n.id].y;
-            }
-            return nodeObj;
-        });
-
-        // Add Boards to nodes
-        BOARDS.forEach(function(b) {
-            var boardNode = { id: b.id, name: b.title, type: 'board', path: 'BOARD_HUB' };
-            if (self.graphLayout[b.id]) {
-                boardNode.fx = self.graphLayout[b.id].x;
-                boardNode.fy = self.graphLayout[b.id].y;
-            }
-            nodes.push(boardNode);
-        });
-
-        var links = [];
-        var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
-
-        filteredNotes.forEach(function(n) {
-            var textToSearch = '';
-            if (n.blocks && Array.isArray(n.blocks)) {
-                textToSearch = n.blocks.map(function(b) { return (b.content || '').toLowerCase(); }).join('\n');
-            } else {
-                textToSearch = (n.content || '').toLowerCase();
-            }
-
-            var match;
-            wikiLinkRegex.lastIndex = 0;
-            while ((match = wikiLinkRegex.exec(textToSearch)) !== null) {
-                var linkTargetTitle = match[1].trim();
-                var targetNote = NOTES.find(function(other) {
-                    return other.title && other.title.trim().toLowerCase() === linkTargetTitle;
-                });
-                
-                if (targetNote && targetNote.id !== n.id) {
-                    var sourceInGraph = nodes.some(function(node) { return node.id === n.id; });
-                    var targetInGraph = nodes.some(function(node) { return node.id === targetNote.id; });
-                    
-                    if (sourceInGraph && targetInGraph) {
-                        var exists = links.some(function(l) {
-                            return (l.source === n.id && l.target === targetNote.id) ||
-                                (l.source.id === n.id && l.target.id === targetNote.id);
-                        });
-                        if (!exists) {
-                            links.push({ source: n.id, target: targetNote.id });
-                        }
-                    }
-                }
-            }
-            
-            // Note-to-Board links
-            if (n.blocks) {
-                n.blocks.forEach(function(block) {
-                    if (block.type === 'kanban_ref' && block.boardId) {
-                        if (nodes.some(function(node) { return node.id === block.boardId; })) {
-                            links.push({ source: n.id, target: block.boardId });
-                        }
-                    }
-                });
-            }
-        });
-
-        // SVG Setup
-        var svg = d3.select('#graph-container')
-            .append('svg')
-            .attr('width', '100%')
-            .attr('height', '100%')
-            .attr('viewBox', [0, 0, width, height]);
-
-        var g = svg.append('g');
-
-        // Zoom Behavior
-        svg.call(d3.zoom().on('zoom', function(event) {
-            g.attr('transform', event.transform);
-        }));
-
-        // Force Simulation
-        var simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(100))
-            .force('charge', d3.forceManyBody().strength(-200))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(50));
-
-        // Render Links
-        var link = g.append('g')
-            .selectAll('line')
-            .data(links)
-            .join('line')
-            .attr('class', 'graph-link')
-            .style('stroke', 'var(--secondary-color, #ff00ff)')
-            .style('stroke-width', '2.5px')
-            .style('stroke-opacity', '0.7');
-
-        // Render Nodes
-        var node = g.append('g')
-            .selectAll('g')
-            .data(nodes)
-            .join('g')
-            .attr('class', 'graph-node-group')
-            .call(d3.drag()
-                .on('start', dragstarted)
-                .on('drag', dragged)
-                .on('end', dragended));
-
-        node.append('circle')
-            .attr('r', function(d) { return d.type === 'board' ? 8 : 6; })
-            .attr('class', function(d) { return 'graph-node' + (d.id === self.activeNoteId ? ' active' : ''); })
-            .attr('fill', function(d) { return d.type === 'board' ? 'var(--board-color)' : 'var(--main-color)'; });
-
-        node.append('text')
-            .attr('dx', 12)
-            .attr('dy', 4)
-            .attr('class', 'graph-label')
-            .text(function(d) { return d.name; });
-
-        // Events
-        node.on('mouseover', function (event, d) {
-            d3.select(this).select('circle').classed('highlighted', true);
-            d3.select(this).select('text').classed('highlighted', true);
-
-            link.classed('highlighted', function(l) { return l.source.id === d.id || l.target.id === d.id; })
-                .classed('dimmed', function(l) { return l.source.id !== d.id && l.target.id !== d.id; });
-
-            node.classed('dimmed', function(n) {
-                if (n.id === d.id) return false;
-                var isNeighbor = links.some(function(l) {
-                    return (l.source.id === d.id && l.target.id === n.id) || (l.target.id === d.id && l.source.id === n.id);
-                });
-                return !isNeighbor;
-            });
-        }).on('mouseout', function () {
-            d3.select(this).select('circle').classed('highlighted', false);
-            d3.select(this).select('text').classed('highlighted', false);
-            link.classed('highlighted', false).classed('dimmed', false);
-            node.classed('dimmed', false);
-        }).on('click', function (event, d) {
-            if (d.type === 'board') {
-                if (typeof KanbanManager !== 'undefined') KanbanManager.open(d.id);
-            } else {
-                self.open(d.id);
-            }
-            self.closeGraph();
-        });
-
-        simulation.on('tick', function() {
-            link
-                .attr('x1', function(d) { return d.source.x; })
-                .attr('y1', function(d) { return d.source.y; })
-                .attr('x2', function(d) { return d.target.x; })
-                .attr('y2', function(d) { return d.target.y; });
-
-            node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
-        });
-
-        function dragstarted(event) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            event.subject.fx = event.subject.x;
-            event.subject.fy = event.subject.y;
-        }
-
-        function dragged(event) {
-            event.subject.fx = event.x;
-            event.subject.fy = event.y;
-        }
-
-        function dragended(event) {
-            if (!event.active) simulation.alphaTarget(0);
-            self.graphLayout[event.subject.id] = { x: event.subject.fx, y: event.subject.fy };
-            localStorage.setItem('VINLAND_GRAPH_LAYOUT', JSON.stringify(self.graphLayout));
-        }
     }
 };
 

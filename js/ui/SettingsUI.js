@@ -36,6 +36,7 @@ function showNotification(msg) {
         }, 300);
     }, 3000);
 }
+window.showNotification = showNotification;
 
 function resetSaveButtonState() {
     var headerSaveBtn = document.getElementById('header-save-btn');
@@ -66,7 +67,31 @@ function markDirty() {
 }
 
 export const SettingsUI = {
-    applyTheme: function() { Config.applyTheme(); },
+    applyTheme: function() { 
+        Config.applyTheme(); 
+        if (this.updateDynamicIcon && State.CONFIG) {
+            this.updateDynamicIcon(State.CONFIG.theme_color || '#00FF41');
+        }
+    },
+    
+    // V88: Dynamic Favicon
+    updateDynamicIcon: function(color) {
+        var link = document.querySelector("link[rel*='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.type = 'image/svg+xml';
+            link.rel = 'icon';
+            document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+                  '<rect width="32" height="32" rx="6" fill="' + color + '"/>' +
+                  '<text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" ' +
+                  'fill="black" font-family="monospace" font-weight="bold" font-size="20">V</text>' +
+                  '</svg>';
+                  
+        link.href = 'data:image/svg+xml;base64,' + btoa(svg);
+    },
     init: function() {
         // Expose for ModalManager (avoid circular import)
         window.closeSettingsModal = this.close.bind(this);
