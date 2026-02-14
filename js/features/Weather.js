@@ -1,130 +1,128 @@
 import { State } from '../core/Store.js';
+import { SettingsUI } from '../ui/SettingsUI.js';
+import { saveConfig } from '../core/Config.js';
 
 /* =========================================
-   WEATHER CONTROLLER
+   WEATHER MODULE
    ========================================= */
 
-// Cache key for localStorage
-const CACHE_KEY = 'OPERATOR_WEATHER_CACHE';
-const CACHE_DURATION = 1800000; // 30 minutes in ms
-
-let WEATHER_CACHE = null;
-
-export function fetchWeather() {
-    var widget = document.getElementById('weather-widget');
-    if (!widget) return;
-    
-    var CONFIG = State.CONFIG;
-
-    if (!CONFIG.location || !CONFIG.location.trim()) {
-        widget.classList.remove('active');
-        return;
-    }
-
-    var now = Date.now();
-
-    // Show loading indicator
-    var conditionEl = document.getElementById('weather-condition');
-    var locEl = document.getElementById('weather-location');
-    if (conditionEl) {
-        conditionEl.textContent = 'SYNCING_DATA...';
-        conditionEl.classList.add('weather-loading');
-    }
-    if (locEl) locEl.classList.add('weather-loading');
-    widget.classList.add('active');
-
-    // Memory cache check
-    if (!WEATHER_CACHE) {
-        try {
-            WEATHER_CACHE = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-        } catch (e) {
-            WEATHER_CACHE = {};
+export const Weather = {
+    init: function() {
+        if (State.CONFIG.weather_enabled !== false) {
+            this.fetch();
         }
-    }
+    },
 
-    // Use cache if valid
-    if (WEATHER_CACHE.data && (now - WEATHER_CACHE.timestamp < CACHE_DURATION) && WEATHER_CACHE.location === CONFIG.location) {
-        updateWeatherUI(WEATHER_CACHE.data);
-        widget.classList.add('active');
-        return;
-    }
+    fetch: function() {
+        var el = document.getElementById('weather-widget');
+        if (!el) return;
+        
+        // V102: Logic Fix check 'location' (Store.js default) instead of 'weather_location'
+        if (!State.CONFIG.location || State.CONFIG.location === '') {
+            el.innerHTML = '<div class="weather-condition" style="margin:0">SET_LOCATION //</div>';
+            el.classList.add('active'); // V102: Ensure visibility
+            el.onclick = function() { SettingsUI.open('weather'); };
+            return;
+        }
 
-    // Fetch new data
-    var loc = encodeURIComponent(CONFIG.location.trim());
+        // Cache Check (30 mins)
+        var now = Date.now();
+        if (State.WEATHER_CACHE && (now - State.WEATHER_CACHE.time < 1800000)) {
+            this.render(State.WEATHER_CACHE.data);
+            return;
+        }
 
-    fetch('https://wttr.in/' + loc + '?format=j1')
-        .then(function (response) {
-            if (!response.ok) throw new Error('Weather fetch failed');
-            return response.json();
-        })
-        .then(function (data) {
-            WEATHER_CACHE = {
-                timestamp: Date.now(),
-                location: CONFIG.location,
-                data: data
+        var location = State.CONFIG.location || 'London';
+        var url = 'https://wttr.in/' + encodeURIComponent(location) + '?format=j1';
+
+        // V102: Preserving structure if possible, or showing loading text
+        if (el.querySelector('.weather-condition')) {
+            el.querySelector('.weather-condition').textContent = 'SYNCING...';
+        } else {
+             el.textContent = 'LOADING //';
+        }
+        el.classList.add('active'); // V102: Ensure visibility
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                State.WEATHER_CACHE = { time: Date.now(), data: data };
+                this.render(data);
+                try {
+                    localStorage.setItem('OPERATOR_WEATHER_CACHE', JSON.stringify(State.WEATHER_CACHE));
+                } catch(e) {}
+            })
+            .catch(err => {
+                console.error('Weather error:', err);
+                el.innerHTML = '<div class="weather-condition" style="margin:0">OFFLINE //</div>';
+                el.classList.add('active');
+            });
+    },
+
+    render: function(data) {
+        var el = document.getElementById('weather-widget');
+        if (!el || !data) return;
+
+        var current = data.current_condition[0];
+        var isC = State.CONFIG.use_celsius;
+        var tempVal = isC ? current.temp_C : current.temp_F;
+        var unitVal = isC ? 'C' : 'F';
+        
+        var cond = current.weatherDesc[0].value;
+        var loc = State.CONFIG.location || 'Unknown';
+        
+        // V102: Legacy Structure (Toggle at BOTTOM)
+        var html = `
+            <div class="weather-main">
+                <span class="weather-temp">${tempVal}°</span>
+                <span class="weather-unit">${unitVal}</span>
+            </div>
+            <div class="weather-condition">${cond}</div>
+            <div class="weather-location">${loc.toUpperCase()}</div>
+            
+            <div class="weather-extra ${State.CONFIG.weather_extended ? 'active' : ''}" id="weather-extra">
+                <div class="weather-extra-row">
+                    <span class="label">HUMIDITY</span>
+                    <span class="value">${current.humidity}%</span>
+                </div>
+                <div class="weather-extra-row">
+                    <span class="label">WIND</span>
+                    <span class="value">${current.windspeedKmph}km/h</span>
+                </div>
+                <div class="weather-extra-row">
+                    <span class="label">PRECIP</span>
+                    <span class="value">${current.precipMM}mm</span>
+                </div>
+            </div>
+            
+            <div class="weather-toggle" id="weather-toggle-btn">
+                [ ${State.CONFIG.weather_extended ? '-' : '+'} ]
+            </div>
+        `;
+
+        el.innerHTML = html;
+        el.classList.add('active');
+        
+        // Re-bind click locally
+        var toggleBtn = el.querySelector('#weather-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.onclick = function(e) {
+                e.stopPropagation();
+                window.toggleWeather(); 
+                // Also update the button text immediately for feedback
+                var extended = document.getElementById('weather-extra').classList.contains('active');
+                toggleBtn.innerText = extended ? '[ - ]' : '[ + ]'; // Toggle Logic
             };
-            try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify(WEATHER_CACHE));
-            } catch (e) { }
-
-            updateWeatherUI(data);
-        })
-        .catch(function (err) {
-            console.error('Weather error:', err);
-            // Show error state
-            var conditionEl = document.getElementById('weather-condition');
-            var locEl = document.getElementById('weather-location');
-            if (conditionEl) {
-                conditionEl.textContent = 'LOCATION_ERROR';
-                conditionEl.classList.remove('weather-loading');
-                conditionEl.classList.add('weather-error');
-            }
-            if (locEl) {
-                locEl.classList.remove('weather-loading');
-                locEl.textContent = 'VERIFY_COORDINATES';
-            }
-            if (document.getElementById('weather-temp')) document.getElementById('weather-temp').textContent = '--';
-            if (document.getElementById('weather-unit')) document.getElementById('weather-unit').textContent = '';
-        });
-}
-
-function updateWeatherUI(data) {
-    var CONFIG = State.CONFIG;
-    if (!data || !data.current_condition || !data.current_condition[0]) {
-        console.warn('Weather data missing current_condition');
-        return;
+        }
+        
+        el.onclick = function(e) {
+            if (e.target.closest('.weather-toggle') || e.target.closest('.weather-extra')) return;
+            SettingsUI.open('weather');
+        };
     }
-    var current = data.current_condition[0];
-    var temp = CONFIG.use_celsius ? current.temp_C : current.temp_F;
-    var unit = CONFIG.use_celsius ? 'C' : 'F';
-    var condition = current.weatherDesc[0].value;
-    var humidity = current.humidity;
-    var windKph = current.windspeedKmph;
-    var feelsC = current.FeelsLikeC;
-    var feelsF = current.FeelsLikeF;
-    var feels = CONFIG.use_celsius ? feelsC : feelsF;
+};
 
-    if (document.getElementById('weather-temp')) document.getElementById('weather-temp').textContent = temp;
-    if (document.getElementById('weather-unit')) document.getElementById('weather-unit').textContent = String.fromCharCode(176) + unit;
-    
-    var conditionEl = document.getElementById('weather-condition');
-    var locEl = document.getElementById('weather-location');
-    
-    if (conditionEl) {
-        conditionEl.textContent = condition.toUpperCase();
-        conditionEl.classList.remove('weather-loading', 'weather-error');
-    }
-    if (locEl) {
-        locEl.textContent = CONFIG.location.toUpperCase();
-        locEl.classList.remove('weather-loading');
-    }
-    if (document.getElementById('weather-humidity')) document.getElementById('weather-humidity').textContent = humidity + '%';
-    if (document.getElementById('weather-wind')) document.getElementById('weather-wind').textContent = windKph + ' km/h';
-    if (document.getElementById('weather-feels')) document.getElementById('weather-feels').textContent = feels + String.fromCharCode(176);
+// Expose global for legacy calls (e.g. from CLI 'weather' command)
+window.fetchWeather = Weather.fetch.bind(Weather);
 
-    var extraEl = document.getElementById('weather-extra');
-    if (extraEl) {
-        if (CONFIG.weather_extended) extraEl.classList.add('active');
-        else extraEl.classList.remove('active');
-    }
-}
+export const fetchWeather = Weather.fetch.bind(Weather);

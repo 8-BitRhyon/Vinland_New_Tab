@@ -141,6 +141,9 @@ export const SettingsUI = {
             fileInput.onchange = this.handleBackgroundUpload.bind(this);
         }
 
+        this.bindBackupButtons(); // [FIX] Bind Export/Import Buttons
+
+
         // Theme Action Buttons
         var self = this;
         var btnSaveTheme = document.getElementById('btn-save-theme');
@@ -158,6 +161,9 @@ export const SettingsUI = {
         // Theme Modal Bindings
         var themeCancel = document.getElementById('theme-modal-cancel');
         if(themeCancel) themeCancel.onclick = this.closeThemeModal.bind(this);
+        
+        var themeClose = document.getElementById('theme-modal-close');
+        if(themeClose) themeClose.onclick = this.closeThemeModal.bind(this);
         
         var themeConfirm = document.getElementById('theme-modal-confirm');
         if(themeConfirm) themeConfirm.onclick = this.handleThemeModalConfirm.bind(this);
@@ -185,25 +191,25 @@ export const SettingsUI = {
         document.addEventListener('keydown', function(e) {
             // Only active if config modal is showing
             var configModal = document.getElementById('config-modal');
-            if (!configModal || !configModal.classList.contains('active')) return;
-            
-            // Ignore if focus is in an input field (so we don't block cursor movement)
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (ModalManager.stack.includes('config-modal') || (configModal && configModal.classList.contains('active'))) {
+                // Ignore if focus is in an input field (so we don't block cursor movement)
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
-                var activeIndex = navItems.findIndex(n => n.classList.contains('active'));
-                
-                if (activeIndex === -1 && navItems.length > 0) activeIndex = 0;
-                
-                if (e.key === 'ArrowDown') {
-                    var nextIndex = (activeIndex + 1) % navItems.length;
-                    navItems[nextIndex].click();
-                    e.preventDefault();
-                } else if (e.key === 'ArrowUp') {
-                    var prevIndex = (activeIndex - 1 + navItems.length) % navItems.length;
-                    navItems[prevIndex].click();
-                    e.preventDefault();
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
+                    var activeIndex = navItems.findIndex(n => n.classList.contains('active'));
+                    
+                    if (activeIndex === -1 && navItems.length > 0) activeIndex = 0;
+                    
+                    if (e.key === 'ArrowDown') {
+                        var nextIndex = (activeIndex + 1) % navItems.length;
+                        navItems[nextIndex].click();
+                        e.preventDefault();
+                    } else if (e.key === 'ArrowUp') {
+                        var prevIndex = (activeIndex - 1 + navItems.length) % navItems.length;
+                        navItems[prevIndex].click();
+                        e.preventDefault();
+                    }
                 }
             }
         });
@@ -213,11 +219,12 @@ export const SettingsUI = {
         console.log('[SettingsUI] toggleConfig called');
         var modal = document.getElementById('config-modal');
         var helpModal = document.getElementById('help-modal');
-        if (modal.classList.contains('active')) {
+        // Use ModalManager to check state
+        if (ModalManager.stack.includes('config-modal') || (modal && modal.classList.contains('active'))) {
             this.close();
         } else {
             console.log('[SettingsUI] Opening from toggle...');
-            if (helpModal) helpModal.style.display = 'none';
+            if (helpModal) helpModal.style.display = 'none'; // Legacy hygiene
             this.open();
         }
     },
@@ -226,7 +233,7 @@ export const SettingsUI = {
         var modal = document.getElementById('help-modal');
         if (!modal) return;
         
-        if (modal.classList.contains('active')) {
+        if (ModalManager.stack.includes('help-modal') || modal.classList.contains('active')) {
             ModalManager.close('help-modal');
         } else {
             ModalManager.open('help-modal');
@@ -247,6 +254,59 @@ export const SettingsUI = {
             var navs = document.querySelectorAll('.config-nav-item');
             if(navs.length > 0) navs[0].click();
         }
+    },
+    
+    // ... (keeping loadConfigToUI and other methods) ...
+    
+    // Theme Modal Logic
+    themeModalMode: null,
+    
+    openThemeModal: function(mode) {
+        this.themeModalMode = mode;
+        var modal = document.getElementById('theme-modal');
+        var title = document.getElementById('theme-modal-title');
+        var input = document.getElementById('theme-modal-input');
+        var textarea = document.getElementById('theme-modal-textarea');
+        var confirmBtn = document.getElementById('theme-modal-confirm');
+        
+        if (!modal) {
+             if(mode === 'save') {
+                 var name = prompt("Enter theme name:");
+                 if(name) this.saveCustomTheme(name);
+             }
+             return; 
+        }
+
+        // Use ModalManager to Open
+        ModalManager.open('theme-modal');
+
+        if (mode === 'save') {
+            title.textContent = 'SAVE THEME PRESET';
+            input.style.display = 'block';
+            textarea.style.display = 'none';
+            input.value = '';
+            input.placeholder = 'Theme Name';
+            input.focus();
+            confirmBtn.textContent = 'SAVE';
+        } else if (mode === 'export') {
+            title.textContent = 'EXPORT THEME (JSON)';
+            input.style.display = 'none';
+            textarea.style.display = 'block';
+            textarea.value = JSON.stringify(this.getCurrentThemeAsObject(), null, 2);
+            confirmBtn.textContent = 'CLOSE'; 
+        } else if (mode === 'import') {
+            title.textContent = 'IMPORT THEME (JSON)';
+            input.style.display = 'none';
+            textarea.style.display = 'block';
+            textarea.value = '';
+            textarea.placeholder = 'Paste JSON here...';
+            textarea.focus();
+            confirmBtn.textContent = 'IMPORT';
+        }
+    },
+    
+    closeThemeModal: function() {
+        ModalManager.close('theme-modal');
     },
 
     loadConfigToUI: function() {
@@ -611,44 +671,58 @@ export const SettingsUI = {
     /* =========================================
        DYNAMIC CONFIG LISTS (Dock/Commands)
        ========================================= */
+    /* =========================================
+       DYNAMIC CONFIG LISTS (Dock/Commands)
+       ========================================= */
     renderDockLinksConfig: function() {
         var container = document.getElementById('dock-list');
         if (!container) return;
         container.innerHTML = '';
         
         var self = this;
-        (State.CONFIG.dock_links || []).forEach(function(link, index) {
+        var links = State.CONFIG.dock_links || [];
+        
+        if (links.length === 0) {
+            container.innerHTML = '<div style="color:#666; font-style:italic; padding:10px; font-size:0.8rem;">No dock links. Add one above.</div>';
+        }
+
+        links.forEach(function(link, index) {
             var row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.gap = '10px';
-            row.style.marginBottom = '5px';
+            row.className = 'config-list-item'; // Reuse or new class
+            // Inline styles for now to ensure look
+            row.style.cssText = 'display:flex; gap:10px; margin-bottom:8px; align-items:center; background:rgba(255,255,255,0.03); padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.05);';
             
             // Label Input
             var inputLabel = document.createElement('input');
             inputLabel.type = 'text';
-            inputLabel.name = 'dock-label-' + index; // [FIX] Add Name
             inputLabel.value = safeText(link.name || ''); 
             inputLabel.className = 'config-input';
             inputLabel.style.flex = '1';
+            inputLabel.style.minWidth = '0'; // Flex fix
             inputLabel.placeholder = 'Label';
+            inputLabel.title = 'Link Label';
             inputLabel.onchange = function() { self.updateDockLink(index, 'name', this.value); };
             
             // URL Input
             var inputUrl = document.createElement('input');
             inputUrl.type = 'text';
-            inputUrl.name = 'dock-url-' + index; // [FIX] Add Name
             inputUrl.value = safeText(link.url || '');
             inputUrl.className = 'config-input';
             inputUrl.style.flex = '2';
+            inputUrl.style.minWidth = '0';
             inputUrl.placeholder = 'URL';
+            inputUrl.title = 'Link URL';
             inputUrl.onchange = function() { self.updateDockLink(index, 'url', this.value); };
             
             // Delete Button
             var deleteBtn = document.createElement('button');
-            deleteBtn.className = 'image-delete-btn';
-            deleteBtn.style.cssText = 'position:static;width:30px;height:30px;';
-            deleteBtn.textContent = 'X';
+            deleteBtn.className = 'btn danger-btn'; // Use global danger class if avail
+            deleteBtn.style.cssText = 'width:32px; height:32px; display:flex; align-items:center; justify-content:center; padding:0; background:rgba(255,50,50,0.2); color:#ff5555; border:1px solid rgba(255,50,50,0.3); border-radius:4px; cursor:pointer; flex-shrink:0;';
+            deleteBtn.innerHTML = '&#10005;'; // X symbol
+            deleteBtn.title = 'Remove Link';
             deleteBtn.onclick = function() { self.removeDockLink(index); };
+            deleteBtn.onmouseover = function() { this.style.background = 'rgba(255,50,50,0.4)'; };
+            deleteBtn.onmouseout = function() { this.style.background = 'rgba(255,50,50,0.2)'; };
             
             row.appendChild(inputLabel);
             row.appendChild(inputUrl);
@@ -658,20 +732,24 @@ export const SettingsUI = {
         
         var addBtn = document.getElementById('add-dock-btn');
         if(addBtn) {
-            // Remove old listeners to prevent duplicates if re-rendered? 
-            // Better to re-assign or check. Here simple reassignment works.
+            // Unbind old to be safe (though simple overwrite works)
             addBtn.onclick = function() {
                 var nameInput = document.getElementById('new-dock-name');
                 var urlInput = document.getElementById('new-dock-url');
-                var nameVal = nameInput.value;
-                var urlVal = urlInput.value;
+                var nameVal = nameInput.value.trim();
+                var urlVal = urlInput.value.trim();
                 
                 if(nameVal && urlVal) {
-                    State.CONFIG.dock_links.push({ name: nameVal, url: urlVal }); // Fix: Use 'name'
+                    if(!State.CONFIG.dock_links) State.CONFIG.dock_links = [];
+                    State.CONFIG.dock_links.push({ name: nameVal, url: urlVal });
                     nameInput.value = '';
                     urlInput.value = '';
-                    markDirty(); // [FIX] Mark dirty
+                    markDirty();
                     self.renderDockLinksConfig();
+                    // Auto-focus back to name for rapid entry?
+                    nameInput.focus();
+                } else {
+                    alert('Please enter both a Label and URL.');
                 }
             }
         }
@@ -680,91 +758,149 @@ export const SettingsUI = {
     updateDockLink: function(index, field, value) {
         if (State.CONFIG.dock_links[index]) {
             State.CONFIG.dock_links[index][field] = value;
-            markDirty(); // [FIX] Mark dirty
+            markDirty();
         }
     },
     
     removeDockLink: function(index) {
-        State.CONFIG.dock_links.splice(index, 1);
-        markDirty(); // [FIX] Mark dirty
-        this.renderDockLinksConfig();
+        // V104: Toggle Behavior - Close if already open
+        var confirmModal = document.getElementById('confirm-modal');
+        if (confirmModal && confirmModal.classList.contains('active')) {
+             if (window.ModalManager) ModalManager.close('confirm-modal');
+             return;
+        }
+
+        var self = this;
+        // V102: Use Custom Confirm Modal
+        if (window.showConfirmModal) {
+            window.showConfirmModal(
+                'REMOVE DOCK LINK',
+                'Are you sure you want to remove this link?',
+                function() {
+                    State.CONFIG.dock_links.splice(index, 1);
+                    markDirty();
+                    self.renderDockLinksConfig();
+                }
+            );
+        } else if(confirm('Remove this dock link?')) {
+            State.CONFIG.dock_links.splice(index, 1);
+            markDirty();
+            this.renderDockLinksConfig();
+        }
     },
 
     renderCustomCommandsList: function() {
-       var container = document.getElementById('custom-cmd-list');
-       if (!container) return;
-       container.innerHTML = '';
-       
-       var self = this;
-       (State.CONFIG.custom_commands || []).forEach(function(cmd, index) {
-           var row = document.createElement('div');
-           row.style.display = 'flex';
-           row.style.gap = '10px';
-           row.style.marginBottom = '5px';
-           
-           // Trigger Input
-           var inputTrig = document.createElement('input');
-           inputTrig.type = 'text';
-           inputTrig.name = 'cmd-trigger-' + index; // [FIX] Add Name
-           inputTrig.value = safeText(cmd.trigger || '');
-           inputTrig.className = 'config-input';
-           inputTrig.style.flex = '1';
-           inputTrig.placeholder = '/cmd';
-           inputTrig.onchange = function() { self.updateCommand(index, 'trigger', this.value); };
-           
-           // URL Input
-           var inputUrl = document.createElement('input');
-           inputUrl.type = 'text';
-           inputUrl.name = 'cmd-url-' + index; // [FIX] Add Name
-           inputUrl.value = safeText(cmd.url || '');
-           inputUrl.className = 'config-input';
-           inputUrl.style.flex = '2';
-           inputUrl.placeholder = 'URL';
-           inputUrl.onchange = function() { self.updateCommand(index, 'url', this.value); };
-           
-           // Delete Button
-           var deleteBtn = document.createElement('button');
-           deleteBtn.className = 'image-delete-btn';
-           deleteBtn.style.cssText = 'position:static;width:30px;height:30px;';
-           deleteBtn.textContent = 'X';
-           deleteBtn.onclick = function() { self.removeCommand(index); };
-           
-           row.appendChild(inputTrig);
-           row.appendChild(inputUrl);
-           row.appendChild(deleteBtn);
-           container.appendChild(row);
-       });
-       
-       var addBtn = document.getElementById('add-cmd-btn');
-       if(addBtn) {
-           addBtn.onclick = function() {
-               var trigVal = document.getElementById('new-cmd-trigger').value;
-               var urlVal = document.getElementById('new-cmd-url').value;
-               if(trigVal && urlVal) {
-                   State.CONFIG.custom_commands.push({ trigger: trigVal, url: urlVal });
-                   document.getElementById('new-cmd-trigger').value = '';
-                   document.getElementById('new-cmd-url').value = '';
-                   markDirty(); // [FIX] Mark dirty
-                   SettingsUI.renderCustomCommandsList();
-               }
-           }
-       }
-   },
-   
-   updateCommand: function(index, field, value) {
-       if (State.CONFIG.custom_commands[index]) {
-            State.CONFIG.custom_commands[index][field] = value;
-            markDirty(); // [FIX] Mark dirty
-       }
-   },
-   
-   removeCommand: function(index) {
-       if (State.CONFIG.custom_commands) {
-           State.CONFIG.custom_commands.splice(index, 1);
-           markDirty(); // [FIX] Mark dirty
-       }
-       this.renderCustomCommandsList();
-   },
+        var container = document.getElementById('custom-cmd-list');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        var self = this;
+        var cmds = State.CONFIG.custom_commands || [];
+        
+        if (cmds.length === 0) {
+            container.innerHTML = '<div style="color:#666; font-style:italic; padding:10px; font-size:0.8rem;">No custom commands. Add one above.</div>';
+        }
+
+        cmds.forEach(function(cmd, index) {
+            var row = document.createElement('div');
+            // Re-use style from Dock Links for consistency
+            row.style.cssText = 'display:flex; gap:10px; margin-bottom:8px; align-items:center; background:rgba(255,255,255,0.03); padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.05);';
+            
+            // Trigger Input
+            var inputTrig = document.createElement('input');
+            inputTrig.type = 'text';
+            inputTrig.value = safeText(cmd.trigger || '');
+            inputTrig.className = 'config-input';
+            inputTrig.style.flex = '1';
+            inputTrig.style.minWidth = '0';
+            inputTrig.placeholder = 'Trigger';
+            inputTrig.title = 'Command Trigger';
+            inputTrig.onchange = function() { self.updateCommand(index, 'trigger', this.value); };
+            
+            // URL Input
+            var inputUrl = document.createElement('input');
+            inputUrl.type = 'text';
+            inputUrl.value = safeText(cmd.url || '');
+            inputUrl.className = 'config-input';
+            inputUrl.style.flex = '2';
+            inputUrl.style.minWidth = '0';
+            inputUrl.placeholder = 'URL';
+            inputUrl.title = 'Command URL';
+            inputUrl.onchange = function() { self.updateCommand(index, 'url', this.value); };
+            
+            // Delete Button
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn danger-btn'; // Use global danger class if avail
+            deleteBtn.style.cssText = 'width:32px; height:32px; display:flex; align-items:center; justify-content:center; padding:0; background:rgba(255,50,50,0.2); color:#ff5555; border:1px solid rgba(255,50,50,0.3); border-radius:4px; cursor:pointer; flex-shrink:0;';
+            deleteBtn.innerHTML = '&#10005;'; // X symbol
+            deleteBtn.title = 'Remove Command';
+            deleteBtn.onclick = function() { self.removeCommand(index); };
+            deleteBtn.onmouseover = function() { this.style.background = 'rgba(255,50,50,0.4)'; };
+            deleteBtn.onmouseout = function() { this.style.background = 'rgba(255,50,50,0.2)'; };
+            
+            row.appendChild(inputTrig);
+            row.appendChild(inputUrl);
+            row.appendChild(deleteBtn);
+            container.appendChild(row);
+        });
+        
+        var addBtn = document.getElementById('add-cmd-btn');
+        if(addBtn) {
+            // Unbind old to be safe
+            addBtn.onclick = function() {
+                var trigInput = document.getElementById('new-cmd-trigger');
+                var urlInput = document.getElementById('new-cmd-url');
+                var trigVal = trigInput.value.trim();
+                var urlVal = urlInput.value.trim();
+                
+                if(trigVal && urlVal) {
+                    if(!State.CONFIG.custom_commands) State.CONFIG.custom_commands = [];
+                    State.CONFIG.custom_commands.push({ trigger: trigVal, url: urlVal });
+                    trigInput.value = '';
+                    urlInput.value = '';
+                    markDirty();
+                    self.renderCustomCommandsList();
+                    trigInput.focus();
+                } else {
+                    alert('Please enter both a Trigger and URL.');
+                }
+            }
+        }
+    },
+    
+    updateCommand: function(index, field, value) {
+        if (State.CONFIG.custom_commands[index]) {
+             State.CONFIG.custom_commands[index][field] = value;
+             markDirty();
+        }
+    },
+    
+    // --- Custom Commands CRUD ---
+    removeCommand: function(index) {
+        // V104: Toggle Behavior - Close if already open
+        var confirmModal = document.getElementById('confirm-modal');
+        if (confirmModal && confirmModal.classList.contains('active')) {
+             if (window.ModalManager) ModalManager.close('confirm-modal');
+             return;
+        }
+
+        var self = this;
+        if (window.showConfirmModal) {
+            window.showConfirmModal(
+                'REMOVE COMMAND',
+                'Are you sure you want to remove this command?',
+                function() {
+                    State.CONFIG.custom_commands.splice(index, 1);
+                    markDirty();
+                    self.renderCustomCommandsList();
+                }
+            );
+        } else if(confirm('Remove this command?')) {
+            State.CONFIG.custom_commands.splice(index, 1);
+            markDirty();
+            this.renderCustomCommandsList();
+        }
+    },
    
     /* =========================================
        THEME PRESETS UI
@@ -876,10 +1012,7 @@ export const SettingsUI = {
         var textarea = document.getElementById('theme-modal-textarea');
         var confirmBtn = document.getElementById('theme-modal-confirm');
         
-        // Check if elements exist (Theme modal might be part of index.html that I verified exists?)
-        // I haven't verified 'theme-modal' exists in index.html, assume yes based on vinland.js usage.
         if (!modal) {
-             // Basic fallback if missing HTML
              if(mode === 'save') {
                  var name = prompt("Enter theme name:");
                  if(name) this.saveCustomTheme(name);
@@ -887,8 +1020,8 @@ export const SettingsUI = {
              return; 
         }
 
-        modal.classList.add('active'); // active class triggers flex display usually
-        modal.style.display = 'flex'; 
+        // Use ModalManager
+        ModalManager.open('theme-modal'); 
 
         if (mode === 'save') {
             title.textContent = 'SAVE THEME PRESET';
@@ -903,7 +1036,7 @@ export const SettingsUI = {
             input.style.display = 'none';
             textarea.style.display = 'block';
             textarea.value = JSON.stringify(this.getCurrentThemeAsObject(), null, 2);
-            confirmBtn.textContent = 'CLOSE'; // Or copy?
+            confirmBtn.textContent = 'CLOSE'; 
         } else if (mode === 'import') {
             title.textContent = 'IMPORT THEME (JSON)';
             input.style.display = 'none';
@@ -916,11 +1049,7 @@ export const SettingsUI = {
     },
     
     closeThemeModal: function() {
-        var modal = document.getElementById('theme-modal');
-        if (modal) {
-            modal.classList.remove('active');
-            modal.style.display = 'none';
-        }
+        ModalManager.close('theme-modal');
     },
     
     handleThemeModalConfirm: function() {
@@ -1140,6 +1269,98 @@ export const SettingsUI = {
                 return;
             }
             console.log('Video load error (attempt ' + BG_RETRY_COUNT + '/' + BG_MAX_RETRIES + ')');
+        };
+    },
+
+    /* =========================================
+       DATA BACKUP & RESTORE (V101)
+       ========================================= */
+
+    exportAllData: function() {
+        var exportData = { 
+            config: State.CONFIG, 
+            tasks: State.TASKS, 
+            notes: State.NOTES, 
+            history: State.COMMAND_HISTORY 
+        };
+        var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        var dlNode = document.createElement('a');
+        dlNode.setAttribute('href', dataStr);
+        dlNode.setAttribute('download', 'operator_backup_' + new Date().toISOString().slice(0,10) + '.json');
+        document.body.appendChild(dlNode);
+        dlNode.click();
+        dlNode.remove();
+        showNotification('BACKUP EXPORTED SUCCESSFULLY');
+    },
+
+    triggerImport: function() {
+        var fileInput = document.getElementById('import-file');
+        if (fileInput) fileInput.click();
+    },
+
+    importDataFile: function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        
+        var reader = new FileReader();
+        reader.onload = function (evt) {
+            try {
+                var imported = JSON.parse(evt.target.result);
+                
+                // Validate structure roughly
+                if (!imported.config && !imported.tasks && !imported.notes) {
+                     throw new Error("Invalid Backup Format"); 
+                }
+
+                if (imported.config) { 
+                    State.CONFIG = Object.assign(State.CONFIG || {}, imported.config); 
+                    Config.save(); 
+                }
+                if (imported.tasks) State.TASKS = imported.tasks;
+                if (imported.notes) State.NOTES = imported.notes;
+                if (imported.history) State.COMMAND_HISTORY = imported.history;
+                
+                // Save Everything
+                saveData(); // Persist tasks/notes/history
+                
+                // Refresh UI
+                Config.applyTheme();
+                if (window.renderMissions) window.renderMissions();
+                if (window.renderNotes) window.renderNotes(); // Quick Notes
+                if (window.Notes && window.Notes.renderSidebar) window.Notes.renderSidebar();
+                
+                showNotification('DATA RESTORED SUCCESSFULLY // RELOAD RECOMMENDED');
+                setTimeout(function() { location.reload(); }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                alert('CORRUPT DATA FILE OR INVALID FORMAT');
+            }
+        };
+        reader.readAsText(file);
+    },
+    
+    // Bind Backup Buttons
+    bindBackupButtons: function() {
+        var exportBtn = document.getElementById('export-config');
+        if (exportBtn) exportBtn.onclick = this.exportAllData.bind(this);
+        
+        var importBtn = document.getElementById('import-btn');
+        if (importBtn) importBtn.onclick = this.triggerImport.bind(this);
+        
+        var importFile = document.getElementById('import-file');
+        if (importFile) importFile.onchange = this.importDataFile.bind(this);
+
+        var clearDataBtn = document.getElementById('clear-data');
+        if (clearDataBtn) clearDataBtn.onclick = function() {
+             if (window.clearAllData) window.clearAllData();
+             else if (confirm("CLEAR ALL DATA (Tasks, Notes, History)? This cannot be undone.")) {
+                 State.TASKS = [];
+                 State.NOTES = [];
+                 State.COMMAND_HISTORY = [];
+                 saveData();
+                 location.reload();
+             }
         };
     }
 };

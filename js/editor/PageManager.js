@@ -329,5 +329,26 @@ export const PageManager = {
             saveData();
             console.log('[PageManager] Migrated notes to block schema');
         }
+    },
+
+    // V101: Migration - Legacy Task Timestamps
+    migrateLegacyTasks: function() {
+        if (!State.NOTES) return;
+        var changed = false;
+        var now = Date.now();
+        State.NOTES.forEach(function(note) {
+            if (note.blocks) {
+                note.blocks.forEach(function(block) {
+                    if (block.type === 'task' && !block.createdAt) {
+                        block.createdAt = now; // Best guess for legacy items
+                        changed = true;
+                    }
+                });
+            }
+        });
+        if (changed) {
+            saveData();
+            console.log('[PageManager] Migrated legacy tasks with timestamps');
+        }
     }
 };

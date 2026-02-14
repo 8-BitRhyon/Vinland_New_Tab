@@ -15,6 +15,8 @@ import { SlashMenu } from './editor/SlashMenu.js';
 import { renderMissions, checkStreakReset } from './features/Missions.js';
 import { Audio } from './core/Audio.js'; 
 import { Background } from './ui/Background.js';
+import { Weather } from './features/Weather.js'; // V101: Modularized
+import { Dock } from './features/Dock.js';       // V101: Modularized
 
 // --- MAIN ENTRY POINT ---
 document.addEventListener('DOMContentLoaded', init);
@@ -59,13 +61,9 @@ async function init() {
     if (typeof renderMissions === 'function') renderMissions();
     if (typeof checkStreakReset === 'function') checkStreakReset();
     
-    // 7. Initialize Inline Systems (Dock/Weather)
-    if (typeof renderDock === 'function') renderDock(State.ROOT_ID);
-    if (typeof fetchWeather === 'function' && State.CONFIG.weather_enabled !== false) fetchWeather();
-
     initCollapsibleSections();
     
-    // 8. Global Event Listeners (The "Missing Glue")
+    // 7. Global Event Listeners (The "Missing Glue")
     document.addEventListener('click', handleGlobalClick);
     document.addEventListener('input', handleGlobalInput); // Restores typing sounds
 
@@ -123,100 +121,23 @@ window.renderMissions = renderMissions;
 window.PageActions = PageActions; // V74: Voltron Pattern
 window.saveConfigFromUI = SettingsUI.saveConfigFromUI.bind(SettingsUI);
 
+// CLI Globals (V101: Restoration)
+// These are required for CommandLine.js 'eval' or direct function calls
+import { addTask, toggleTaskComplete } from './features/Missions.js';
+import { safeCalculate } from './core/SafeCalc.js';
+
+window.addTask = addTask;
+window.toggleTaskComplete = toggleTaskComplete;
+window.safeCalculate = safeCalculate;
+// Also expose for legacy inline calls if any
+window.calc = safeCalculate; 
+
 // Audio Globals
 if (typeof Audio !== 'undefined') {
     window.playClickSound = Audio.playClickSound;
 }
 
-// --- LEGACY INLINE LOGIC (Keep these until moved to modules) ---
-
-window.renderDock = function() {
-    var dock = document.getElementById('dock-links');
-    if (!dock) return;
-    dock.innerHTML = '';
-    if (!Array.isArray(State.CONFIG.dock_links)) {
-        State.CONFIG.dock_links = [
-            { name: "GMAIL", url: "https://mail.google.com" },
-            { name: "CAL", url: "https://calendar.google.com" },
-            { name: "GPT", url: "https://chat.openai.com" }
-        ];
-    }
-    State.CONFIG.dock_links.forEach(function (link, index) {
-        var a = document.createElement('a');
-        a.href = link.url;
-        a.textContent = link.name;
-        a.className = 'dock-item';
-        a.oncontextmenu = function (e) {
-            e.preventDefault();
-            if (confirm('Delete dock link "' + link.name + '"?')) {
-                State.CONFIG.dock_links.splice(index, 1);
-                saveConfig();
-                renderDock();
-            }
-        };
-        dock.appendChild(a);
-    });
-    var addBtn = document.createElement('span');
-    addBtn.textContent = '+';
-    addBtn.className = 'dock-add';
-    addBtn.title = 'Add Link';
-    addBtn.onclick = function () { SettingsUI.open('dock'); };
-    dock.appendChild(addBtn);
-};
-
-window.fetchWeather = function() {
-    var el = document.getElementById('weather-widget');
-    if (!el) return;
-    if (!State.CONFIG.weather_location || State.CONFIG.weather_location === '') {
-        el.textContent = 'SET_LOCATION //';
-        el.onclick = function() { SettingsUI.open('weather'); };
-        return;
-    }
-
-    // Cache Check (30 mins)
-    var now = Date.now();
-    if (State.WEATHER_CACHE && (now - State.WEATHER_CACHE.time < 1800000)) {
-        renderWeather(State.WEATHER_CACHE.data);
-        return;
-    }
-
-    var location = State.CONFIG.weather_location || 'London';
-    var url = 'https://wttr.in/' + encodeURIComponent(location) + '?format=j1';
-
-    el.textContent = 'LOADING //';
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            State.WEATHER_CACHE = { time: Date.now(), data: data };
-            renderWeather(data);
-             try {
-                localStorage.setItem('OPERATOR_WEATHER_CACHE', JSON.stringify(State.WEATHER_CACHE));
-            } catch(e) {}
-        })
-        .catch(err => {
-            console.error('Weather error:', err);
-            el.textContent = 'OFFLINE //';
-        });
-};
-
-function renderWeather(data) {
-    var el = document.getElementById('weather-widget');
-    if (!el || !data) return;
-
-    var current = data.current_condition[0];
-    var temp = State.CONFIG.use_celsius ? current.temp_C + 'C' : current.temp_F + 'F';
-    var cond = current.weatherDesc[0].value;
-    
-    var text = (State.CONFIG.weather_location || 'WEATHER').toUpperCase() + ' : ' + temp + ' / ' + cond.toUpperCase();
-    
-    if (State.CONFIG.weather_extended) {
-        text += ' / H:' + current.humidity + '%';
-    }
-    
-    el.textContent = text;
-    el.onclick = function() { SettingsUI.open('weather'); };
-}
+// Inline Dock/Weather removed - Modularized in V101
 
 function initCollapsibleSections() {
     var coll = document.getElementsByClassName("collapsible-header");
@@ -232,3 +153,4 @@ function initCollapsibleSections() {
         });
     }
 }
+

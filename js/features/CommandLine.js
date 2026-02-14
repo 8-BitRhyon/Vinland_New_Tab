@@ -82,7 +82,15 @@ export const CommandLine = {
             hint.innerHTML = '<span class="hint-syntax">gcal | gtasks | gmail | gdrive | gdocs</span>';
             hint.style.display = 'block';
         } else if (valLower.startsWith('calc')) {
-            hint.innerHTML = '<span class="hint-syntax">calc [expression]</span>';
+            var expr = val.substring(4).trim();
+            var preview = '';
+            if (expr && window.safeCalculate) {
+                var res = window.safeCalculate(expr);
+                if (res !== 'ERROR' && res !== 'INVALID') {
+                    preview = ' = ' + res;
+                }
+            }
+            hint.innerHTML = '<span class="hint-syntax">calc [expression]</span><span class="hint-value" style="color:var(--main-color); margin-left:10px; font-weight:bold;">' + preview + '</span>';
             hint.style.display = 'block';
         } else {
             hint.innerHTML = '';
@@ -344,22 +352,33 @@ export const CommandLine = {
             if (cmdLower === 'yt') { window.location.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query); return; }
 
             if (cmdLower === 'roll' || cmdLower === 'dice') { 
-                // showNotification("DICE ROLLED: " + (Math.floor(Math.random() * 6) + 1)); 
+                var res = Math.floor(Math.random() * 6) + 1;
+                navigator.clipboard.writeText(res.toString());
+                showNotification("DICE: " + res + " (COPIED)"); 
                 input.value = ''; return; 
             }
             if (cmdLower === 'coin' || cmdLower === 'flip') { 
-                // showNotification("COIN FLIP: " + (Math.random() > 0.5 ? "HEADS" : "TAILS")); 
+                var res = Math.random() > 0.5 ? "HEADS" : "TAILS";
+                navigator.clipboard.writeText(res);
+                showNotification("COIN: " + res + " (COPIED)"); 
                 input.value = ''; return; 
             }
             if (cmdLower === 'quote') { 
-                // showNotification(QUOTES[Math.floor(Math.random() * QUOTES.length)]); 
+                var quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+                navigator.clipboard.writeText(quote);
+                showNotification(quote + " (COPIED)"); 
                 input.value = ''; return; 
             }
             
             if (cmdLower === 'calc') {
                 if (window.safeCalculate) {
                    var result = window.safeCalculate(query);
-                   // showNotification("RESULT: " + result);
+                   if (result !== 'ERROR' && result !== 'INVALID') {
+                       navigator.clipboard.writeText(result.toString());
+                       showNotification("RESULT: " + result + " (COPIED)");
+                   } else {
+                       showNotification("CALC ERROR");
+                   }
                 }
                 input.value = '';
                 return;
@@ -427,23 +446,52 @@ export const CommandLine = {
         var list = document.getElementById('history-list');
         if (!modal || !list) return;
 
+        // Bind Close Button
+        var closeBtn = modal.querySelector('.close-modal');
+        if(closeBtn) {
+            closeBtn.onclick = function() {
+                ModalManager.close('history-modal');
+            };
+        }
+
+        // Bind Overlay Click
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                ModalManager.close('history-modal');
+            }
+        };
+
         list.innerHTML = '';
         if (State.COMMAND_HISTORY.length === 0) {
             list.innerHTML = '<div style="color:#555; padding:10px;">No history yet.</div>';
         } else {
             State.COMMAND_HISTORY.slice(-20).reverse().forEach(function (cmd) {
                 var div = document.createElement('div');
-                div.style.cssText = 'padding:10px; border-bottom:1px solid #222; color:#888; font-size:0.85rem; cursor:pointer;';
+                div.className = 'history-item';
+                div.style.cssText = 'padding:10px; border-bottom:1px solid #333; color:#aaa; font-size:0.85rem; cursor:pointer; font-family:var(--font-primary); transition: all 0.2s;';
                 div.textContent = cmd;
+                
+                div.onmouseover = function() { 
+                    this.style.backgroundColor = 'rgba(255,255,255,0.05)'; 
+                    this.style.color = 'var(--main-color)'; 
+                    this.style.paddingLeft = '15px';
+                };
+                div.onmouseout = function() { 
+                    this.style.backgroundColor = 'transparent'; 
+                    this.style.color = '#aaa'; 
+                    this.style.paddingLeft = '10px';
+                };
+                
                 div.onclick = function () {
                     var input = document.getElementById('cmd-input');
                     if (input) input.value = cmd;
-                    modal.style.display = 'none';
+                    ModalManager.close('history-modal');
                     if (input) input.focus();
                 };
                 list.appendChild(div);
             });
         }
-        modal.style.display = 'block';
+        
+        ModalManager.open('history-modal');
     }
 };
