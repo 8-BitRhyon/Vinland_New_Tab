@@ -75,18 +75,13 @@ export function savePomodoroState() {
     }
 }
 
-// V18.1: Load Pomodoro state from chrome.storage
+// V18.2: Load Pomodoro state from chrome.storage
 export function loadPomodoroState() {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get(['pomodoro', 'pomodoroCompleted', 'pomodoroAcknowledged'], function (result) {
             // V18.2: Check if there's an unacknowledged completion
-            var modal = document.getElementById('pomodoro-complete-modal');
-            if (modal) {
-                if (result.pomodoroCompleted && !result.pomodoroAcknowledged) {
-                    modal.style.display = 'block';
-                } else {
-                    modal.style.display = 'none';
-                }
+            if (result.pomodoroCompleted && !result.pomodoroAcknowledged) {
+                if (window.ModalManager) window.ModalManager.open('pomodoro-complete-modal');
             }
 
             if (result.pomodoro && result.pomodoro.active) {
@@ -201,7 +196,6 @@ export function showPomodoroComplete() {
         chrome.storage.local.set({ pomodoroCompleted: true, pomodoroAcknowledged: false });
     }
 
-    var modal = document.getElementById('pomodoro-complete-modal');
     var durationEl = document.getElementById('pomo-complete-duration');
     var timeEl = document.getElementById('pomo-complete-time');
 
@@ -217,9 +211,11 @@ export function showPomodoroComplete() {
         timeEl.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 
-    if (modal) modal.style.display = 'block';
+    if (window.ModalManager) window.ModalManager.open('pomodoro-complete-modal');
 
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (window.showNotification) {
+        window.showNotification('FOCUS SESSION COMPLETE', 'success');
+    } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         new Notification('FOCUS COMPLETE', {
             body: 'Operator: Session finished. Time for a break!',
             icon: State.DYNAMIC_ICON_URL || 'icon.png'
@@ -232,8 +228,7 @@ export function showPomodoroComplete() {
 
 // V18.2: Acknowledge Pomodoro completion (syncs across tabs)
 export function acknowledgePomodoroComplete() {
-    var modal = document.getElementById('pomodoro-complete-modal');
-    if (modal) modal.style.display = 'none';
+    if (window.ModalManager) window.ModalManager.close('pomodoro-complete-modal');
 
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ pomodoroCompleted: false, pomodoroAcknowledged: true });
