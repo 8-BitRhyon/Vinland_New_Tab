@@ -17,7 +17,8 @@ export function parseContentToBlocks(content) {
     var blocks = [];
     var order = 0;
 
-    lines.forEach(function (line) {
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
         var block = { id: 'blk_' + Date.now() + '_' + order, order: order };
         var workingLine = line;
 
@@ -57,13 +58,56 @@ export function parseContentToBlocks(content) {
         } else if (workingLine.match(/^1\.\s/)) {
             block.type = 'numbered';
             block.content = workingLine.substring(3);
+        } else if (workingLine.startsWith('```')) {
+            // MULTI-LINE CODE BLOCK
+            block.type = 'code';
+            block.language = workingLine.substring(3).trim() || 'plain';
+            var codeContent = [];
+            i++; // Skip delimiter
+            while (i < lines.length && !lines[i].trim().startsWith('```')) {
+                codeContent.push(lines[i]);
+                i++;
+            }
+            block.content = codeContent.join('\n');
+        } else if (workingLine.match(/^>?\s*\[!(\w+)\]/)) {
+            // MULTI-LINE CALLOUT BLOCK
+            // Support both "> [!type]" (standard) and "[!type]" (legacy/broken)
+            block.type = 'callout';
+            var header = workingLine.replace(/^>\s*/, ''); // Strip >
+            var calloutContent = [header];
+            
+            // Consume subsequent lines that are part of the callout (quoted or just next lines?)
+            // For now, consume until we hit a blank line or a new block type
+            // But strict markdown requires "> " prefix.
+            // Let's assume standard behavior: consume while lines start with ">" OR are not empty?
+            // "Disappearing" issue implies we might just have text lines following.
+            // Let's consume until next empty line or known block marker?
+            // Better: Consume lines that start with '>'
+            
+            // If the first line didn't have '>', we might be in legacy mode.
+            // But let's enforce '>' for multi-line to be safe, or just consume until empty line.
+            
+            while (i + 1 < lines.length) {
+                var nextLine = lines[i + 1];
+                if (nextLine.trim().startsWith('>')) {
+                    calloutContent.push(nextLine.replace(/^>\s?/, '')); // Strip > and optional space
+                    i++;
+                } else if (nextLine.trim() === '') {
+                     // Empty line usually ends a block, but inside a callout it might be a spacer.
+                     // For simple parser, let's stop at empty line?
+                     // Or just check if next line looks like a new block?
+                     break; 
+                } else {
+                    // Non-quoted line. Should we include it? 
+                    // If we want to be robust to pasted content:
+                    // If we are formatted as "> [!type]", we expect "> content".
+                    break;
+                }
+            }
+            block.content = calloutContent.join('\n');
         } else if (workingLine.startsWith('> ')) {
             block.type = 'quote';
             block.content = workingLine.substring(2);
-        } else if (workingLine.startsWith('```')) {
-            block.type = 'code';
-            block.language = workingLine.substring(3).trim() || 'plain';
-            block.content = ''; // Simplified multiline handling
         } else if (workingLine.trim() === '---') {
             block.type = 'divider';
             block.content = '';
@@ -74,7 +118,7 @@ export function parseContentToBlocks(content) {
 
         blocks.push(block);
         order++;
-    });
+    }
 
     return blocks;
 }
@@ -230,11 +274,6 @@ export const PageManager = {
             if (b.type === 'numbered') {
                 listCounter++;
             } else {
-                // If we hit a non-list item (and not an indented child... strictly speaking complex)
-                // For now, reset on any non-numbered block to treat it as a new list
-                // To support nested lists properly with this simple generator we'd need stack logic, 
-                // but this is better than '1. 1. 1.' everywhere.
-                // Note: Bullets shouldn't reset if they are part of mixed list? usually they are separate.
                 listCounter = 0; 
             }
             
@@ -283,6 +322,15 @@ export const PageManager = {
                             content = '[[KANBAN:' + b.boardId + ']]';
                         }
                     }
+                    else content = '[[KANBAN:?]]'; // Fallback
+                    break;
+                case 'callout':
+                    // V104: Fix serialization to include '>' prefix for every line
+                    var lines = (b.content || '[!INFO] Information').split('\n');
+                    content = lines.map(l => '> ' + l).join('\n');
+                    break;
+                case 'query':
+                    content = (b.content || 'LIST FROM #');
                     break;
                 default: 
                     // bullet/numbered/quote/p

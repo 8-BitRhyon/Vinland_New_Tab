@@ -75,6 +75,7 @@ export const State = {
     TASKS: [],
     NOTES: [],
     BOARDS: [], // V3.0: Kanban Boards collection
+    CANVASES: [], // Phase 3: Visual Canvas data
     COMMAND_HISTORY: [],
     FLAT_BOOKMARKS: [],
     

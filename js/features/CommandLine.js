@@ -2,7 +2,7 @@ import { State } from '../core/Store.js';
 import { saveData } from '../core/Storage.js';
 import { saveConfig } from '../core/Config.js';
 import { ModalManager } from '../ui/ModalManager.js';
-import { Notes, addNote, clearNotes, toggleNotesPanel, renderNotes } from '../modules/NotesController.js';
+import { Notes, clearNotes, toggleNotesPanel, renderNotes } from '../modules/NotesController.js';
 import { safeText } from '../core/Utils.js';
 import { CommandRegistry } from '../core/CommandRegistry.js';
 

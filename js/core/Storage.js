@@ -50,6 +50,7 @@ export var VinlandDB = {
         TASKS: 'OPERATOR_TASKS_V2',
         NOTES: 'OPERATOR_NOTES_V2',
         BOARDS: 'OPERATOR_BOARDS_V1',
+        CANVASES: 'OPERATOR_CANVASES_V1',
         HISTORY: 'OPERATOR_HISTORY_V2',
         SESSIONS: 'OPERATOR_SESSIONS'
     },
@@ -77,6 +78,7 @@ export function loadData() {
     State.TASKS = VinlandDB.load('TASKS');
     State.NOTES = VinlandDB.load('NOTES');
     State.BOARDS = VinlandDB.load('BOARDS');
+    State.CANVASES = VinlandDB.load('CANVASES');
     State.COMMAND_HISTORY = VinlandDB.load('HISTORY');
     
     var sessions = parseInt(localStorage.getItem(VinlandDB.collections.SESSIONS) || '0') + 1;
@@ -89,5 +91,6 @@ export function saveData() {
     VinlandDB.save('TASKS', State.TASKS);
     VinlandDB.save('NOTES', State.NOTES);
     VinlandDB.save('BOARDS', State.BOARDS);
+    VinlandDB.save('CANVASES', State.CANVASES);
     VinlandDB.save('HISTORY', State.COMMAND_HISTORY);
 }

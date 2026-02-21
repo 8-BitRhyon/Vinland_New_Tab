@@ -4,6 +4,7 @@ import { Notes } from '../modules/NotesController.js';
 import { PageManager, parseContentToBlocks } from '../editor/PageManager.js';
 import { TabManager } from './TabManager.js';
 import { ModalManager } from './ModalManager.js';
+import { GraphManager } from '../modules/GraphManager.js'; // <--- ADD THIS
 
 // Helper to access globals that might be on window or imported
 function getShowNotification() {
@@ -403,6 +404,43 @@ export const PageActions = {
         );
     },
 
+    // V88: Permanent Delete (Destructive)
+    deleteNotePermanently: function(noteId) {
+        var id = noteId || Notes.activeNoteId;
+        if (!id) return;
+        
+        var note = State.NOTES.find(function(n) { return n.id === id; });
+        if (!note) return;
+
+        if (confirm('PERMANENTLY DELETE "' + (note.title || 'Untitled') + '"?\nThis cannot be undone.')) {
+            var idx = State.NOTES.indexOf(note);
+            if (idx !== -1) State.NOTES.splice(idx, 1);
+            
+            if (window.MetadataCache && window.MetadataCache.removeNote) {
+                window.MetadataCache.removeNote(id);
+            }
+            
+            saveData();
+            
+            // If deleting the active note, close editor
+            if (Notes.activeNoteId === id) {
+                Notes.activeNoteId = null;
+                var closeBtn = document.getElementById('note-editor-close');
+                if (closeBtn) closeBtn.click();
+            }
+            
+            // Refresh views
+            Notes.renderSidebar();
+            if (window.Sidebar && window.Sidebar.renderTrashView) {
+                // Check if we are currently looking at trash view
+                // (This is a bit loose but works for now if user is in trash view)
+                window.Sidebar.renderTrashView(); 
+            }
+            
+            getShowNotification()('Note permanently deleted');
+        }
+    },
+
     // V87: Pin/Unpin toggle from menu
     togglePin: function() {
         if (!Notes.activeNoteId) return;
@@ -483,16 +521,26 @@ export const PageActions = {
     // V87: Open graph view focused on current note
     showInGraph: function() {
         if (!Notes.activeNoteId) return;
-        // Open the graph modal
-        if (typeof ModalManager !== 'undefined') {
-            ModalManager.open('graph-modal');
+        
+        // Ensure GraphManager exists
+        if (typeof GraphManager === 'undefined') {
+            getShowNotification()('Graph system not loaded');
+            return;
         }
-        // Set the graph to local mode focused on this note
-        // The graph init code checks for Notes.activeNoteId
+
+        // 1. Force the graph into Local Mode
+        GraphManager.isLocalMode = true;
+        
+        // 2. Update the toggle button UI immediately (if it exists)
         var modeBtn = document.getElementById('graph-mode-toggle');
-        if (modeBtn && modeBtn.textContent === 'GLOBAL') {
-            modeBtn.click(); // Switch to LOCAL to focus on active note
+        if (modeBtn) {
+            modeBtn.textContent = 'LOCAL';
+            modeBtn.classList.add('active');
         }
+
+        // 3. Open and Render the graph properly
+        GraphManager.open();
+        
         getShowNotification()('Graph focused on current note');
     },
 
