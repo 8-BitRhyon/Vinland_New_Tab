@@ -8,7 +8,7 @@ function navigateSidebar(direction) {
     var Notes = window.Notes;
     if (typeof Notes === 'undefined' || !Notes.activeNoteId) return;
     
-    var items = Array.from(document.querySelectorAll('.note-item'));
+    var items = Array.from(document.querySelectorAll('.sidebar-note-item'));
     if (items.length === 0) return;
     
     var currentIdx = items.findIndex(item => item.dataset.noteId === Notes.activeNoteId);
@@ -158,11 +158,12 @@ export function initKeyboardShortcuts() {
                 return;
             }
             
-            // Arrow Navigation (only when not in input/contenteditable)
+            // Arrow Navigation (only when not in input/contenteditable and not focused on a block)
             var activeEl = document.activeElement;
             var isInput = activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.getAttribute('contenteditable') === 'true';
+            var isBlockEditor = activeEl.closest && activeEl.closest('.block-wrapper');
             
-            if (!isInput && TabManager) {
+            if (!isInput && !isBlockEditor && TabManager) {
                 if (e.key === 'ArrowLeft') {
                     e.preventDefault();
                     TabManager.switchAdjacent(-1);

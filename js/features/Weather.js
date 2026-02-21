@@ -25,6 +25,14 @@ export const Weather = {
             return;
         }
 
+        // 1. Lazy Load Cache if missing (Fix for fresh load)
+        if (!State.WEATHER_CACHE) {
+            try {
+                var cached = localStorage.getItem('OPERATOR_WEATHER_CACHE');
+                if (cached) State.WEATHER_CACHE = JSON.parse(cached);
+            } catch(e) { console.error('Weather cache load failed', e); }
+        }
+
         // Cache Check (30 mins)
         var now = Date.now();
         if (State.WEATHER_CACHE && (now - State.WEATHER_CACHE.time < 1800000)) {
@@ -54,8 +62,17 @@ export const Weather = {
             })
             .catch(err => {
                 console.error('Weather error:', err);
-                el.innerHTML = '<div class="weather-condition" style="margin:0">OFFLINE //</div>';
-                el.classList.add('active');
+                
+                // Fallback to cache (even if stale)
+                if (State.WEATHER_CACHE && State.WEATHER_CACHE.data) {
+                     this.render(State.WEATHER_CACHE.data);
+                     // Indicate offline status
+                     var cond = el.querySelector('.weather-condition');
+                     if (cond) cond.textContent = (cond.textContent || '') + ' (OFFLINE)';
+                } else {
+                    el.innerHTML = '<div class="weather-condition" style="margin:0">OFFLINE //</div>';
+                    el.classList.add('active');
+                }
             });
     },
 

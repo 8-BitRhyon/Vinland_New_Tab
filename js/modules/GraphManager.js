@@ -17,13 +17,17 @@ export const GraphManager = {
 
     open: function() {
         ModalManager.open('graph-modal');
-        // V87: Bind toggle button (CSP-safe, no inline onclick)
+        
+        // Ensure the button text matches the current state (in case PageActions changed it)
         var toggleBtn = document.getElementById('graph-mode-toggle');
         if (toggleBtn) {
             var self = this;
+            toggleBtn.textContent = this.isLocalMode ? 'LOCAL' : 'GLOBAL';
+            toggleBtn.classList.toggle('active', this.isLocalMode);
             toggleBtn.onclick = function() { self.toggleLocalMode(); };
         }
-        // V61: Longer delay + safety fallback to ensure layout is ready
+        
+        // Render after modal animation
         setTimeout(() => {
             this.render();
         }, 300);

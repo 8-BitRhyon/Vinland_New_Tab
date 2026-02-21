@@ -18,6 +18,10 @@ export function buildDirectoryStructure(notes) {
 
     notes.forEach(function (note) {
         var path = note.path || '/';
+        
+        // V88: Hide Trash from standard tree
+        if (path.indexOf('/.trash') === 0) return;
+
         var parts = path.split('/').filter(function (p) { return p.length > 0; });
 
         var current = root;
@@ -220,6 +224,7 @@ export function renderFileTree(structure, basePath, forceExpand) {
         var noteEl = document.createElement('div');
         noteEl.className = 'sidebar-note-item';
         noteEl.setAttribute('draggable', 'true');
+        noteEl.setAttribute('data-note-id', note.id);
 
         if (typeof Notes !== 'undefined') {
             if (note.id === Notes.activeNoteId) noteEl.classList.add('active');
@@ -401,8 +406,97 @@ export function renderSidebar(query) {
         sidebarList.appendChild(boardSection);
     }
 
-    // V3.5: Update sidebar tags list
-    if (typeof Notes !== 'undefined' && Notes.updateAllTags) {
-        Notes.updateAllTags();
+// ... (existing code)
+
+    // V88: Trash Button in Footer
+    var sidebarFooter = document.querySelector('.sidebar-footer');
+    if (!sidebarFooter) {
+        sidebarFooter = document.createElement('div');
+        sidebarFooter.className = 'sidebar-footer';
+        sidebarList.parentNode.appendChild(sidebarFooter); // Append to .notes-sidebar
+    }
+    
+    // Check if button already exists to avoid duplicates if re-rendering
+    var trashBtn = document.getElementById('open-trash-btn');
+    if (!trashBtn) {
+        var trashCount = State.NOTES.filter(function(n) { return n.path && n.path.indexOf('/.trash') === 0; }).length;
+        var btnHtml = '<button id="open-trash-btn" class="text-btn" style="color:var(--danger-color); width:100%; text-align:left; padding:10px 0; font-size:0.8rem;">' +
+                      '🗑️ TRASH (' + trashCount + ')' +
+                      '</button>';
+        sidebarFooter.innerHTML = btnHtml; // simplistic, assumes footer only has this for now
+        
+        // Re-bind click
+        setTimeout(function() {
+            var btn = document.getElementById('open-trash-btn');
+            if (btn) btn.onclick = function() { renderTrashView(); };
+        }, 0);
+    } else {
+        // Update count
+        var trashCount = State.NOTES.filter(function(n) { return n.path && n.path.indexOf('/.trash') === 0; }).length;
+        trashBtn.innerHTML = 'TRASH (' + trashCount + ')';
+        trashBtn.onclick = function() { renderTrashView(); };
+    }
+}
+
+/**
+ * V88: Render Trash View
+ * Replaces sidebar content with trash items
+ */
+export function renderTrashView() {
+    var sidebarList = document.getElementById('notes-list-sidebar');
+    if (!sidebarList) return;
+    
+    sidebarList.innerHTML = '';
+    
+    // Header
+    var header = document.createElement('div');
+    header.style = 'padding: 10px; border-bottom: 1px solid var(--dim-color); margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;';
+    header.innerHTML = '<span style="color:var(--danger-color); font-weight:bold;">TRASH BIN</span>' +
+                       '<button id="exit-trash-btn" class="text-btn">CLOSE</button>';
+    sidebarList.appendChild(header);
+    
+    document.getElementById('exit-trash-btn').onclick = function() { renderSidebar(); };
+    
+    // List Items
+    var trashNotes = State.NOTES.filter(function(n) { return n.path && n.path.indexOf('/.trash') === 0; });
+    
+    if (trashNotes.length === 0) {
+        var empty = document.createElement('div');
+        empty.textContent = 'TRASH EMPTY //';
+        empty.style = 'padding: 20px; text-align: center; color: var(--dim-color); font-size: 0.8rem;';
+        sidebarList.appendChild(empty);
+    } else {
+        trashNotes.forEach(function(note) {
+            var item = document.createElement('div');
+            item.className = 'sidebar-note-item';
+            item.setAttribute('data-note-id', note.id); // Corrected from trashNotes[i].id to note.id
+            item.style = 'opacity: 0.7;'; // Retained original style assignment
+            item.innerHTML = '<div class="note-title">' + safeText(note.title || 'Untitled') + '</div>' + 
+                             '<div class="note-snippet" style="color:var(--danger-color)">' + new Date(note.modified).toLocaleDateString() + '</div>';
+            
+            item.onclick = function() {
+                if (typeof Notes !== 'undefined') Notes.open(note.id);
+            };
+            sidebarList.appendChild(item);
+        });
+        
+        // Empty Trash Button
+        var emptyBtn = document.createElement('button');
+        emptyBtn.textContent = 'EMPTY TRASH';
+        emptyBtn.className = 'btn-danger';
+        emptyBtn.style = 'width: 100%; margin-top: 20px;';
+        emptyBtn.onclick = function() {
+            if (confirm('Permanently delete ' + trashNotes.length + ' notes? This cannot be undone.')) {
+                // Bulk delete
+                trashNotes.forEach(function(n) {
+                    var idx = State.NOTES.indexOf(n);
+                    if (idx !== -1) State.NOTES.splice(idx, 1);
+                    if (window.MetadataCache) window.MetadataCache.removeNote(n.id);
+                });
+                saveData();
+                renderTrashView(); // Refresh
+            }
+        };
+        sidebarList.appendChild(emptyBtn);
     }
 }

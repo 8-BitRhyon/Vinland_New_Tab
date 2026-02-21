@@ -3,7 +3,7 @@ import { safeText, getAudioContext } from '../core/Utils.js';
 import { saveData } from '../core/Storage.js';
 import { PageManager, parseContentToBlocks } from '../editor/PageManager.js';
 import { BlockEditor } from '../editor/BlockEditor.js';
-import { SlashMenu } from '../editor/SlashMenu.js';
+import { SlashMenu } from '../ui/SlashMenu.js';
 import { ModalManager } from '../ui/ModalManager.js';
 import { TabManager } from '../ui/TabManager.js';
 import { renderSidebar } from '../ui/Sidebar.js';
@@ -112,17 +112,22 @@ export const Notes = {
         console.log('[Notes] renderNotes called. Note count:', State.NOTES ? State.NOTES.length : 'NULL');
         var list = document.getElementById('notes-list');
         var container = document.getElementById('notes-panel');
+        var hint = document.getElementById('notes-discovery-hint');
         if (!list || !container) return;
 
-        // Use State.NOTES
+        // Auto-show/hide based on note count
         if (!State.NOTES || State.NOTES.length === 0) {
-            // Container behavior: keep active but empty, or hide? 
-            // Original code hid it: container.classList.remove('active');
-            // But if user clicked toggle, they expect to see something.
-            // Let's just clear list
-            list.innerHTML = '<div style="padding:20px; text-align:center; color:#555;">NO_DATA // EMPTY_SET</div>';
+            container.classList.remove('active');
+            // Show discovery hint for first-time users (if not dismissed)
+            if (hint && localStorage.getItem('VINLAND_NOTES_HINT_DISMISSED') !== '1') {
+                hint.classList.add('active');
+            }
             return;
         }
+
+        // Notes exist: show panel, hide hint
+        container.classList.add('active');
+        if (hint) hint.classList.remove('active');
 
         list.innerHTML = '';
 
@@ -219,16 +224,10 @@ export const Notes = {
         
         // Restore sidebar state (persistence)
         try {
-            var panelState = localStorage.getItem('VINLAND_NOTES_PANEL_OPEN');
-            if (panelState === '1') {
-                var panel = document.getElementById('notes-panel');
-                if (panel) {
-                    panel.classList.add('active');
-                    this.renderNotes();
-                }
-            }
+            // Auto-show Quick Panel based on note count (replaces manual toggle)
+            this.renderNotes();
         } catch (e) {
-            console.warn('[Notes] Failed to restore panel state', e);
+            console.warn('[Notes] Failed to render quick panel', e);
         }
 
         // V85: Restore Maximized State (User Request: Absolute Throughput)
@@ -629,6 +628,98 @@ export const Notes = {
             pathDisplay.value = displayPath;
         }
 
+        // V88: TRASH BANNER & READ-ONLY MODE
+        var isTrash = note.path && note.path.indexOf('/.trash') === 0;
+        var editorModal = document.getElementById('note-editor-modal');
+        var bannerContainer = document.getElementById('trash-banner-container');
+        
+        // Ensure banner container exists
+        if (!bannerContainer && editorModal) {
+            bannerContainer = document.createElement('div');
+            bannerContainer.id = 'trash-banner-container';
+            // Insert before block-editor
+            var editorContainer = document.querySelector('.modal-body') || editorModal;
+            var blockEditor = document.getElementById('block-editor');
+            if (blockEditor) {
+                blockEditor.parentNode.insertBefore(bannerContainer, blockEditor);
+            } else {
+                editorContainer.prepend(bannerContainer);
+            }
+        }
+
+        if (isTrash) {
+            bannerContainer.innerHTML = 
+                '<div style="background: rgba(255,0,85,0.1); border: 1px solid var(--danger-color); padding: 10px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">' +
+                    '<span style="color: var(--danger-color); font-size: 0.85rem;">⚠️ This note is in the Trash.</span>' +
+                    '<div>' +
+                        '<button id="btn-restore-note" style="background:var(--main-color); color:#000; border:none; padding:4px 8px; cursor:pointer; margin-right:5px; font-weight:bold;">RESTORE</button>' +
+                        '<button id="btn-delete-forever" style="background:var(--danger-color); color:#fff; border:none; padding:4px 8px; cursor:pointer; font-weight:bold;">DELETE FOREVER</button>' +
+                    '</div>' +
+                '</div>';
+            bannerContainer.style.display = 'block';
+
+            // Disable editor
+            if (blockEditorEl) {
+                blockEditorEl.style.pointerEvents = 'none';
+                blockEditorEl.style.opacity = '0.6';
+            }
+            if (textarea) {
+                textarea.style.pointerEvents = 'none';
+                textarea.style.opacity = '0.6';
+            }
+            
+            // Hide path input too to prevent moving
+            if (pathDisplay) pathDisplay.disabled = true;
+
+            // Bind Actions
+            setTimeout(function() {
+                var restoreBtn = document.getElementById('btn-restore-note');
+                if (restoreBtn) {
+                    restoreBtn.onclick = function() {
+                        note.path = '/'; // Move back to root
+                        saveData();
+                        Notes.open(note.id); // Reload to reset state
+                        Notes.renderSidebar(); // Refresh sidebar to remove from trash count
+                    };
+                }
+                var deleteBtn = document.getElementById('btn-delete-forever');
+                if (deleteBtn) {
+                    deleteBtn.onclick = function() {
+                        // V88: Use PageActions global if available
+                        if (typeof PageActions !== 'undefined' && PageActions.deleteNotePermanently) {
+                            PageActions.deleteNotePermanently(note.id);
+                        } else if (window.PageActions && window.PageActions.deleteNotePermanently) {
+                             window.PageActions.deleteNotePermanently(note.id);
+                        } else {
+                            // Fallback if PageActions not yet updated
+                            if (confirm('Permanently delete?')) {
+                                var idx = State.NOTES.indexOf(note);
+                                if (idx !== -1) State.NOTES.splice(idx, 1);
+                                if (window.MetadataCache) window.MetadataCache.removeNote(note.id);
+                                saveData();
+                                Notes.activeNoteId = null;
+                                document.getElementById('note-editor-close').click(); 
+                                Notes.renderSidebar();
+                                if (window.Sidebar && window.Sidebar.renderTrashView) window.Sidebar.renderTrashView();
+                            }
+                        }
+                    };
+                }
+            }, 0);
+
+        } else {
+            if (bannerContainer) bannerContainer.style.display = 'none';
+            if (blockEditorEl) {
+                blockEditorEl.style.pointerEvents = 'auto';
+                blockEditorEl.style.opacity = '1';
+            }
+            if (textarea) {
+                textarea.style.pointerEvents = 'auto';
+                textarea.style.opacity = '1';
+            }
+            if (pathDisplay) pathDisplay.disabled = false;
+        }
+
         var timestamp = document.getElementById('note-timestamp');
         if (timestamp) {
             var d = new Date(note.modified || Date.now());
@@ -697,9 +788,15 @@ export const Notes = {
         var idx = State.NOTES.findIndex(n => n.id === this.activeNoteId);
         if (idx > -1) {
             var deletedPath = State.NOTES[idx] ? (State.NOTES[idx].path || '/') : '/';
+            var deletedId = this.activeNoteId;
             State.NOTES.splice(idx, 1);
             saveData();
             this.activeNoteId = null;
+
+            // Phase 3: Remove from MetadataCache
+            if (window.MetadataCache && window.MetadataCache.removeNote) {
+                window.MetadataCache.removeNote(deletedId);
+            }
 
             if (State.NOTES.length > 0) {
                 var tabSwitched = false;
@@ -755,6 +852,11 @@ export const Notes = {
         
         saveData();
         this.updateAllTags();
+
+        // Phase 3: Update MetadataCache index
+        if (window.MetadataCache && window.MetadataCache.updateNote) {
+            window.MetadataCache.updateNote(this.activeNoteId);
+        }
 
         var status = document.getElementById('save-status');
         if (status) {
@@ -1118,11 +1220,24 @@ export const Notes = {
                 return isTeaser ? '<span class="teaser-tag">[CODE]</span> ' : '%%CODE_BLOCK_' + idx + '%%';
             });
             
-            // Extract image blocks BEFORE HTML escape to preserve base64 URLs
+            // Extract image blocks BEFORE HTML escape to preserve base64 URLs and to ensure they parse before Callouts grab them
             var imageBlocks = [];
             html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, url) {
                 var idx = imageBlocks.length;
-                imageBlocks.push('<div class="preview-image-container"><img src="' + url + '" alt="' + alt + '" class="preview-img"><div class="preview-image-caption">' + alt + '</div></div>');
+                
+                // V110: Apply markdown styling to alt text for WYSIWYG
+                var styledAlt = alt;
+                // 2. Bold (**text**)
+                styledAlt = styledAlt.replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>');
+                
+                // 3. Italic (*text*)
+                styledAlt = styledAlt.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
+                
+                // 4. Underline (<u>text</u>) -> Already escaped by step 1, so unescape them
+                styledAlt = styledAlt.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<u>$1</u>')
+                                   .replace(/<u>(.*?)<\/u>/gi, '<u>$1</u>');
+                                   
+                imageBlocks.push('<div class="preview-image-container"><img src="' + url + '" alt="' + alt.replace(/"/g, '&quot;') + '" class="preview-img"><div class="preview-image-caption">' + styledAlt + '</div></div>');
                 return isTeaser ? '<span class="teaser-tag">[IMAGE]</span> ' : '%%IMAGE_BLOCK_' + idx + '%%';
             });
             
@@ -1142,15 +1257,65 @@ export const Notes = {
                 kanbanBlocks.push(hudHtml);
                 return isTeaser ? '<span class="teaser-tag">[KANBAN]</span> ' : '%%KANBAN_BLOCK_' + idx + '%%';
             });
+
+            // Extract Callout blocks AFTER Images, Code, and Kanbans so their %%% tokens are safely bundled inside the Callout
+            var calloutBlocks = [];
+            var calloutColors = {
+                'INFO': { icon: 'ℹ️', color: '#00E5FF' },
+                'WARNING': { icon: '⚠️', color: '#FFB800' },
+                'DANGER': { icon: '🛑', color: '#FF0055' },
+                'SUCCESS': { icon: '✅', color: '#00FF41' },
+                'NOTE': { icon: '📝', color: '#9D00FF' },
+                'TIP': { icon: '💡', color: '#FFD700' },
+                'QUOTE': { icon: '💬', color: '#888888' }
+            };
+            
+            // Parse Callout safely by strictly matching lines that start with `>`
+            // V111: Capture preceding space/newline to prevent fusing with adjacent blocks like Dividers
+            html = html.replace(/(^|\n)> \[!(\w+)\]\s*([^\n]*)((?:\n>.*)*)/g, function(match, prefix, type, title, body) {
+                var idx = calloutBlocks.length;
+                var typeUpper = type.toUpperCase();
+                var cfg = calloutColors[typeUpper] || calloutColors['NOTE'];
+                var safeTitle = (title || typeUpper).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                // Keep the block tokens intact instead of escaping them
+                var safeBody = (body || '').trim()
+                    .replace(/^>\s*/gm, '') // Strip continuing blockquote prefixes
+                    .replace(/&(?!(?:amp|lt|gt|quot|#\d+);)/g, '&amp;') 
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                    
+                // Apply internal block formatting
+                safeBody = safeBody.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                   .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+                                   .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<u>$1</u>')
+                                   .replace(/<u>(.*?)<\/u>/gi, '<u>$1</u>')
+                                   .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                   .replace(/\n/g, '<br>');
+
+                var calloutHtml = '<div style="border-left: 4px solid ' + cfg.color + '; ' +
+                    'background-color: ' + cfg.color + '15; ' +
+                    'padding: 15px; margin: 10px 0; border-radius: 4px;">' +
+                    '<div style="display: flex; align-items: center; gap: 8px; ' +
+                    'font-weight: bold; color: ' + cfg.color + '; margin-bottom: 8px;">' +
+                        '<span>' + cfg.icon + '</span>' +
+                        '<span>' + safeTitle + '</span>' +
+                    '</div>' +
+                    '<div style="color: #ccc; line-height: 1.6;">' + safeBody + '</div>' +
+                '</div>';
+
+                calloutBlocks.push(calloutHtml);
+                return prefix + (isTeaser ? '<span class="teaser-tag">[' + typeUpper + ']</span> ' : '%%CALLOUT_BLOCK_' + idx + '%%');
+            });
             
             // Alignment Marker Extraction
             var alignments = [];
             var aLines = html.split('\n');
             html = aLines.map(function(line, idx) {
-                var alignMatch = line.match(/\s?%%align:(left|center|right)%%$/);
+                var alignMatch = line.match(/\s?%%align:(left|center|right)%%\s*$/);
                 if (alignMatch) {
                     alignments[idx] = alignMatch[1];
-                    return line.replace(/\s?%%align:(left|center|right)%%$/, '').replace(/\s+$/, '');
+                    return line.replace(/\s?%%align:(left|center|right)%%\s*$/, '');
                 }
                 return line;
             }).join('\n');
@@ -1213,8 +1378,8 @@ export const Notes = {
             }).join('\n');
 
             // Bold and Italic
-            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            html = html.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
 
             // Inline code
             html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1331,6 +1496,11 @@ export const Notes = {
             // Re-insert Kanban blocks
             kanbanBlocks.forEach(function(block, idx) {
                 html = html.replace('%%KANBAN_BLOCK_' + idx + '%%', block);
+            });
+            
+            // Re-insert Callout blocks
+            calloutBlocks.forEach(function(block, idx) {
+                html = html.replace('%%CALLOUT_BLOCK_' + idx + '%%', block);
             });
         }
 
@@ -1526,14 +1696,21 @@ export const Notes = {
 export function renderNotes() {
     var list = document.getElementById('notes-list');
     var container = document.getElementById('notes-panel');
+    var hint = document.getElementById('notes-discovery-hint');
     if (!list || !container) return;
 
     if (!State.NOTES || State.NOTES.length === 0) {
         container.classList.remove('active');
+        // Show discovery hint for first-time users (if not dismissed)
+        if (hint && localStorage.getItem('VINLAND_NOTES_HINT_DISMISSED') !== '1') {
+            hint.classList.add('active');
+        }
         return;
     }
 
+    // Notes exist: show panel, hide hint
     container.classList.add('active');
+    if (hint) hint.classList.remove('active');
     list.innerHTML = '';
 
     var notesToShow = State.NOTES.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
@@ -1591,8 +1768,13 @@ export function clearNotes() {
 }
 
 export function toggleNotesPanel() {
-    var panel = document.getElementById('notes-panel');
-    if (panel) panel.classList.toggle('active');
+    // Legacy: now redirects to opening the full notes editor sidebar
+    if (window.Notes && window.Notes.toggleSidebar) {
+        window.Notes.toggleSidebar();
+    } else {
+        var panel = document.getElementById('notes-panel');
+        if (panel) panel.classList.toggle('active');
+    }
 }
 
 export function closeNoteEditor() {

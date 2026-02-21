@@ -11,12 +11,20 @@ import { Pomodoro } from './features/Pomodoro.js';
 import { CommandLine } from './features/CommandLine.js';
 import { Clock } from './features/Clock.js';
 import { PageActions } from './ui/PageActions.js';
-import { SlashMenu } from './editor/SlashMenu.js';
+import { SlashMenu } from './ui/SlashMenu.js';
 import { renderMissions, checkStreakReset } from './features/Missions.js';
 import { Audio } from './core/Audio.js'; 
 import { Background } from './ui/Background.js';
 import { Weather } from './features/Weather.js'; // V101: Modularized
 import { Dock } from './features/Dock.js';       // V101: Modularized
+
+// Phase 3: Second Brain Modules
+import { MetadataCache } from './core/MetadataCache.js';
+import { QueryEngine } from './core/QueryEngine.js';
+import { CanvasManager } from './modules/CanvasManager.js';
+import { HoverPreview } from './ui/HoverPreview.js';
+import { CalloutModal } from './ui/CalloutModal.js';
+import * as Sidebar from './ui/Sidebar.js'; // V88: Voltron Pattern for Trash View
 
 // --- MAIN ENTRY POINT ---
 document.addEventListener('DOMContentLoaded', init);
@@ -66,6 +74,17 @@ async function init() {
     // 7. Global Event Listeners (The "Missing Glue")
     document.addEventListener('click', handleGlobalClick);
     document.addEventListener('input', handleGlobalInput); // Restores typing sounds
+
+    // 8. Phase 3: Second Brain Features
+    MetadataCache.init();
+    CanvasManager.init();
+    HoverPreview.init();
+    CalloutModal.init();
+
+    // 9. Data Safety Net
+    window.addEventListener('beforeunload', function() {
+        saveData(); 
+    });
 
     console.log("Vinland: System Online");
 }
@@ -120,6 +139,14 @@ window.GraphManager = GraphManager;
 window.renderMissions = renderMissions;
 window.PageActions = PageActions; // V74: Voltron Pattern
 window.saveConfigFromUI = SettingsUI.saveConfigFromUI.bind(SettingsUI);
+
+// Phase 3: Second Brain Globals (Voltron Pattern)
+window.MetadataCache = MetadataCache;
+window.QueryEngine = QueryEngine;
+window.CanvasManager = CanvasManager;
+window.HoverPreview = HoverPreview;
+window.CalloutModal = CalloutModal;
+window.Sidebar = Sidebar; // V88: Voltron Pattern
 
 // CLI Globals (V101: Restoration)
 // These are required for CommandLine.js 'eval' or direct function calls
