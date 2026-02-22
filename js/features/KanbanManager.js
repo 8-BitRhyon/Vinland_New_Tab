@@ -365,7 +365,17 @@ export const KanbanManager = {
                 e.preventDefault();
                 colEl.classList.remove('drag-over');
                 if (self.draggedCard) {
-                    self.moveCard(self.draggedCard.id, self.sourceColId, col.id);
+                    // Calculate exact drop index from mouse Y position
+                    var cards = Array.from(cardList.querySelectorAll('.kanban-card:not(.dragging):not(.kanban-placeholder)'));
+                    var targetIndex = cards.length; // default: end
+                    for (var i = 0; i < cards.length; i++) {
+                        var rect = cards[i].getBoundingClientRect();
+                        if (e.clientY < rect.top + rect.height / 2) {
+                            targetIndex = i;
+                            break;
+                        }
+                    }
+                    self.moveCard(self.draggedCard.id, self.sourceColId, col.id, false, targetIndex);
                     self.draggedCard = null;
                 }
             });
@@ -477,19 +487,23 @@ export const KanbanManager = {
         this.editingColId = colId;
         var self = this;
         
-        var textarea = document.createElement('textarea');
-        textarea.name = 'kanban-card-edit-area';
-        textarea.className = 'kanban-card-edit';
-        textarea.value = currentContent;
-        textarea.rows = 3;
+        // Use contenteditable instead of textarea for seamless inline editing
+        contentEl.textContent = currentContent;
+        contentEl.setAttribute('contenteditable', 'true');
+        contentEl.classList.add('editing');
+        contentEl.focus();
         
-        contentEl.innerHTML = '';
-        contentEl.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
+        // Select all text
+        var range = document.createRange();
+        range.selectNodeContents(contentEl);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
         
         var saveEdit = function() {
-            var newContent = textarea.value.trim();
+            var newContent = contentEl.textContent.trim();
+            contentEl.setAttribute('contenteditable', 'false');
+            contentEl.classList.remove('editing');
             if (newContent && newContent !== currentContent) {
                 self.updateCard(cardId, colId, newContent);
             } else {
@@ -499,13 +513,15 @@ export const KanbanManager = {
             self.editingColId = null;
         };
         
-        textarea.onblur = saveEdit;
-        textarea.onkeydown = function(e) {
+        contentEl.onblur = saveEdit;
+        contentEl.onkeydown = function(e) {
             e.stopPropagation(); 
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                textarea.blur();
+                contentEl.blur();
             } else if (e.key === 'Escape') {
+                contentEl.setAttribute('contenteditable', 'false');
+                contentEl.classList.remove('editing');
                 self.editingCardId = null;
                 self.editingColId = null;
                 self.render();
@@ -693,7 +709,7 @@ export const KanbanManager = {
         this.render();
     },
 
-    moveCard: function (cardId, fromColId, toColId, skipRender) {
+    moveCard: function (cardId, fromColId, toColId, skipRender, targetIndex) {
         if (!this.activeBoard) return;
         var fromCol = this.activeBoard.columns.find(function (c) { return c.id === fromColId; });
         var toCol = this.activeBoard.columns.find(function (c) { return c.id === toColId; });
@@ -703,7 +719,17 @@ export const KanbanManager = {
         if (cardIdx === -1) return;
 
         var card = fromCol.cards.splice(cardIdx, 1)[0];
-        toCol.cards.push(card);
+        
+        // Insert at specific index if provided, otherwise append
+        if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex <= toCol.cards.length) {
+            // If moving within the same column, adjust index for the removed card
+            if (fromColId === toColId && cardIdx < targetIndex) {
+                targetIndex = Math.max(0, targetIndex - 1);
+            }
+            toCol.cards.splice(targetIndex, 0, card);
+        } else {
+            toCol.cards.push(card);
+        }
 
         this.activeBoard.modified = Date.now();
         saveData();

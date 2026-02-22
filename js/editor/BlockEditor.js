@@ -1573,79 +1573,81 @@ export const BlockEditor = {
                 break;
             case 'query':
                 content = document.createElement('div');
-                content.classList.add('block-query');
+                content.className = 'block-query-container';
                 content.contentEditable = false;
-                content.tabIndex = 0;
                 
+                // Header & Input
                 var queryHeader = document.createElement('div');
                 queryHeader.className = 'query-header';
-                queryHeader.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color, #444); margin-bottom: 15px;';
-                
                 var queryInput = document.createElement('input');
-                queryInput.className = 'query-input';
                 queryInput.type = 'text';
-                queryInput.placeholder = 'LIST FROM #tag WHERE status = "Active"';
+                queryInput.className = 'query-input config-input';
                 queryInput.value = block.content || '';
-                queryInput.style.cssText = 'flex: 1; background: transparent; border: none; color: var(--main-color, #ff00ff); font-family: monospace; font-size: 13px; outline: none; padding: 4px;';
+                queryInput.placeholder = 'e.g., LIST FROM #tasks WHERE status="TODO"';
                 
-                queryInput.addEventListener('input', function() {
-                    PageManager.updateBlock(self.activePageId, block.id, { content: queryInput.value });
-                });
-                queryInput.addEventListener('keydown', function(e) { e.stopPropagation(); });
-                
-                var actsDiv = document.createElement('div');
-                actsDiv.style.display = 'flex';
-                actsDiv.style.gap = '8px';
-                
-                var queryRunBtn = document.createElement('button');
-                queryRunBtn.className = 'panel-action query-run-btn';
-                queryRunBtn.textContent = 'RUN';
-                queryRunBtn.style.cssText = 'padding: 4px 10px; font-size: 11px; cursor: pointer; border-radius: 4px; background: rgba(255,0,255,0.1); border: 1px solid var(--main-color, #ff00ff); color: var(--main-color, #ff00ff);';
-                
-                var queryDeleteBtn = document.createElement('button');
-                queryDeleteBtn.className = 'panel-action query-delete-btn block-action-btn'; // Whitelist click
-                queryDeleteBtn.textContent = 'X';
-                queryDeleteBtn.style.cssText = 'padding: 4px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; border: 1px solid #666; color: #666; background: transparent;';
-                queryDeleteBtn.onclick = function() {
+                // V114: Added delete button hook
+                var qDeleteBtn = document.createElement('button');
+                qDeleteBtn.innerHTML = '×';
+                qDeleteBtn.className = 'query-delete-btn block-action-btn';
+                qDeleteBtn.style.cssText = 'background:transparent; border:none; color:var(--danger-color); cursor:pointer; font-size:1.2rem; margin-left:10px;';
+                qDeleteBtn.onclick = function() {
                     PageManager.deleteBlock(self.activePageId, block.id);
                     self.render(self.activePageId);
                 };
                 
-                actsDiv.appendChild(queryRunBtn);
-                actsDiv.appendChild(queryDeleteBtn);
-                
+                queryHeader.appendChild(document.createTextNode('🔍 Query: '));
                 queryHeader.appendChild(queryInput);
-                queryHeader.appendChild(actsDiv);
+                queryHeader.appendChild(qDeleteBtn);
+                content.appendChild(queryHeader);
 
-                var queryResults = document.createElement('div');
-                queryResults.className = 'query-results';
-                queryResults.style.cssText = 'padding: 5px; font-size: 13px;';
-                
-                // Auto-run on load if not empty context
-                if (queryInput.value && queryInput.value !== 'LIST FROM #') {
-                    // Slight delay to ensure DOM and systems are fully booted
-                    setTimeout(function() {
-                         queryRunBtn.click();
-                    }, 50);
-                }
-                
-                queryRunBtn.onclick = function() {
-                    if (!window.QueryEngine) {
-                        queryResults.innerHTML = '<div class="query-empty">QueryEngine not loaded</div>';
+                // Results Container
+                var resultsContainer = document.createElement('div');
+                resultsContainer.className = 'query-results';
+                content.appendChild(resultsContainer);
+
+                // Execution Logic
+                var executeQuery = () => {
+                    if (!window.QueryEngine) return;
+                    var qString = queryInput.value.trim();
+                    if (!qString) {
+                        resultsContainer.innerHTML = '<span style="color:var(--secondary-color)">Enter a query to see results.</span>';
                         return;
                     }
-                    var result = window.QueryEngine.execute(queryInput.value);
-                    if (result.error) {
-                        queryResults.innerHTML = '<div style="color:#ff0055;padding:10px;">' + result.error + '</div>';
-                    } else {
-                        queryResults.innerHTML = window.QueryEngine.renderResults(result.results, result.parsed.type);
+                    try {
+                        var results = window.QueryEngine.execute(qString);
+                        if (qString.toUpperCase().startsWith('LIST')) {
+                            if (results.results.length === 0) {
+                                resultsContainer.innerHTML = '<em>No results found.</em>';
+                                return;
+                            }
+                            var ul = document.createElement('ul');
+                            results.results.forEach(res => {
+                                var li = document.createElement('li');
+                                li.innerHTML = res.title ? `<strong>📄 ${res.title}</strong>` : (res.text || res.content || 'Item');
+                                li.style.cursor = 'pointer';
+                                li.onclick = () => {
+                                    if (res.noteId) window.Notes.open(res.noteId);
+                                    else if (res.id && res.path) window.Notes.open(res.id);
+                                };
+                                ul.appendChild(li);
+                            });
+                            resultsContainer.innerHTML = '';
+                            resultsContainer.appendChild(ul);
+                        } else {
+                            resultsContainer.innerHTML = window.QueryEngine.renderResults(results.results, results.parsed.type);
+                        }
+                    } catch (e) {
+                        resultsContainer.innerHTML = `<span style="color:var(--danger-color)">Syntax Error: ${e.message}</span>`;
                     }
                 };
-                
-                content.style.position = 'relative';
-                content.style.cssText += ' border: 1px solid var(--border-color, #444); border-radius: 6px; padding: 15px; background: rgba(0,0,0,0.2);';
-                content.appendChild(queryHeader);
-                content.appendChild(queryResults);
+
+                executeQuery();
+                queryInput.addEventListener('change', (e) => {
+                    block.content = e.target.value;
+                    window.saveData();
+                    if (window.PageManager) window.PageManager.syncContent(self.activePageId);
+                    executeQuery();
+                });
                 break;
             case 'divider':
                 content = document.createElement('div');

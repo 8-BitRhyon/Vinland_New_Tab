@@ -414,14 +414,21 @@ export const Notes = {
         var addBoardBtn = document.getElementById('add-board-btn-sidebar');
         if(addBoardBtn) {
              addBoardBtn.onclick = function() {
-                 if(typeof KanbanManager !== 'undefined') {
-                     // V87: Use custom input modal instead of native prompt()
-                     if (typeof ModalManager !== 'undefined' && ModalManager.openInput) {
-                         ModalManager.openInput('NEW_BOARD //', 'board_name', function(name) {
-                             var board = KanbanManager.createBoard(name);
-                             KanbanManager.open(board.id);
+                 if(window.KanbanManager) {
+                     if (window.ModalManager && window.ModalManager.openInput) {
+                         window.ModalManager.openInput('NEW_BOARD //', 'board_name', function(name) {
+                             var board = window.KanbanManager.createBoard(name);
+                             window.KanbanManager.open(board.id);
                              self.renderSidebar();
                          });
+                     } else {
+                         // Fallback: use native prompt
+                         var name = prompt('Board Name:');
+                         if (name) {
+                             var board = window.KanbanManager.createBoard(name);
+                             window.KanbanManager.open(board.id);
+                             self.renderSidebar();
+                         }
                      }
                  }
              };
@@ -535,12 +542,13 @@ export const Notes = {
         if (this.autoCreatedNoteId && this.autoCreatedNoteId !== noteId) {
             var autoNote = State.NOTES.find(function (n) { return n.id === Notes.autoCreatedNoteId; });
             if (autoNote) {
+                var isCanvas = autoNote.type === 'canvas';
                 var titleEmpty = !autoNote.title || autoNote.title.trim() === '';
                 var contentEmpty = !autoNote.content || autoNote.content.trim() === '';
                 var blocksEmpty = !autoNote.blocks || autoNote.blocks.length === 0 || 
                     (autoNote.blocks.length === 1 && (!autoNote.blocks[0].content || autoNote.blocks[0].content.trim() === ''));
                 
-                if (titleEmpty && contentEmpty && blocksEmpty) {
+                if (!isCanvas && titleEmpty && contentEmpty && blocksEmpty) {
                     var autoNoteId = this.autoCreatedNoteId;
                     State.NOTES = State.NOTES.filter(function (n) { return n.id !== autoNoteId; });
                     saveData();
@@ -556,6 +564,11 @@ export const Notes = {
         if (this.activeNoteId && this.activeNoteId !== noteId) {
             var current = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
             if (current) {
+                // Canvas notes use canvasData, not content/blocks — never garbage collect them
+                if (current.type === 'canvas') {
+                    // Just save any pending changes
+                    if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
+                } else {
                 // Empty check logic
                 var hasNoTitle = !current.title || current.title.trim() === '' || current.title === 'Untitled';
                 var hasNoContent = !current.content || current.content.trim() === '';
@@ -571,6 +584,7 @@ export const Notes = {
                 } else {
                     if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
                 }
+                } // end non-canvas block
             }
         }
 
@@ -596,6 +610,33 @@ export const Notes = {
         var textarea = document.getElementById('active-note-content');
         var blockEditorEl = document.getElementById('block-editor');
         var preview = document.getElementById('note-preview');
+        var toggleBtn = document.getElementById('preview-toggle');
+        var canvasContainer = document.getElementById('canvas-container'); // V105: Canvas Integration
+        
+        // Phase 1: Canvas Routing Override
+        if (note.type === 'canvas') {
+            console.log('[Notes] Canvas routing — noteId:', note.id, '| container found:', !!canvasContainer);
+            if (textarea) textarea.style.display = 'none';
+            if (preview) {
+                preview.classList.remove('active');
+                preview.style.display = 'none';
+            }
+            if (blockEditorEl) blockEditorEl.style.display = 'none';
+            if (toggleBtn) toggleBtn.style.display = 'none';
+            
+            if (canvasContainer) {
+                canvasContainer.style.display = 'flex';
+                console.log('[Notes] Canvas container shown. offsetHeight:', canvasContainer.offsetHeight, '| offsetWidth:', canvasContainer.offsetWidth);
+                if (window.CanvasManager) window.CanvasManager.load(note.id);
+            }
+            // Open the modal so the canvas is visible (especially from Quick Notes panel)
+            if (window.ModalManager) window.ModalManager.open('note-editor-modal');
+            return; // Exit standard block/text rendering pipeline
+        }
+        
+        // Reset defaults for standard markdown/text notes
+        if (canvasContainer) canvasContainer.style.display = 'none';
+        if (toggleBtn) toggleBtn.style.display = 'inline-block';
 
         this.isPreviewMode = (note.viewMode === 'preview');
 
@@ -821,6 +862,8 @@ export const Notes = {
             }
         }
         renderNotes();
+        this.renderNotes();
+        this.renderSidebar();
     },
     
     clearEditor: function() {
@@ -968,6 +1011,14 @@ export const Notes = {
                 self.unregisterFolder(path);
 
                 if (noteCount > 0) {
+                    var deletedNotes = State.NOTES.filter(function(n) {
+                        return (n.path === path || n.path.startsWith(path + '/'));
+                    });
+                    deletedNotes.forEach(function(n) {
+                        if (window.TabManager) window.TabManager.closeTabById(n.id);
+                        if (window.MetadataCache) window.MetadataCache.removeNote(n.id);
+                    });
+                    
                     State.NOTES = State.NOTES.filter(function(n) {
                         return !(n.path === path || n.path.startsWith(path + '/'));
                     });

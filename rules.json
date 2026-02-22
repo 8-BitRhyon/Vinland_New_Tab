@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://www.youtube.com/" }
+      ],
+      "responseHeaders": [
+        { "header": "X-Frame-Options", "operation": "remove" },
+        { "header": "Referrer-Policy", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||youtube.com/embed/*",
+      "resourceTypes": ["sub_frame"]
+    }
+  }
+]

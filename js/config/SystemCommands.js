@@ -29,10 +29,30 @@ export const SystemCommands = {
     CommandRegistry.register({
       id: "canvas:open",
       trigger: "canvas",
-      title: "Open Canvas",
-      action: () => {
-        if (window.CanvasManager) window.CanvasManager.open();
-      },
+      title: "Create/Open Canvas",
+      action: (args) => { 
+            const title = args || 'Untitled Canvas';
+            const newCanvas = {
+                id: 'canvas_' + Date.now(),
+                title: title,
+                type: 'canvas',
+                path: '/',
+                canvasData: { nodes: [], edges: [] },
+                created: Date.now(),
+                modified: Date.now()
+            };
+            window.State.NOTES.unshift(newCanvas);
+            if (window.saveData) window.saveData();
+            
+            if (window.Notes) window.Notes.open(newCanvas.id);
+            
+            // 🚨 FIX: Force the Note Editor modal to open
+            if (window.ModalManager) {
+                window.ModalManager.open('note-editor-modal');
+            }
+            
+            if (window.Notes) window.Notes.renderSidebar();
+        }
     });
 
     CommandRegistry.register({

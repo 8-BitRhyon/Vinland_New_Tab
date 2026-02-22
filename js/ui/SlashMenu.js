@@ -30,7 +30,9 @@ export const SlashMenu = {
         { id: 'cmd_weather', label: 'Insert Weather', icon: '☁️', shortcut: '/weather' },
         { id: 'cmd_calc', label: 'Calculator', icon: '🧮', shortcut: '/calc' },
         { id: 'canvas', label: 'Open Canvas', icon: '[C]', shortcut: '/canvas' },
-        { id: 'query', label: 'Query Block', icon: '?=', shortcut: '/query' },
+        { id: 'query', label: 'Query (Dataview)', icon: '🔍', action: () => {
+            if (window.BlockEditor) window.BlockEditor.insertBlock('query', 'LIST FROM #tasks');
+        }, shortcut: '/query' },
         { id: 'callout', label: 'Callout', icon: '!!', shortcut: '/callout' }
     ],
     
@@ -246,8 +248,30 @@ export const SlashMenu = {
              currentText = currentText.replace(/\/[\w-]*$/, '').trim();
         }
 
+        // V106: Canvas — completely separate flow, creates a new note and exits
+        if (cmdId === 'canvas') {
+            const title = 'Untitled Canvas';
+            const newCanvas = {
+                id: 'canvas_' + Date.now(),
+                title: title,
+                type: 'canvas',
+                path: '/',
+                canvasData: { nodes: [], edges: [] },
+                created: Date.now(),
+                modified: Date.now()
+            };
+            if (window.State && window.State.NOTES) window.State.NOTES.unshift(newCanvas);
+            if (window.saveData) window.saveData();
+            if (window.Notes) {
+                window.Notes.open(newCanvas.id);
+                window.Notes.renderSidebar();
+            }
+            this.filterQuery = '';
+            return; // Exit — do NOT re-render the block editor
+        }
+
         // Is this an insert command or a transform command?
-        var isInsert = ['cmd_time', 'cmd_weather', 'cmd_calc', 'canvas', 'align-left', 'align-center', 'align-right'].includes(cmdId);
+        var isInsert = ['cmd_time', 'cmd_weather', 'cmd_calc', 'align-left', 'align-center', 'align-right'].includes(cmdId);
 
         if (isInsert) {
              if (cmdId === 'cmd_time') {
@@ -268,9 +292,6 @@ export const SlashMenu = {
                  block.type = 'code';
                  block.language = 'calc';
                  currentText = '// Type math (e.g. 50 * 2) and press Ctrl+Enter to solve';
-             }
-             else if (cmdId === 'canvas') {
-                 if (window.CanvasManager) window.CanvasManager.open();
              }
              else if (cmdId.startsWith('align-')) {
                  block.align = cmdId.replace('align-', '');
