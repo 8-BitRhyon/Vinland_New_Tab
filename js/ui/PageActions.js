@@ -429,6 +429,8 @@ export const PageActions = {
                 if (closeBtn) closeBtn.click();
             }
             
+            if (window.TabManager) window.TabManager.closeTabById(id);
+            
             // Refresh views
             Notes.renderSidebar();
             if (window.Sidebar && window.Sidebar.renderTrashView) {

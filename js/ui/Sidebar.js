@@ -487,12 +487,14 @@ export function renderTrashView() {
         emptyBtn.style = 'width: 100%; margin-top: 20px;';
         emptyBtn.onclick = function() {
             if (confirm('Permanently delete ' + trashNotes.length + ' notes? This cannot be undone.')) {
-                // Bulk delete
+                // Collect IDs to delete, then filter in one pass
+                var trashIds = {};
                 trashNotes.forEach(function(n) {
-                    var idx = State.NOTES.indexOf(n);
-                    if (idx !== -1) State.NOTES.splice(idx, 1);
+                    trashIds[n.id] = true;
                     if (window.MetadataCache) window.MetadataCache.removeNote(n.id);
+                    if (window.TabManager) window.TabManager.closeTabById(n.id);
                 });
+                State.NOTES = State.NOTES.filter(function(n) { return !trashIds[n.id]; });
                 saveData();
                 renderTrashView(); // Refresh
             }

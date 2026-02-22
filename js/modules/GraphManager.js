@@ -68,7 +68,9 @@ export const GraphManager = {
         console.log('[Graph] Dimensions:', this.width, 'x', this.height);
 
         // 1. Prepare Data
-        var validNotes = State.NOTES.filter(n => n.title && n.title !== 'Untitled');
+        // 🚨 FIX: Strip out trashed notes before rendering (evaluating path, not boolean)
+        var activeNotes = State.NOTES.filter(n => !(n.path && n.path.indexOf('/.trash') === 0));
+        var validNotes = activeNotes.filter(n => n.title && n.title !== 'Untitled');
         
         // Map Notes to Nodes
         var allNodes = validNotes.map(n => ({

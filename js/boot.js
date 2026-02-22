@@ -3,7 +3,7 @@
 // 1. IMPORT ALL MANAGERS
 import { State } from "./core/Store.js";
 import { Config } from "./core/Config.js";
-import { loadData } from "./core/Storage.js";
+import { loadData, saveData } from "./core/Storage.js";
 import { Notes } from "./modules/NotesController.js";
 import { GraphManager } from "./modules/GraphManager.js";
 import { SettingsUI } from "./ui/SettingsUI.js";
@@ -36,9 +36,13 @@ import { startPomodoro } from "./features/Pomodoro.js";
 import { CommandRegistry } from "./core/CommandRegistry.js";
 import { SystemCommands } from "./config/SystemCommands.js";
 import { CalloutModal } from "./ui/CalloutModal.js";
+import { CanvasManager } from "./modules/CanvasManager.js";
+import { HoverPreview } from "./ui/HoverPreview.js";
+import { MetadataCache } from "./core/MetadataCache.js";
 
 // 2. EXPORT TO WINDOW (Fixes HTML onclick="" errors)
 window.State = State;
+window.saveData = saveData;
 window.Notes = Notes;
 window.GraphManager = GraphManager;
 window.ModalManager = ModalManager;
@@ -58,6 +62,10 @@ window.clearCompletedTasks = clearCompletedTasks;
 window.safeCalculate = safeCalculate;
 window.Pomodoro = Pomodoro;
 window.startPomodoro = startPomodoro;
+window.CalloutModal = CalloutModal;
+window.CanvasManager = CanvasManager;
+window.HoverPreview = HoverPreview;
+window.MetadataCache = MetadataCache;
 window.Audio = Audio;
 window.SlashMenu = SlashMenu;
 window.PageActions = PageActions;
@@ -125,8 +133,59 @@ function bindGlobals() {
   const graphBtn = document.getElementById("open-graph-btn");
   if (graphBtn)
     graphBtn.onclick = function () {
-      window.GraphManager.open();
+      var modal = document.getElementById("graph-modal");
+      if (modal && modal.classList.contains("active")) {
+        window.ModalManager.close("graph-modal");
+      } else {
+        window.GraphManager.open();
+      }
     };
+
+  // V106: Board+ Button (always override with toggle)
+  const boardBtn = document.getElementById("add-board-btn-sidebar");
+  if (boardBtn) {
+    boardBtn.onclick = function () {
+      // Toggle: close if input-modal is already open
+      var inputModal = document.getElementById("input-modal");
+      if (inputModal && inputModal.classList.contains("active")) {
+        window.ModalManager.close('input-modal');
+        return;
+      }
+      if (window.KanbanManager) {
+        if (window.ModalManager && window.ModalManager.openInput) {
+          window.ModalManager.openInput('NEW_BOARD //', 'board_name', function(name) {
+            var board = window.KanbanManager.createBoard(name);
+            window.KanbanManager.open(board.id);
+            if (window.Notes) window.Notes.renderSidebar();
+          });
+        } else {
+          var name = prompt('Board Name:');
+          if (name) {
+            var board = window.KanbanManager.createBoard(name);
+            window.KanbanManager.open(board.id);
+          }
+        }
+      }
+    };
+  }
+
+  // V106: FLD+ Button (always override with toggle)
+  const fldBtn = document.getElementById("add-folder-btn-sidebar");
+  if (fldBtn) {
+    fldBtn.onclick = function () {
+      if (window.ModalManager) {
+        var modal = document.getElementById("folder-create-modal");
+        if (modal && modal.classList.contains("active")) {
+          window.ModalManager.close('folder-create-modal');
+        } else {
+          var input = document.getElementById("folder-name-input");
+          if (input) input.value = '';
+          window.ModalManager.open('folder-create-modal');
+          if (input) setTimeout(function() { input.focus(); }, 50);
+        }
+      }
+    };
+  }
 
   // 3. System Buttons
   const configBtn = document.getElementById("config-btn");
@@ -310,6 +369,11 @@ async function boot() {
   if (ModalManager) ModalManager.init();
   if (TabManager) TabManager.init();
 
+  // Phase 3 Features
+  if (MetadataCache) MetadataCache.init();
+  if (CanvasManager) CanvasManager.init();
+  if (HoverPreview) HoverPreview.init();
+
   if (Notes) {
     Notes.init();
     // FIX: Render quick notes panel
@@ -351,6 +415,11 @@ async function boot() {
   }
 
   bindGlobals(); // [NEW] Bind static HTML buttons
+
+  // E. Data Safety Net
+  window.addEventListener('beforeunload', function() {
+    saveData();
+  });
 
   console.log("Vinland: Systems Online.");
 }
