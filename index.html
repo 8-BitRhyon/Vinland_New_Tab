@@ -815,6 +815,9 @@
       .canvas-card.embed-node {
         border-color: var(--card-color, #ff00ff);
         padding: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
       .canvas-card.embed-node .canvas-card-header {
         border-bottom-color: var(--card-color, #ff00ff);
@@ -941,12 +944,22 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        padding: 12px;
         box-sizing: border-box;
         text-align: center;
-        gap: 15px;
+        gap: 10px;
         background: rgba(0, 0, 0, 0.2);
-        overflow: hidden;
+        overflow: visible;
+        min-height: 0;
+      }
+
+      .canvas-card-smart-body img {
+        flex-shrink: 1;
+        min-height: 0;
+        max-height: calc(100% - 40px);
+        width: 100%;
+        object-fit: contain;
+        border-radius: 6px;
       }
 
       .smart-card-favicon {

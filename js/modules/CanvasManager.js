@@ -959,25 +959,54 @@ export const CanvasManager = {
             card.classList.add('embed-node');
             
             let renderUrl = nodeData.url;
-            
-            // YouTube strictly fails in MV3 locals. Fallback to Smart Card.
-            if (renderUrl.includes('youtube')) {
+
+            // === CSP-BLOCKED DOMAIN REGISTRY ===
+            // These sites enforce frame-ancestors CSP that permanently blocks
+            // embedding in chrome-extension:// origins under MV3.
+            const CSP_BLOCKED_DOMAINS = [
+                'youtube.com', 'youtu.be',
+                'docs.google.com', 'sheets.google.com', 'slides.google.com',
+                'drive.google.com', 'mail.google.com', 'calendar.google.com',
+                'facebook.com', 'instagram.com', 'threads.net',
+                'twitter.com', 'x.com',
+                'linkedin.com',
+                'github.com',
+                'reddit.com',
+                'tiktok.com',
+                'netflix.com', 'hulu.com', 'disneyplus.com',
+                'spotify.com', 'soundcloud.com',
+                'notion.so', 'figma.com', 'canva.com',
+                'dropbox.com', 'onedrive.live.com',
+                'slack.com', 'discord.com',
+                'amazon.com', 'ebay.com',
+                'paypal.com', 'stripe.com',
+                'medium.com', 'substack.com',
+                'zoom.us',
+            ];
+
+            // Check if the URL belongs to a CSP-blocked domain
+            let hostname = '';
+            try { hostname = new URL(renderUrl).hostname.replace('www.', ''); } catch(e) {}
+            const isBlocked = CSP_BLOCKED_DOMAINS.some(domain => hostname.includes(domain));
+
+            // === YOUTUBE: Special thumbnail Smart Card ===
+            if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
                 let displayUrl = renderUrl;
                 let videoId = '';
                 if (renderUrl.includes('youtube.com/embed/')) {
                     videoId = renderUrl.split('embed/')[1].split('?')[0];
                     displayUrl = `https://www.youtube.com/watch?v=${videoId}`;
                 } else if (renderUrl.includes('watch?v=')) {
-                    videoId = new URL(renderUrl).searchParams.get('v');
+                    try { videoId = new URL(renderUrl).searchParams.get('v'); } catch(e) {}
                 } else if (renderUrl.includes('youtu.be/')) {
                     videoId = renderUrl.split('youtu.be/')[1].split('?')[0];
                 }
 
                 const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : `https://www.google.com/s2/favicons?domain=youtube.com&sz=128`;
 
-                 card.innerHTML = `
+                card.innerHTML = `
                     <div class="canvas-card-header">
-                        <div class="canvas-card-title">🌐 YouTube Video</div>
+                        <div class="canvas-card-title" contenteditable="true">🌐 ${nodeData.title || 'YouTube Video'}</div>
                         <span class="canvas-card-delete" title="Delete node">&times;</span>
                     </div>
                     <div class="canvas-card-smart-body" style="padding: 10px; gap: 10px;">
@@ -988,28 +1017,57 @@ export const CanvasManager = {
                     </div>
                     <div class="canvas-resizer" title="Resize node"></div>
                 `;
-            } else {
-                // For Google Docs and standard sites, render an Obsidian-style protected iframe
-                let finalUrl = renderUrl;
-                
-                // Upgrade legacy read-only sheets to live editors
-                if (finalUrl.includes('docs.google.com/') && finalUrl.includes('/preview')) {
-                    finalUrl = finalUrl.replace('/preview', '/edit');
+            
+            // === CSP-BLOCKED: Generic Smart Card with favicon ===
+            } else if (isBlocked) {
+                let displayUrl = renderUrl;
+                // Clean Google Docs embed URLs back to editable links
+                if (displayUrl.includes('docs.google.com/') && displayUrl.includes('/preview')) {
+                    displayUrl = displayUrl.replace('/preview', '/edit');
                 }
-                
-                const hostname = new URL(finalUrl).hostname.replace('www.', '');
+
+                const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+
+                // Generate a friendly title based on domain (only as default)
+                let friendlyTitle = hostname;
+                if (hostname.includes('docs.google.com')) friendlyTitle = 'Google Docs';
+                if (hostname.includes('sheets.google.com')) friendlyTitle = 'Google Sheets';
+                if (hostname.includes('slides.google.com')) friendlyTitle = 'Google Slides';
+                if (hostname.includes('drive.google.com')) friendlyTitle = 'Google Drive';
+                if (hostname.includes('github.com')) friendlyTitle = 'GitHub';
+                if (hostname.includes('notion.so')) friendlyTitle = 'Notion';
+                if (hostname.includes('figma.com')) friendlyTitle = 'Figma';
+                const displayTitle = nodeData.title || friendlyTitle;
+
+                card.innerHTML = `
+                    <div class="canvas-card-header">
+                        <div class="canvas-card-title" contenteditable="true">🌐 ${displayTitle}</div>
+                        <span class="canvas-card-delete" title="Delete node">&times;</span>
+                    </div>
+                    <div class="canvas-card-smart-body">
+                        <img src="${faviconUrl}" alt="${hostname}" class="smart-card-favicon" />
+                        <div class="smart-card-details">
+                            <div class="smart-card-title">${displayTitle}</div>
+                            <a href="${displayUrl}" target="_blank" class="smart-card-link">${displayUrl}</a>
+                        </div>
+                    </div>
+                    <div class="canvas-resizer" title="Resize node"></div>
+                `;
+
+            // === EMBEDDABLE: Iframe + Shield for everything else ===
+            } else {
                 const title = nodeData.title || hostname;
                 
                 card.innerHTML = `
                     <div class="canvas-card-header">
-                        <div class="canvas-card-title">🌐 ${title}</div>
+                        <div class="canvas-card-title" contenteditable="true">🌐 ${title}</div>
                         <div class="canvas-card-actions">
                             <button class="canvas-card-interact-btn" title="Toggle Interaction (Obsidian Style)">🖱️ Interact</button>
                             <span class="canvas-card-delete" title="Delete node">&times;</span>
                         </div>
                     </div>
                     <div class="canvas-card-embed-body" style="position: relative;">
-                        <iframe src="${finalUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"></iframe>
+                        <iframe src="${renderUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"></iframe>
                         <div class="canvas-iframe-shield" style="position: absolute; inset: 0; z-index: 5; background: transparent;"></div>
                     </div>
                     <div class="canvas-resizer" title="Resize node"></div>
@@ -1034,6 +1092,35 @@ export const CanvasManager = {
                         interactBtn.innerText = '🔒 Lock Node';
                         card.style.outline = '2px solid #00ff41';
                     }
+                });
+            }
+
+            // === UNIVERSAL: Bind window.open() to all Smart Card links ===
+            // Chrome Extension new tab pages sandbox native <a target="_blank">,
+            // so we must open links programmatically.
+            card.querySelectorAll('.smart-card-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(link.href, '_blank');
+                });
+                // Also stop mousedown from triggering card drag
+                link.addEventListener('mousedown', (e) => e.stopPropagation());
+            });
+
+            // === UNIVERSAL: Editable title persistence for embed nodes ===
+            const embedTitle = card.querySelector('.canvas-card-title[contenteditable]');
+            if (embedTitle) {
+                embedTitle.addEventListener('mousedown', (e) => e.stopPropagation());
+                embedTitle.addEventListener('keydown', (e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') { e.preventDefault(); embedTitle.blur(); }
+                });
+                embedTitle.addEventListener('blur', () => {
+                    // Strip the emoji prefix to save clean title
+                    let raw = embedTitle.innerText.replace(/^🌐\s*/, '').trim();
+                    nodeData.title = raw || hostname;
+                    if (window.saveData) window.saveData();
                 });
             }
 
@@ -1157,7 +1244,7 @@ export const CanvasManager = {
 
         // === DRAG / EDGE CREATION ===
         card.addEventListener('mousedown', (e) => {
-            if (e.target.closest('[contenteditable]') || e.target.closest('.canvas-card-delete') || e.target.closest('input') || e.target.closest('.canvas-card-file-open')) return;
+            if (e.target.closest('[contenteditable]') || e.target.closest('.canvas-card-delete') || e.target.closest('input') || e.target.closest('.canvas-card-file-open') || e.target.closest('a')) return;
             e.stopPropagation();
 
             // Bring to Front (UX Improvement)
