@@ -25,6 +25,8 @@ export const Weather = {
             return;
         }
 
+        var location = State.CONFIG.location || 'London';
+
         // 1. Lazy Load Cache if missing (Fix for fresh load)
         if (!State.WEATHER_CACHE) {
             try {
@@ -33,15 +35,12 @@ export const Weather = {
             } catch(e) { console.error('Weather cache load failed', e); }
         }
 
-        // Cache Check (30 mins)
+        // Cache Check (30 mins). Ensure we bust cache if the user changed the location settings.
         var now = Date.now();
-        if (State.WEATHER_CACHE && (now - State.WEATHER_CACHE.time < 1800000)) {
+        if (State.WEATHER_CACHE && State.WEATHER_CACHE.loc === location && (now - State.WEATHER_CACHE.time < 1800000)) {
             this.render(State.WEATHER_CACHE.data);
             return;
         }
-
-        var location = State.CONFIG.location || 'London';
-        var url = 'https://wttr.in/' + encodeURIComponent(location) + '?format=j1';
 
         // V102: Preserving structure if possible, or showing loading text
         if (el.querySelector('.weather-condition')) {
@@ -51,11 +50,56 @@ export const Weather = {
         }
         el.classList.add('active'); // V102: Ensure visibility
 
-        fetch(url)
+        var geoUrl = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(location) + '&count=1';
+
+        fetch(geoUrl)
             .then(res => res.json())
-            .then(data => {
-                State.WEATHER_CACHE = { time: Date.now(), data: data };
-                this.render(data);
+            .then(geoData => {
+                if (!geoData.results || !geoData.results[0]) throw new Error("Location not found");
+                var lat = geoData.results[0].latitude;
+                var lon = geoData.results[0].longitude;
+                var resolvedName = geoData.results[0].name;
+                var weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m`;
+                
+                return fetch(weatherUrl).then(res => res.json()).then(wData => {
+                    return { locationName: resolvedName, wData: wData };
+                });
+            })
+            .then(result => {
+                // Convert Open-Meteo to wttr.in legacy schema for the render layer
+                var w = result.wData.current;
+                
+                // Helper to convert WMO codes to text
+                const wmoToText = (code) => {
+                    if (code === 0) return "Clear";
+                    if (code === 1 || code === 2 || code === 3) return "Partly Cloudy";
+                    if (code === 45 || code === 48) return "Fog";
+                    if (code >= 51 && code <= 57) return "Drizzle";
+                    if (code >= 61 && code <= 67) return "Rain";
+                    if (code >= 71 && code <= 77) return "Snow";
+                    if (code >= 80 && code <= 82) return "Rain Showers";
+                    if (code >= 85 && code <= 86) return "Snow Showers";
+                    if (code >= 95) return "Thunderstorm";
+                    return "Unknown";
+                };
+
+                var tempC = Math.round(w.temperature_2m);
+                var tempF = Math.round((w.temperature_2m * 9/5) + 32);
+
+                var formattedData = {
+                    current_condition: [{
+                        temp_C: tempC.toString(),
+                        temp_F: tempF.toString(),
+                        weatherDesc: [{ value: wmoToText(w.weather_code) }],
+                        humidity: Math.round(w.relative_humidity_2m).toString(),
+                        windspeedKmph: Math.round(w.wind_speed_10m).toString(),
+                        precipMM: w.precipitation.toString()
+                    }],
+                    resolvedLocation: result.locationName
+                };
+
+                State.WEATHER_CACHE = { time: Date.now(), data: formattedData, loc: location };
+                this.render(formattedData);
                 try {
                     localStorage.setItem('OPERATOR_WEATHER_CACHE', JSON.stringify(State.WEATHER_CACHE));
                 } catch(e) {}
@@ -63,8 +107,8 @@ export const Weather = {
             .catch(err => {
                 console.error('Weather error:', err);
                 
-                // Fallback to cache (even if stale)
-                if (State.WEATHER_CACHE && State.WEATHER_CACHE.data) {
+                // Fallback to cache (even if stale) if it exists for this location
+                if (State.WEATHER_CACHE && State.WEATHER_CACHE.data && State.WEATHER_CACHE.loc === location) {
                      this.render(State.WEATHER_CACHE.data);
                      // Indicate offline status
                      var cond = el.querySelector('.weather-condition');
