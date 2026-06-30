@@ -31,19 +31,22 @@ export function indexBookmarks() {
             // For now, I'll update State.FLAT_BOOKMARKS as well to keep compatibility with my previous CommandLine.js change.
             State.FLAT_BOOKMARKS = FLAT_BOOKMARKS; 
 
-            function traverse(node) {
-                if (node.title) {
+            function traverse(node, parentId = null) {
+                if (node.title || node.id === ROOT_ID) {
                     var item = {
-                        title: node.title,
+                        title: node.title || 'Root',
                         url: node.url || null,
                         id: node.id,
-                        type: node.url ? 'bookmark' : 'folder'
+                        type: node.url ? 'bookmark' : 'folder',
+                        parentId: parentId
                     };
                     FLAT_BOOKMARKS.push(item);
                 }
-                if (node.children) node.children.forEach(traverse);
+                if (node.children) {
+                    node.children.forEach(child => traverse(child, node.id));
+                }
             }
-            if (tree[0] && tree[0].children) tree[0].children.forEach(traverse);
+            if (tree[0]) traverse(tree[0], null);
         });
     } catch (e) { }
 }

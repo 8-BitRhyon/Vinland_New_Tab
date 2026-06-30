@@ -5,15 +5,35 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://www.youtube.com/" }
+        { "header": "Referer", "operation": "set", "value": "https://www.youtube.com" },
+        { "header": "Origin", "operation": "set", "value": "https://www.youtube.com" }
       ],
       "responseHeaders": [
         { "header": "X-Frame-Options", "operation": "remove" },
-        { "header": "Referrer-Policy", "operation": "remove" }
+        { "header": "Content-Security-Policy", "operation": "remove" }
       ]
     },
     "condition": {
-      "urlFilter": "||youtube.com/embed/*",
+      "urlFilter": "||youtube.com",
+      "resourceTypes": ["sub_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://www.youtube-nocookie.com" },
+        { "header": "Origin", "operation": "set", "value": "https://www.youtube-nocookie.com" }
+      ],
+      "responseHeaders": [
+        { "header": "X-Frame-Options", "operation": "remove" },
+        { "header": "Content-Security-Policy", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||youtube-nocookie.com",
       "resourceTypes": ["sub_frame"]
     }
   }

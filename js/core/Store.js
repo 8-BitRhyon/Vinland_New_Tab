@@ -32,6 +32,14 @@ const DEFAULT_CONFIG = {
     auto_theme_enabled: false,
     day_theme: "minimal",
     night_theme: "matrix",
+    // AI Indexing (NEW)
+    indexing: {
+        enabled: true,
+        provider: "openrouter",
+        model: "nvidia/llama-nemotron-embed-vl-1b-v2:free",
+        dimensions: 1024,
+        vectorStore: "lancedb"
+    },
     day_start_hour: 6,
     night_start_hour: 18,
     // Integrations

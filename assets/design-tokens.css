@@ -1,0 +1,91 @@
+/**
+ * Vinland Design Tokens v1.0
+ * Canonical reference — maps to brand-guidelines.md
+ * Import optionally; index.html :root remains runtime source until migrated.
+ */
+
+:root {
+  /* Primitive — color */
+  --color-phosphor-500: #00ff41;
+  --color-phosphor-700: #006618;
+  --color-void-950: #000000;
+  --color-void-900: #0a0a0a;
+  --color-void-800: #111111;
+  --color-ash-500: #888888;
+  --color-ash-700: #555555;
+  --color-cyan-board: #00d4ff;
+  --color-danger-500: #ff0055;
+  --color-warning-500: #ffb800;
+  --color-info-500: #00e5ff;
+
+  /* Semantic aliases (align with existing --main-color etc.) */
+  --main-color: var(--color-phosphor-500);
+  --secondary-color: var(--color-ash-500);
+  --dim-color: var(--color-ash-700);
+  --danger-color: var(--color-danger-500);
+  --warning-color: var(--color-warning-500);
+  --board-color: var(--color-cyan-board);
+  --bg-overlay: rgba(0, 0, 0, 0.95);
+
+  /* Typography */
+  --font-main: "Space Mono", monospace;
+  --font-secondary: "Space Mono", monospace;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-toolbar: 10px;
+
+  /* Motion */
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --press-scale: 0.96;
+
+  /* Callouts */
+  --callout-info: #00e5ff;
+  --callout-warning: #ffb800;
+  --callout-danger: #ff0055;
+  --callout-success: #00ff41;
+  --callout-note: #9d00ff;
+  --callout-tip: #ffd700;
+  --callout-quote: #888888;
+
+  /* Graph clusters */
+  --graph-col-1: #00ff41;
+  --graph-col-2: #00e5ff;
+  --graph-col-3: #ff0055;
+  --graph-col-4: #ffb800;
+  --graph-col-5: #9d00ff;
+
+  /* Z-index (semantic) */
+  --z-base: 0;
+  --z-content: 10;
+  --z-overlay: 50;
+  --z-nav: 100;
+  --z-widget: 1000;
+  --z-search: 9000;
+  --z-topbar: 9999;
+  --z-modal-backdrop: 20000;
+  --z-modal-base: 21000;
+  --z-modal-maximized: 25000;
+  --z-modal-child: 26000;
+  --z-context-menu: 30000;
+  --z-tooltip: 35000;
+  --z-toast: 40000;
+}
+
+/* Retroma signature variant */
+body.theme-retroma {
+  --color-retroma-bg: #e6ddce;
+  --color-retroma-accent: #a54a3c;
+  --color-retroma-text: #433e38;
+  --color-retroma-muted: #7c766e;
+  --color-retroma-dim: #9e9589;
+
+  --main-bg: var(--color-retroma-bg);
+  --main-color: var(--color-retroma-accent);
+  --text-primary: var(--color-retroma-text);
+  --secondary-color: var(--color-retroma-muted);
+  --dim-color: var(--color-retroma-dim);
+}

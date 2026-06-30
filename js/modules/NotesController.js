@@ -131,8 +131,12 @@ export const Notes = {
 
         list.innerHTML = '';
 
+        var activeNotes = State.NOTES.filter(function(n) {
+            return !n.path || n.path.indexOf('/.trash') !== 0;
+        });
+
         // V18.13: Sort by modified date first, then created
-        var notesToShow = State.NOTES.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
+        var notesToShow = activeNotes.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
             .sort(function (a, b) {
                 var aTime = a.note.modified || a.note.created;
                 var bTime = b.note.modified || b.note.created;
@@ -238,8 +242,7 @@ export const Notes = {
             
             if (isMaximized && editorModal) {
                 editorModal.classList.add('maximized');
-                if (maxBtn) maxBtn.textContent = '[MIN]';
-                // Update global icons if needed
+                // Icon toggled via CSS on #note-editor-modal.maximized
                 if (this.updateGlobalIconsVisibility) this.updateGlobalIconsVisibility(false);
             }
         } catch (ignore) {}
@@ -342,7 +345,7 @@ export const Notes = {
                 if (modal) {
                     modal.classList.toggle('maximized');
                     var isMax = modal.classList.contains('maximized');
-                    maxBtn.textContent = isMax ? '[MIN]' : '[MAX]';
+                    // Icon toggled via CSS on #note-editor-modal.maximized
                     if (self.updateGlobalIconsVisibility) self.updateGlobalIconsVisibility(!isMax);
                     
                     // V85: Persist Maximized State
@@ -570,7 +573,7 @@ export const Notes = {
                     if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
                 } else {
                 // Empty check logic
-                var hasNoTitle = !current.title || current.title.trim() === '' || current.title === 'Untitled';
+                var hasNoTitle = !current.title || current.title.trim() === '';
                 var hasNoContent = !current.content || current.content.trim() === '';
                 var hasNoBlocks = !current.blocks || current.blocks.length === 0;
                 
@@ -717,7 +720,8 @@ export const Notes = {
                 var restoreBtn = document.getElementById('btn-restore-note');
                 if (restoreBtn) {
                     restoreBtn.onclick = function() {
-                        note.path = '/'; // Move back to root
+                        note.path = note.originalPath || '/'; // Restore to original folder
+                        delete note.originalPath;
                         saveData();
                         Notes.open(note.id); // Reload to reset state
                         Notes.renderSidebar(); // Refresh sidebar to remove from trash count
@@ -790,7 +794,7 @@ export const Notes = {
         // Catches both empty titles AND the default 'Untitled' title
         if (this.activeNoteId) {
             var currentNote = State.NOTES.find(function(n) { return n.id === Notes.activeNoteId; });
-            if (currentNote && (!currentNote.title || currentNote.title.trim() === '' || currentNote.title.trim() === 'Untitled')) {
+            if (currentNote && (!currentNote.title || currentNote.title.trim() === '')) {
                 // Allow creation if we passed a specific title (e.g. Daily Note, README)
                 if (!initialTitle) {
                     if (typeof showNotification === 'function') showNotification('NAME_CURRENT_NOTE // before creating another');
@@ -861,7 +865,6 @@ export const Notes = {
                 this.clearEditor();
             }
         }
-        renderNotes();
         this.renderNotes();
         this.renderSidebar();
     },
@@ -1635,7 +1638,10 @@ export const Notes = {
     
     extractTags: function (content) {
         if (!content) return [];
-        var matches = content.match(/#[\w]+/g);
+        // Strip fenced code blocks and inline code before scanning for tags
+        var cleaned = content.replace(/```[\w]*\n[\s\S]*?```/g, '');
+        cleaned = cleaned.replace(/`[^`]+`/g, '');
+        var matches = cleaned.match(/#[\w]+/g);
         return matches ? [...new Set(matches)] : [];
     },
     
@@ -1661,6 +1667,8 @@ export const Notes = {
         var allTags = {};
         var self = this;
         State.NOTES.forEach(function (note) {
+            // Skip trashed notes
+            if (note.path && note.path.indexOf('/.trash') === 0) return;
             // Scan blocks
             if (note.blocks && note.blocks.length > 0) {
                 note.blocks.forEach(function(b) {
@@ -1764,7 +1772,11 @@ export function renderNotes() {
     if (hint) hint.classList.remove('active');
     list.innerHTML = '';
 
-    var notesToShow = State.NOTES.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
+    var activeNotes = State.NOTES.filter(function(n) {
+        return !n.path || n.path.indexOf('/.trash') !== 0;
+    });
+
+    var notesToShow = activeNotes.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
         .sort(function (a, b) {
             var aTime = a.note.modified || a.note.created;
             var bTime = b.note.modified || b.note.created;

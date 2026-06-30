@@ -13,6 +13,291 @@ export const CanvasManager = {
     isDrawingEdge: false,
     edgeStartNodeId: null,
     tempEdge: null,
+    selectedNodeIds: new Set(),
+    selectedNodeId: null,
+    isSelectingMarquee: false,
+    marqueeStart: { x: 0, y: 0 },
+    marqueeEl: null,
+    historyStack: [],
+    redoStack: [],
+    clipboard: null,
+    lastMouseCoords: null,
+
+    // === SELECTION HELPERS ===
+    selectNode: function(nodeId, isMultiSelect) {
+        if (!isMultiSelect) {
+            this.clearSelection();
+        }
+        this.selectedNodeIds.add(nodeId);
+        this.selectedNodeId = nodeId;
+        const card = document.getElementById(`canvas-node-${nodeId}`);
+        if (card) {
+            card.classList.add('selected-node');
+        }
+    },
+
+    deselectNode: function(nodeId) {
+        this.selectedNodeIds.delete(nodeId);
+        if (this.selectedNodeId === nodeId) {
+            this.selectedNodeId = this.selectedNodeIds.size > 0 ? Array.from(this.selectedNodeIds)[0] : null;
+        }
+        const card = document.getElementById(`canvas-node-${nodeId}`);
+        if (card) {
+            card.classList.remove('selected-node');
+        }
+    },
+
+    clearSelection: function() {
+        this.selectedNodeIds.clear();
+        this.selectedNodeId = null;
+        document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(el => {
+            el.classList.remove('selected-node');
+        });
+    },
+
+    deleteSelectedNodes: function() {
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData) return;
+
+        if (this._saveHistoryState) this._saveHistoryState();
+
+        const idsToDelete = new Set(this.selectedNodeIds);
+        if (idsToDelete.size === 0) return;
+        
+        // Remove nodes from data model
+        note.canvasData.nodes = note.canvasData.nodes.filter(n => !idsToDelete.has(n.id));
+
+        // Remove edges connected to these nodes
+        if (note.canvasData.edges) {
+            note.canvasData.edges = note.canvasData.edges.filter(edge => !idsToDelete.has(edge.fromNode) && !idsToDelete.has(edge.toNode));
+        }
+
+        // Remove from DOM
+        idsToDelete.forEach(id => {
+            const el = document.getElementById(`canvas-node-${id}`);
+            if (el) el.remove();
+        });
+
+        this.clearSelection();
+        this._refreshEdges();
+        if (window.saveData) window.saveData();
+        this.updateUI();
+    },
+
+    copySelectedNodes: function() {
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData || this.selectedNodeIds.size === 0) return;
+
+        const clonedNodes = [];
+        const selectedIds = new Set(this.selectedNodeIds);
+
+        note.canvasData.nodes.forEach(n => {
+            if (selectedIds.has(n.id)) {
+                clonedNodes.push(JSON.parse(JSON.stringify(n)));
+            }
+        });
+
+        const clonedEdges = [];
+        if (note.canvasData.edges) {
+            note.canvasData.edges.forEach(e => {
+                if (selectedIds.has(e.fromNode) && selectedIds.has(e.toNode)) {
+                    clonedEdges.push(JSON.parse(JSON.stringify(e)));
+                }
+            });
+        }
+
+        this.clipboard = { nodes: clonedNodes, edges: clonedEdges };
+        console.log('[CanvasManager] Copied nodes:', clonedNodes.length, '| edges:', clonedEdges.length);
+    },
+
+    pasteCopiedNodes: function() {
+        if (!this.clipboard || !this.clipboard.nodes || this.clipboard.nodes.length === 0) return;
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData) return;
+
+        if (this._saveHistoryState) this._saveHistoryState();
+
+        // Calculate center of clipboard nodes bounding box
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        this.clipboard.nodes.forEach(n => {
+            const w = n.width || 200;
+            const h = n.height || 80;
+            if (n.x < minX) minX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.x + w > maxX) maxX = n.x + w;
+            if (n.y + h > maxY) maxY = n.y + h;
+        });
+
+        const clipCenterX = minX + (maxX - minX) / 2;
+        const clipCenterY = minY + (maxY - minY) / 2;
+
+        // Get world coords of cursor
+        const cursorWorld = this.getMouseWorldCoords();
+        const dx = cursorWorld.x - clipCenterX;
+        const dy = cursorWorld.y - clipCenterY;
+
+        // Map old IDs to new ones
+        const idMap = {};
+        const newNodes = [];
+
+        this.clipboard.nodes.forEach(n => {
+            const oldId = n.id;
+            const newId = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            idMap[oldId] = newId;
+
+            const cloned = JSON.parse(JSON.stringify(n));
+            cloned.id = newId;
+            cloned.x += dx;
+            cloned.y += dy;
+
+            // If it's a file node, link it properly
+            if (cloned.type === 'file') {
+                cloned.title = cloned.title || 'Untitled';
+            }
+
+            newNodes.push(cloned);
+            if (!note.canvasData.nodes) note.canvasData.nodes = [];
+            note.canvasData.nodes.push(cloned);
+            this.addCard(cloned);
+        });
+
+        if (this.clipboard.edges) {
+            this.clipboard.edges.forEach(e => {
+                const newEdgeId = 'edge_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                const clonedEdge = JSON.parse(JSON.stringify(e));
+                clonedEdge.id = newEdgeId;
+                clonedEdge.fromNode = idMap[e.fromNode];
+                clonedEdge.toNode = idMap[e.toNode];
+
+                if (!note.canvasData.edges) note.canvasData.edges = [];
+                note.canvasData.edges.push(clonedEdge);
+            });
+        }
+
+        // Select the newly pasted nodes
+        this.clearSelection();
+        newNodes.forEach(n => {
+            this.selectNode(n.id, true);
+        });
+
+        this._refreshEdges();
+        if (window.saveData) window.saveData();
+        this.updateUI();
+        console.log('[CanvasManager] Pasted nodes:', newNodes.length);
+    },
+
+    duplicateSelectedNodes: function() {
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData || this.selectedNodeIds.size === 0) return;
+
+        if (this._saveHistoryState) this._saveHistoryState();
+
+        const selectedIds = new Set(this.selectedNodeIds);
+        const idMap = {};
+        const newNodes = [];
+
+        // Clone nodes and shift by offset
+        note.canvasData.nodes.forEach(n => {
+            if (selectedIds.has(n.id)) {
+                const oldId = n.id;
+                const newId = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                idMap[oldId] = newId;
+
+                const cloned = JSON.parse(JSON.stringify(n));
+                cloned.id = newId;
+                cloned.x += 24;
+                cloned.y += 24;
+
+                newNodes.push(cloned);
+            }
+        });
+
+        // Add duplicated nodes to note and render
+        newNodes.forEach(cloned => {
+            note.canvasData.nodes.push(cloned);
+            this.addCard(cloned);
+        });
+
+        // Duplicate internal connections
+        if (note.canvasData.edges) {
+            const newEdges = [];
+            note.canvasData.edges.forEach(e => {
+                if (selectedIds.has(e.fromNode) && selectedIds.has(e.toNode)) {
+                    const newEdgeId = 'edge_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                    const clonedEdge = JSON.parse(JSON.stringify(e));
+                    clonedEdge.id = newEdgeId;
+                    clonedEdge.fromNode = idMap[e.fromNode];
+                    clonedEdge.toNode = idMap[e.toNode];
+                    newEdges.push(clonedEdge);
+                }
+            });
+            newEdges.forEach(e => note.canvasData.edges.push(e));
+        }
+
+        // Focus selection on the new duplicated nodes
+        this.clearSelection();
+        newNodes.forEach(n => {
+            this.selectNode(n.id, true);
+        });
+
+        this._refreshEdges();
+        if (window.saveData) window.saveData();
+        this.updateUI();
+        console.log('[CanvasManager] Duplicated nodes:', newNodes.length);
+    },
+
+    getMouseWorldCoords: function() {
+        if (!this.lastMouseCoords || !this.container) return { x: 0, y: 0 };
+        const rect = this.container.getBoundingClientRect();
+        const wx = (this.lastMouseCoords.x - rect.left - this.transform.x) / this.transform.scale;
+        const wy = (this.lastMouseCoords.y - rect.top - this.transform.y) / this.transform.scale;
+        return { x: wx, y: wy };
+    },
+
+    _saveHistoryState: function() {
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData) return;
+
+        const stateCopy = JSON.parse(JSON.stringify(note.canvasData));
+        this.historyStack.push(stateCopy);
+        if (this.historyStack.length > 50) {
+            this.historyStack.shift();
+        }
+        this.redoStack = [];
+        console.log('[CanvasManager] History saved. Size:', this.historyStack.length);
+    },
+
+    undo: function() {
+        if (this.historyStack.length === 0) return;
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData) return;
+
+        const currentState = JSON.parse(JSON.stringify(note.canvasData));
+        this.redoStack.push(currentState);
+
+        const previousState = this.historyStack.pop();
+        note.canvasData = previousState;
+
+        this.load(this.activeNoteId);
+        if (window.saveData) window.saveData();
+        console.log('[CanvasManager] Undo complete.');
+    },
+
+    redo: function() {
+        if (this.redoStack.length === 0) return;
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData) return;
+
+        const currentState = JSON.parse(JSON.stringify(note.canvasData));
+        this.historyStack.push(currentState);
+
+        const nextState = this.redoStack.pop();
+        note.canvasData = nextState;
+
+        this.load(this.activeNoteId);
+        if (window.saveData) window.saveData();
+        console.log('[CanvasManager] Redo complete.');
+    },
 
     init: function() {
         this.container = document.getElementById('canvas-container');
@@ -168,6 +453,7 @@ export const CanvasManager = {
 
         // + NODE button
         this.toolbar.querySelector('#canvas-add-node').addEventListener('click', () => {
+            this._saveHistoryState();
             // Add node at center of visible area
             const rect = this.container.getBoundingClientRect();
             const cx = (rect.width / 2 - this.transform.x) / this.transform.scale;
@@ -339,6 +625,7 @@ export const CanvasManager = {
     },
 
     _addFileNode: function(linkedNoteId) {
+        this._saveHistoryState();
         const linkedNote = window.State.NOTES.find(n => n.id === linkedNoteId);
         if (!linkedNote) return;
 
@@ -369,6 +656,7 @@ export const CanvasManager = {
     },
 
     _addEmbedNode: function(url) {
+        this._saveHistoryState();
         const rect = this.container.getBoundingClientRect();
         const cx = (rect.width / 2 - this.transform.x) / this.transform.scale;
         const cy = (rect.height / 2 - this.transform.y) / this.transform.scale;
@@ -414,6 +702,7 @@ export const CanvasManager = {
     },
 
     _addGroupNode: function() {
+        this._saveHistoryState();
         const rect = this.container.getBoundingClientRect();
         const cx = (rect.width / 2 - this.transform.x) / this.transform.scale;
         const cy = (rect.height / 2 - this.transform.y) / this.transform.scale;
@@ -476,6 +765,39 @@ export const CanvasManager = {
                 return;
             }
 
+            // Delete Key: Batch delete selected nodes
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
+                if (this.selectedNodeIds.size > 0) {
+                    e.preventDefault();
+                    this.deleteSelectedNodes();
+                }
+            }
+
+            // Clipboard & Undo/Redo: Copy, Paste, Duplicate, Undo, Redo
+            const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+            if (isCmdOrCtrl && !isInput) {
+                if (e.key === 'c' || e.key === 'C') {
+                    e.preventDefault();
+                    this.copySelectedNodes();
+                } else if (e.key === 'v' || e.key === 'V') {
+                    e.preventDefault();
+                    this.pasteCopiedNodes();
+                } else if (e.key === 'd' || e.key === 'D') {
+                    e.preventDefault();
+                    this.duplicateSelectedNodes();
+                } else if (e.key === 'z' || e.key === 'Z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        this.redo();
+                    } else {
+                        this.undo();
+                    }
+                } else if (e.key === 'y' || e.key === 'Y') {
+                    e.preventDefault();
+                    this.redo();
+                }
+            }
+
             // FEATURE: Keyboard Spawning (Tab / Enter)
             if (this.selectedNodeId && (e.key === 'Tab' || (!e.shiftKey && e.key === 'Enter'))) {
                 // If we are typing, it should be the input of the SELECTED node, otherwise ignore.
@@ -497,6 +819,7 @@ export const CanvasManager = {
                 const parentNode = note.canvasData.nodes.find(n => n.id === this.selectedNodeId);
                 if (!parentNode) return;
 
+                this._saveHistoryState();
                 // Create new generic text node
                 const newNode = {
                     id: 'node_' + Date.now(),
@@ -562,28 +885,33 @@ export const CanvasManager = {
             }
         });
 
-        // === PAN: Spacebar-drag or Middle-click drag ===
+        // === PAN OR LASSO SELECT: Spacebar-drag / Middle-click to PAN; left-click to LASSO ===
         this.container.addEventListener('mousedown', (e) => {
-            // Only allow background drag or Spacebar/Middle-click drag
-            const isBgClick = !e.target.closest('.canvas-card') && !e.target.closest('.canvas-toolbar') && !e.target.closest('#canvas-note-picker');
+            const isBgClick = !e.target.closest('.canvas-card') && !e.target.closest('.canvas-toolbar') && !e.target.closest('#canvas-note-picker') && !e.target.closest('#canvas-url-picker');
             
             if (isBgClick) {
-                // Clear selection
-                document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(el => el.classList.remove('selected-node'));
-                this.selectedNodeId = null;
-            }
-
-            if (isBgClick || isSpacePressed || e.button === 1) {
-                e.preventDefault();
-                this.isPanning = true;
-                this.dragStart = { x: e.clientX - this.transform.x, y: e.clientY - this.transform.y };
-                this.container.style.cursor = 'grabbing';
+                const isPanCommand = isSpacePressed || e.button === 1;
+                if (isPanCommand) {
+                    e.preventDefault();
+                    this.isPanning = true;
+                    this.dragStart = { x: e.clientX - this.transform.x, y: e.clientY - this.transform.y };
+                    this.container.style.cursor = 'grabbing';
+                } else if (e.button === 0) {
+                    // Start Marquee Selection
+                    this.clearSelection();
+                    this.isSelectingMarquee = true;
+                    this.marqueeStart = { x: e.clientX, y: e.clientY };
+                    this.marqueeEl = document.createElement('div');
+                    this.marqueeEl.className = 'canvas-selection-marquee';
+                    this.container.appendChild(this.marqueeEl);
+                }
             }
         });
 
         // === DOUBLE CLICK: Create node ===
         this.container.addEventListener('dblclick', (e) => {
             if (e.target.closest('.canvas-card') || e.target.closest('.canvas-toolbar')) return;
+            this._saveHistoryState();
             const rect = this.container.getBoundingClientRect();
             const x = (e.clientX - rect.left - this.transform.x) / this.transform.scale;
             const y = (e.clientY - rect.top - this.transform.y) / this.transform.scale;
@@ -608,12 +936,56 @@ export const CanvasManager = {
             }
         });
 
-        // === GLOBAL MOUSE MOVE: Panning + Edge re-rendering ===
+        // === GLOBAL MOUSE MOVE: Panning + Marquee Select + Edge re-rendering ===
         window.addEventListener('mousemove', (e) => {
+            this.lastMouseCoords = { x: e.clientX, y: e.clientY };
             if (this.isPanning) {
                 this.transform.x = e.clientX - this.dragStart.x;
                 this.transform.y = e.clientY - this.dragStart.y;
                 this.updateTransform();
+                return;
+            }
+
+            if (this.isSelectingMarquee && this.marqueeEl) {
+                const currentX = e.clientX;
+                const currentY = e.clientY;
+                const x = Math.min(this.marqueeStart.x, currentX);
+                const y = Math.min(this.marqueeStart.y, currentY);
+                const w = Math.abs(this.marqueeStart.x - currentX);
+                const h = Math.abs(this.marqueeStart.y - currentY);
+                
+                const rect = this.container.getBoundingClientRect();
+                this.marqueeEl.style.left = (x - rect.left) + 'px';
+                this.marqueeEl.style.top = (y - rect.top) + 'px';
+                this.marqueeEl.style.width = w + 'px';
+                this.marqueeEl.style.height = h + 'px';
+                
+                // Real-time calculation of intersections
+                const worldX1 = (x - rect.left - this.transform.x) / this.transform.scale;
+                const worldY1 = (y - rect.top - this.transform.y) / this.transform.scale;
+                const worldX2 = worldX1 + w / this.transform.scale;
+                const worldY2 = worldY1 + h / this.transform.scale;
+                
+                const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+                if (note && note.canvasData && note.canvasData.nodes) {
+                    note.canvasData.nodes.forEach(node => {
+                        const wNode = node.width || 200;
+                        const hNode = node.height || 80;
+                        const isIntersecting = !(node.x + wNode < worldX1 || node.x > worldX2 || node.y + hNode < worldY1 || node.y > worldY2);
+                        
+                        const cardEl = document.getElementById(`canvas-node-${node.id}`);
+                        if (cardEl) {
+                            if (isIntersecting) {
+                                cardEl.classList.add('selected-node');
+                                this.selectedNodeIds.add(node.id);
+                            } else {
+                                cardEl.classList.remove('selected-node');
+                                this.selectedNodeIds.delete(node.id);
+                            }
+                        }
+                    });
+                    this.selectedNodeId = this.selectedNodeIds.size > 0 ? Array.from(this.selectedNodeIds)[0] : null;
+                }
                 return;
             }
 
@@ -635,6 +1007,13 @@ export const CanvasManager = {
                 this.isPanning = false;
                 this.container.style.cursor = isSpacePressed ? 'grab' : '';
                 this._saveViewport();
+            }
+            if (this.isSelectingMarquee) {
+                this.isSelectingMarquee = false;
+                if (this.marqueeEl) {
+                    this.marqueeEl.remove();
+                    this.marqueeEl = null;
+                }
             }
             this.draggedNodeId = null;
         });
@@ -1009,14 +1388,37 @@ export const CanvasManager = {
                         <div class="canvas-card-title" contenteditable="true">🌐 ${nodeData.title || 'YouTube Video'}</div>
                         <span class="canvas-card-delete" title="Delete node">&times;</span>
                     </div>
-                    <div class="canvas-card-smart-body" style="padding: 10px; gap: 10px;">
-                        <img src="${thumbnailUrl}" alt="YouTube Thumbnail" style="width: 100%; height: auto; aspect-ratio: 16/9; border-radius: 6px; object-fit: contain; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.5);" />
-                        <div class="smart-card-details" style="margin-top: 5px;">
-                            <a href="${displayUrl}" target="_blank" class="smart-card-link" style="font-size: 0.9rem; font-weight: bold; padding: 4px 10px; background: rgba(255,255,255,0.1); border-radius: 4px; display: inline-block;">▶ Watch on YouTube</a>
+                    <div class="canvas-card-smart-body youtube-body" style="padding: 10px; gap: 8px; display: flex; flex-direction: column; justify-content: center; height: calc(100% - 35px); box-sizing: border-box;">
+                        <a href="${displayUrl}" target="_blank" class="youtube-link-wrapper" style="position: relative; width: 100%; aspect-ratio: 16/9; display: block; border-radius: 6px; overflow: hidden; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                            <img src="${thumbnailUrl}" alt="YouTube Thumbnail" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" />
+                            <div class="youtube-play-overlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); transition: background-color 0.2s ease;">
+                                <div class="play-button-icon" style="width: 50px; height: 35px; background: #ff0000; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.1rem; transition: background-color 0.2s ease, transform 0.2s ease;">▶</div>
+                            </div>
+                        </a>
+                        <div class="smart-card-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                            <a href="${displayUrl}" target="_blank" class="smart-card-link" style="font-size: 0.75rem; font-weight: bold; color: var(--main-color, #00ff41); opacity: 0.8; text-decoration: none; transition: opacity 0.15s ease;">Watch on YouTube ↗</a>
                         </div>
                     </div>
                     <div class="canvas-resizer" title="Resize node"></div>
                 `;
+
+                const linkWrapper = card.querySelector('.youtube-link-wrapper');
+                const playIcon = card.querySelector('.play-button-icon');
+                const overlay = card.querySelector('.youtube-play-overlay');
+                const img = card.querySelector('.youtube-link-wrapper img');
+
+                linkWrapper.addEventListener('mouseenter', () => {
+                    overlay.style.backgroundColor = 'rgba(0,0,0,0.45)';
+                    playIcon.style.backgroundColor = '#cc0000';
+                    playIcon.style.transform = 'scale(1.08)';
+                    img.style.transform = 'scale(1.03)';
+                });
+                linkWrapper.addEventListener('mouseleave', () => {
+                    overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
+                    playIcon.style.backgroundColor = '#ff0000';
+                    playIcon.style.transform = 'none';
+                    img.style.transform = 'none';
+                });
             
             // === CSP-BLOCKED: Generic Smart Card with favicon ===
             } else if (isBlocked) {
@@ -1119,8 +1521,12 @@ export const CanvasManager = {
                 embedTitle.addEventListener('blur', () => {
                     // Strip the emoji prefix to save clean title
                     let raw = embedTitle.innerText.replace(/^🌐\s*/, '').trim();
-                    nodeData.title = raw || hostname;
-                    if (window.saveData) window.saveData();
+                    const newTitle = raw || hostname;
+                    if (nodeData.title !== newTitle) {
+                        this._saveHistoryState();
+                        nodeData.title = newTitle;
+                        if (window.saveData) window.saveData();
+                    }
                 });
             }
 
@@ -1138,8 +1544,11 @@ export const CanvasManager = {
             labelInput.addEventListener('mousedown', e => e.stopPropagation());
             labelInput.addEventListener('keydown', e => e.stopPropagation()); // Prevent canvas shortcuts stealing focus
             labelInput.addEventListener('blur', () => {
-                nodeData.label = labelInput.value;
-                if (window.saveData) window.saveData();
+                if (nodeData.label !== labelInput.value) {
+                    this._saveHistoryState();
+                    nodeData.label = labelInput.value;
+                    if (window.saveData) window.saveData();
+                }
             });
         }
         
@@ -1148,6 +1557,7 @@ export const CanvasManager = {
         if (resizer) {
             resizer.addEventListener('mousedown', (e) => {
                 e.stopPropagation(); // Prevent card drag
+                this._saveHistoryState();
                 this.draggedNodeId = nodeData.id;
                 
                 let startX = e.clientX;
@@ -1205,9 +1615,14 @@ export const CanvasManager = {
         card.querySelectorAll('[contenteditable="true"]').forEach(el => {
             el.addEventListener('mousedown', e => e.stopPropagation());
             el.addEventListener('blur', () => {
-                nodeData.title = card.querySelector('.canvas-card-title').innerText;
-                nodeData.preview = card.querySelector('.canvas-card-body').innerText;
-                if (window.saveData) window.saveData();
+                const newTitle = card.querySelector('.canvas-card-title').innerText;
+                const newPreview = card.querySelector('.canvas-card-body').innerText;
+                if (nodeData.title !== newTitle || nodeData.preview !== newPreview) {
+                    this._saveHistoryState();
+                    nodeData.title = newTitle;
+                    nodeData.preview = newPreview;
+                    if (window.saveData) window.saveData();
+                }
             });
             el.addEventListener('keydown', e => e.stopPropagation());
         });
@@ -1218,19 +1633,12 @@ export const CanvasManager = {
             deleteBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
-                if (note && note.canvasData) {
-                    note.canvasData.nodes = note.canvasData.nodes.filter(n => n.id !== nodeData.id);
-                    if (note.canvasData.edges) {
-                        note.canvasData.edges = note.canvasData.edges.filter(edge => edge.fromNode !== nodeData.id && edge.toNode !== nodeData.id);
-                    }
-                    if (window.saveData) window.saveData();
-
-                    // Synchronously remove from DOM to prevent ghosts
-                    card.remove(); 
-                    
-                    // Also redraw edges in case this was connected
-                    this._refreshEdges();
+                if (this.selectedNodeIds.has(nodeData.id)) {
+                    this.deleteSelectedNodes();
+                } else {
+                    this.clearSelection();
+                    this.selectNode(nodeData.id, false);
+                    this.deleteSelectedNodes();
                 }
             });
         }
@@ -1258,10 +1666,20 @@ export const CanvasManager = {
                 nodeData.zIndex = maxZ + 1;
             }
 
-            // Set Selected Node Context
-            document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(el => el.classList.remove('selected-node'));
-            card.classList.add('selected-node');
-            this.selectedNodeId = nodeData.id;
+            // Selection Logic (with Cmd/Ctrl for toggling multi-select)
+            const isMeta = e.metaKey || e.ctrlKey;
+            if (isMeta) {
+                if (this.selectedNodeIds.has(nodeData.id)) {
+                    this.deselectNode(nodeData.id);
+                } else {
+                    this.selectNode(nodeData.id, true);
+                }
+            } else {
+                if (!this.selectedNodeIds.has(nodeData.id)) {
+                    this.clearSelection();
+                    this.selectNode(nodeData.id, false);
+                }
+            }
 
             // SHIFT+DRAG = Draw edge (disable for groups)
             if (e.shiftKey && nodeData.type !== 'group') {
@@ -1269,7 +1687,7 @@ export const CanvasManager = {
                 return;
             }
 
-            // Normal drag
+            // Normal drag (moves all selected nodes)
             this.draggedNodeId = nodeData.id;
             card.style.cursor = 'grabbing';
             if (nodeData.type === 'embed') {
@@ -1279,36 +1697,79 @@ export const CanvasManager = {
             let startX = e.clientX;
             let startY = e.clientY;
 
-            // Feature 4: Spatial Grouping - Gather children to move with group
-            let childrenToMove = [];
-            const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
-            if (nodeData.type === 'group' && note && note.canvasData && note.canvasData.nodes) {
-                const gRect = { left: nodeData.x, right: nodeData.x + nodeData.width, top: nodeData.y, bottom: nodeData.y + nodeData.height };
-                childrenToMove = note.canvasData.nodes.filter(n => {
-                    if (n.id === nodeData.id || n.type === 'group') return false;
-                    const cx = n.x + (n.width || 200)/2;
-                    const cy = n.y + (n.height || 80)/2;
-                    return cx >= gRect.left && cx <= gRect.right && cy >= gRect.top && cy <= gRect.bottom;
+            // Build set of nodes to move
+            const nodesToMove = new Set();
+            const noteDataObj = window.State.NOTES.find(n => n.id === this.activeNoteId);
+            
+            if (this.selectedNodeIds.has(nodeData.id)) {
+                this.selectedNodeIds.forEach(id => {
+                    const n = noteDataObj.canvasData.nodes.find(item => item.id === id);
+                    if (n) nodesToMove.add(n);
                 });
+            } else {
+                nodesToMove.add(nodeData);
             }
+            
+            // Gather children of any group in the nodesToMove set (spatial grouping)
+            const childrenSet = new Set();
+            nodesToMove.forEach(n => {
+                if (n.type === 'group' && noteDataObj && noteDataObj.canvasData && noteDataObj.canvasData.nodes) {
+                    const gRect = { left: n.x, right: n.x + n.width, top: n.y, bottom: n.y + n.height };
+                    noteDataObj.canvasData.nodes.forEach(item => {
+                        if (item.id === n.id || item.type === 'group') return;
+                        if (nodesToMove.has(item)) return; // Already moving
+                        const cx = item.x + (item.width || 200) / 2;
+                        const cy = item.y + (item.height || 80) / 2;
+                        if (cx >= gRect.left && cx <= gRect.right && cy >= gRect.top && cy <= gRect.bottom) {
+                            childrenSet.add(item);
+                        }
+                    });
+                }
+            });
+
+            // Flag to track if actual dragging occurred for history
+            let hasMoved = false;
+
+            // Apply dragging classes for visual lift transition
+            nodesToMove.forEach(n => {
+                const el = document.getElementById(`canvas-node-${n.id}`);
+                if (el) el.classList.add('is-dragging');
+            });
+            childrenSet.forEach(n => {
+                const el = document.getElementById(`canvas-node-${n.id}`);
+                if (el) el.classList.add('is-dragging');
+            });
 
             const onMouseMove = (moveEvent) => {
                 const dx = (moveEvent.clientX - startX) / this.transform.scale;
                 const dy = (moveEvent.clientY - startY) / this.transform.scale;
 
-                nodeData.x += dx;
-                nodeData.y += dy;
-                card.style.left = `${nodeData.x}px`;
-                card.style.top = `${nodeData.y}px`;
+                if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+                    if (!hasMoved) {
+                        hasMoved = true;
+                        if (this._saveHistoryState) this._saveHistoryState();
+                    }
+                }
 
-                // Move spatial group children
-                childrenToMove.forEach(child => {
-                    child.x += dx;
-                    child.y += dy;
-                    const childEl = document.getElementById(`canvas-node-${child.id}`);
-                    if (childEl) {
-                        childEl.style.left = `${child.x}px`;
-                        childEl.style.top = `${child.y}px`;
+                // Move selected nodes
+                nodesToMove.forEach(n => {
+                    n.x += dx;
+                    n.y += dy;
+                    const el = document.getElementById(`canvas-node-${n.id}`);
+                    if (el) {
+                        el.style.left = `${n.x}px`;
+                        el.style.top = `${n.y}px`;
+                    }
+                });
+
+                // Move children of selected groups
+                childrenSet.forEach(n => {
+                    n.x += dx;
+                    n.y += dy;
+                    const el = document.getElementById(`canvas-node-${n.id}`);
+                    if (el) {
+                        el.style.left = `${n.x}px`;
+                        el.style.top = `${n.y}px`;
                     }
                 });
 
@@ -1323,7 +1784,17 @@ export const CanvasManager = {
                 window.removeEventListener('mousemove', onMouseMove);
                 window.removeEventListener('mouseup', onMouseUp);
                 card.style.cursor = '';
-                if (nodeData.type === 'embed') card.classList.remove('is-dragging');
+                
+                // Remove dragging classes
+                nodesToMove.forEach(n => {
+                    const el = document.getElementById(`canvas-node-${n.id}`);
+                    if (el) el.classList.remove('is-dragging');
+                });
+                childrenSet.forEach(n => {
+                    const el = document.getElementById(`canvas-node-${n.id}`);
+                    if (el) el.classList.remove('is-dragging');
+                });
+
                 if (window.saveData) window.saveData();
                 this._updateMinimap();
             };
@@ -1403,6 +1874,7 @@ export const CanvasManager = {
             const dropTarget = upEvent.target.closest('.canvas-card');
             if (dropTarget && dropTarget.id !== `canvas-node-${this.edgeStartNodeId}`) {
                 const toNodeId = dropTarget.id.replace('canvas-node-', '');
+                this._saveHistoryState();
                 const newEdge = {
                     id: 'edge_' + Date.now(),
                     fromNode: this.edgeStartNodeId,
@@ -1627,6 +2099,7 @@ export const CanvasManager = {
     },
 
     _deleteEdge: function(edgeId) {
+        this._saveHistoryState();
         const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
         if (!note || !note.canvasData) return;
 
@@ -1683,6 +2156,7 @@ export const CanvasManager = {
 
         menu.querySelectorAll('.canvas-color-swatch').forEach(swatch => {
             swatch.onclick = () => {
+                this._saveHistoryState();
                 const color = swatch.getAttribute('data-color');
                 nodeData.color = color;
                 const card = document.getElementById(`canvas-node-${nodeData.id}`);

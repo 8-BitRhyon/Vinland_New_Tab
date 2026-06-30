@@ -156,14 +156,25 @@ export const SystemCommands = {
       },
     });
 
-    // --- POMODORO ---
+    // --- BOOKMARKS ---
     CommandRegistry.register({
-      id: "pomo:start",
-      trigger: "pomo",
-      title: "Start Pomodoro",
-      hint: "[duration] (e.g. 25m, 90s)",
+      id: "bm:search",
+      trigger: "b",
+      title: "Search Bookmarks",
+      hint: "[query]",
       action: (args) => {
-        if (window.startPomodoro) window.startPomodoro(args);
+        if (!args) return;
+        const q = args.toLowerCase().trim();
+        if (q.endsWith('/')) return; // Don't execute on folder paths, wait for more input
+
+        const matches = (State.FLAT_BOOKMARKS || []).filter(b => 
+            b.url && (b.title.toLowerCase().includes(q) || b.url.toLowerCase().includes(q))
+        );
+        if (matches.length > 0) {
+            window.location.href = matches[0].url;
+        } else {
+             if (window.showNotification) showNotification(`No bookmark found for "${args}"`, 'error');
+        }
       },
     });
   },

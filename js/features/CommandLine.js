@@ -76,51 +76,92 @@ export const CommandLine = {
         box.innerHTML = '';
         suggestionIndex = -1;
         
-        // Add Bookmark suggestions if B command
-        if (State.CONFIG.show_bookmarks && query.toLowerCase().startsWith('b ') && query.length > 2) {
-             const bmQuery = query.slice(2).toLowerCase();
-             const bmMatches = (State.FLAT_BOOKMARKS || []).filter(b => b.title.toLowerCase().includes(bmQuery)).slice(0, 5);
-             if (bmMatches.length > 0) {
-                 bmMatches.forEach((bm, idx) => {
-                     const div = document.createElement('div');
-                     div.className = 'suggestion-item';
-                     div.innerHTML = `<span>Example: ${safeText(bm.title)}</span><span class="type-badge">BOOKMARK</span>`;
-                     div.onclick = () => { window.location.href = bm.url; };
-                     box.appendChild(div);
-                 });
-                 // Return to avoid mixing? actually we can mix, but let's keep simple
+        let allSuggestions = [];
+
+        // 1. Add Bookmark suggestions if B command (V101: Priority)
+        if (State.CONFIG.show_bookmarks && query.toLowerCase().startsWith('b ')) {
+             const fullQuery = query.slice(2).trim();
+             let bmQuery = fullQuery.toLowerCase();
+             let parentFolder = null;
+
+             // Path-based navigation: "b Folder/SubQuery"
+             if (fullQuery.includes('/')) {
+                 const parts = fullQuery.split('/');
+                 const folderName = parts[0].trim().toLowerCase();
+                 bmQuery = parts.slice(1).join('/').trim().toLowerCase();
+                 
+                 // Find the folder
+                 parentFolder = (State.FLAT_BOOKMARKS || []).find(b => 
+                    b.type === 'folder' && b.title.toLowerCase() === folderName
+                 );
              }
+
+             const bmMatches = (State.FLAT_BOOKMARKS || []).filter(b => {
+                const matchesText = b.title.toLowerCase().includes(bmQuery) || (b.url && b.url.toLowerCase().includes(bmQuery));
+                if (parentFolder) {
+                    return b.parentId === parentFolder.id && matchesText;
+                }
+                return matchesText;
+             }).slice(0, 5);
+             
+             bmMatches.forEach(bm => {
+                 allSuggestions.push({ type: 'bookmark', data: bm });
+             });
         }
 
-        if (matches.length === 0) {
-            if (box.children.length === 0) box.style.display = 'none';
-            else box.style.display = 'block'; // Keep showing bookmarks if any
+        // 2. Add Command suggestions
+        matches.slice(0, 5).forEach(cmd => {
+            allSuggestions.push({ type: 'command', data: cmd });
+        });
+
+        if (allSuggestions.length === 0) {
+            box.style.display = 'none';
+            currentSuggestions = [];
             return;
         }
 
-        matches.slice(0, 5).forEach((cmd, idx) => {
+        // 3. Render unified list
+        allSuggestions.forEach((s, idx) => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
-            // Highlight matching part
-            div.innerHTML = `
-                <span class="cmd-trigger" style="color:#fff; font-weight:bold;">${cmd.trigger}</span>
-                <span class="cmd-title" style="color:#888;"> - ${cmd.title}</span>
-            `;
-            div.onclick = () => {
-                // If command accepts args, autocomplete it
-                if (cmd.hint) {
-                    const input = document.getElementById('cmd-input');
-                    input.value = cmd.trigger + ' ';
-                    input.focus();
-                } else {
-                    this.execute(cmd, '');
-                }
-            };
+            
+            if (s.type === 'bookmark') {
+                const isFolder = s.data.type === 'folder';
+                const badge = isFolder ? 'FOLDER' : 'BOOKMARK';
+                const icon = isFolder ? '📁 ' : '';
+                div.innerHTML = `<span>${icon}${safeText(s.data.title)}</span><span class="type-badge">${badge}</span>`;
+                
+                div.onclick = () => { 
+                    if (isFolder) {
+                        const input = document.getElementById('cmd-input');
+                        input.value = `b ${s.data.title}/`;
+                        input.focus();
+                        this.handleInput({ target: input }); // Refresh suggestions
+                    } else {
+                        window.location.href = s.data.url; 
+                    }
+                };
+            } else {
+                const cmd = s.data;
+                div.innerHTML = `
+                    <span class="cmd-trigger" style="color:#fff; font-weight:bold;">${cmd.trigger}</span>
+                    <span class="cmd-title" style="color:#888;"> - ${cmd.title}</span>
+                `;
+                div.onclick = () => {
+                    if (cmd.hint) {
+                        const input = document.getElementById('cmd-input');
+                        input.value = cmd.trigger + ' ';
+                        input.focus();
+                    } else {
+                        this.execute(cmd, '');
+                    }
+                };
+            }
             box.appendChild(div);
         });
         
         box.style.display = 'block';
-        currentSuggestions = matches; // Store for arrow nav
+        currentSuggestions = allSuggestions; 
     },
 
     handleKeydown: function(e) {
@@ -170,7 +211,17 @@ export const CommandLine = {
             // Suggestion Selection
             if (suggestionIndex >= 0 && currentSuggestions[suggestionIndex]) {
                 e.preventDefault();
-                const cmd = currentSuggestions[suggestionIndex];
+                const s = currentSuggestions[suggestionIndex];
+                if (s.type === 'bookmark') {
+                    if (s.data.type === 'folder') {
+                        input.value = `b ${s.data.title}/`;
+                        this.handleInput({ target: input });
+                        return;
+                    }
+                    window.location.href = s.data.url;
+                    return;
+                }
+                const cmd = s.data;
                 if (cmd.hint && !input.value.includes(' ')) {
                      input.value = cmd.trigger + ' '; // Autocomplete trigger
                      return;
@@ -291,7 +342,7 @@ export const CommandLine = {
             State.COMMAND_HISTORY.slice(-20).reverse().forEach(function (cmd) {
                 var div = document.createElement('div');
                 div.className = 'history-item';
-                div.style.cssText = 'padding:10px; border-bottom:1px solid #333; color:#aaa; font-size:0.85rem; cursor:pointer; font-family:var(--font-primary); transition: all 0.2s;';
+                div.style.cssText = 'padding:10px; border-bottom:1px solid #333; color:#aaa; font-size:0.85rem; cursor:pointer; font-family:var(--font-primary); transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1), color 0.2s cubic-bezier(0.2, 0, 0, 1), padding-left 0.2s cubic-bezier(0.2, 0, 0, 1);';
                 div.textContent = cmd;
                 
                 div.onmouseover = function() { 
