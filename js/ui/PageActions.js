@@ -384,9 +384,9 @@ export const PageActions = {
             function() {
                 var noteIdToDelete = Notes.activeNoteId;
                 var note = State.NOTES.find(function(n) { return n.id === noteIdToDelete; });
-                
                 if (note) {
                     // Move to trash path instead of permanently deleting
+                    note.originalPath = note.path || '/';
                     note.path = '/.trash';
                     note.modified = Date.now();
                     saveData();

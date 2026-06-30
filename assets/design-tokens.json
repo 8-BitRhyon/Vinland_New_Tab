@@ -1,0 +1,127 @@
+{
+  "$schema": "vinland-design-tokens-v1",
+  "meta": {
+    "brand": "Vinland",
+    "version": "1.0.0",
+    "defaultTheme": "matrix",
+    "guidelines": "../Project Documentation/Project Vinland/brand-guidelines.md"
+  },
+  "primitive": {
+    "color": {
+      "phosphor": { "500": "#00FF41", "700": "#006618" },
+      "void": { "950": "#000000", "900": "#0A0A0A", "800": "#111111" },
+      "ash": { "500": "#888888", "700": "#555555" },
+      "cyan": { "board": "#00D4FF" },
+      "danger": { "500": "#FF0055" },
+      "warning": { "500": "#FFB800" },
+      "info": { "500": "#00E5FF" },
+      "retroma": {
+        "bg": "#E6DDCE",
+        "accent": "#A54A3C",
+        "text": "#433E38",
+        "muted": "#7C766E",
+        "dim": "#9E9589"
+      }
+    },
+    "font": {
+      "system": "Space Mono, monospace",
+      "editor": "Space Mono, monospace",
+      "display": "Space Mono, monospace"
+    },
+    "radius": {
+      "sm": "3px",
+      "md": "4px",
+      "lg": "6px",
+      "xl": "8px",
+      "toolbar": "10px"
+    },
+    "motion": {
+      "ease": "cubic-bezier(0.2, 0, 0, 1)",
+      "pressScale": "0.96",
+      "fast": "0.15s",
+      "normal": "0.2s"
+    },
+    "zIndex": {
+      "base": 0,
+      "content": 10,
+      "overlay": 50,
+      "nav": 100,
+      "widget": 1000,
+      "search": 9000,
+      "topbar": 9999,
+      "modalBackdrop": 20000,
+      "modalBase": 21000,
+      "modalMaximized": 25000,
+      "contextMenu": 30000,
+      "tooltip": 35000,
+      "toast": 40000
+    }
+  },
+  "semantic": {
+    "color": {
+      "background": "var(--color-void-950)",
+      "surface": "var(--color-void-900)",
+      "surfaceElevated": "var(--color-void-800)",
+      "textPrimary": "var(--color-phosphor-500)",
+      "textSecondary": "var(--color-ash-500)",
+      "textMuted": "var(--color-ash-700)",
+      "accent": "var(--color-phosphor-500)",
+      "accentSecondary": "var(--color-phosphor-700)",
+      "border": "rgba(255, 255, 255, 0.08)",
+      "danger": "var(--color-danger-500)",
+      "warning": "var(--color-warning-500)",
+      "info": "var(--color-info-500)",
+      "board": "var(--color-cyan-board)"
+    },
+    "callout": {
+      "info": "#00E5FF",
+      "warning": "#FFB800",
+      "danger": "#FF0055",
+      "success": "#00FF41",
+      "note": "#9D00FF",
+      "tip": "#FFD700",
+      "quote": "#888888"
+    },
+    "graph": {
+      "cluster1": "#00FF41",
+      "cluster2": "#00E5FF",
+      "cluster3": "#FF0055",
+      "cluster4": "#FFB800",
+      "cluster5": "#9D00FF"
+    }
+  },
+  "component": {
+    "button": {
+      "text": {
+        "padding": "4px 8px",
+        "minHeight": "40px",
+        "fontSize": "0.7rem",
+        "transition": "color 0.2s, border-color 0.2s, transform 0.1s"
+      },
+      "primary": {
+        "background": "var(--color-accent)",
+        "text": "#000000"
+      }
+    },
+    "panel": {
+      "notes": {
+        "radius": "var(--radius-xl)",
+        "shadow": "0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.55)"
+      }
+    },
+    "canvas": {
+      "toolbar": {
+        "radius": "var(--radius-toolbar)",
+        "buttonRadius": "var(--radius-md)"
+      },
+      "minimap": {
+        "radius": "var(--radius-xl)"
+      }
+    }
+  },
+  "themePresets": {
+    "matrix": { "accent": "#00FF41", "secondary": "#006618", "font": "Space Mono" },
+    "retroma": { "accent": "#A54A3C", "background": "#E6DDCE", "text": "#433E38" },
+    "cyberpunk": { "accent": "#FF00FF", "secondary": "#00FFFF", "font": "VT323" }
+  }
+}
