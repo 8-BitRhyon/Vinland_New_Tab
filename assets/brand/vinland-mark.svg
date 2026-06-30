@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Viking Ship Hull (Stylized terminal caret bracket) -->
+  <path d="M 90,380 Q 256,435 422,380" stroke="currentColor" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M 85,385 C 65,370 70,330 75,320 M 427,385 C 447,370 442,330 437,320" stroke="currentColor" stroke-width="20" stroke-linecap="round" fill="none"/>
+  
+  <!-- Mast -->
+  <line x1="256" y1="130" x2="256" y2="400" stroke="currentColor" stroke-width="16" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- Compass Star (Polaris node) -->
+  <circle cx="256" cy="95" r="16" fill="currentColor"/>
+  <path d="M 256,70 L 256,120 M 231,95 L 281,95" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Sail / Node Graph Brackets (< and >) -->
+  <!-- Left Bracket < -->
+  <path d="M 256,150 L 140,265 L 256,380" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Right Bracket > -->
+  <path d="M 256,150 L 372,265 L 256,380" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Center Horizontal Connection -->
+  <line x1="140" y1="265" x2="372" y2="265" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-dasharray="1 25" opacity="0.75"/>
+
+  <!-- Graph Nodes (Circles at intersections) -->
+  <circle cx="256" cy="150" r="14" fill="currentColor"/>
+  <circle cx="140" cy="265" r="14" fill="currentColor"/>
+  <circle cx="372" cy="265" r="14" fill="currentColor"/>
+  <circle cx="256" cy="265" r="14" fill="currentColor"/>
+  <circle cx="256" cy="380" r="14" fill="currentColor"/>
+</svg>

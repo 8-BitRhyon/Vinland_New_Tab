@@ -8,6 +8,8 @@ export const TaskAggregator = {
     getAllTasks: function () {
         var tasks = [];
         State.NOTES.forEach(function (note) {
+            // Skip trashed notes
+            if (note.path && note.path.indexOf('/.trash') === 0) return;
             if (!note.blocks) return;
             note.blocks.forEach(function (block) {
                 if (block.type === 'task') {

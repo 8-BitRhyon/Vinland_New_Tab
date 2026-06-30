@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <title>TERMINAL : --</title>
-    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg" />
+    <link rel="stylesheet" href="assets/design-tokens.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Inconsolata:wght@400;700&family=Roboto+Mono:wght@400;700&family=Ubuntu+Mono:wght@400;700&family=VT323&display=swap"
       rel="stylesheet"
@@ -65,6 +66,10 @@
         --z-context-menu: 30000;
         --z-tooltip: 35000;
         --z-toast: 40000;
+
+        /* Motion tokens */
+        --press-scale: 0.96;
+        --motion-ease: cubic-bezier(0.2, 0, 0, 1);
       }
 
       /* RETROMA THEME OVERRIDE */
@@ -154,17 +159,25 @@
       .block-drag-handle {
           position: absolute;
           left: 4px;
-          top: 4px; /* Align with first line of text */
+          top: 50%;
+          transform: translateY(-50%);
           width: 20px;
-          height: 24px;
+          height: 20px;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: grab;
           opacity: 0;
-          transition: opacity 0.15s ease;
+          line-height: 1;
+          transition: opacity 0.15s var(--motion-ease);
           border-radius: 3px;
           color: var(--secondary-color);
+      }
+
+      .block-drag-handle::after {
+          content: "";
+          position: absolute;
+          inset: -8px;
       }
 
       /* Show handle on hover */
@@ -228,6 +241,44 @@
         font-family: "Space Mono", monospace;
         color: var(--main-color);
         transition: background-color 0.3s ease, color 0.3s ease;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        text-wrap: pretty;
+      }
+
+      #greeting,
+      .note-preview h1,
+      .note-preview h2,
+      .note-preview h3,
+      .pomodoro-complete-title {
+        text-wrap: balance;
+      }
+
+      #clock,
+      #date,
+      .pomodoro-time,
+      .pomodoro-stat-value,
+      .canvas-tb-info,
+      #canvas-zoom-label,
+      .hud-percent,
+      .note-item-meta {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .note-preview img,
+      .block-image img,
+      .image-inner-wrapper img {
+        outline: 1px solid rgba(255, 255, 255, 0.1);
+        outline-offset: -1px;
+      }
+
+      body.theme-retroma .note-preview img,
+      body.theme-retroma .block-image img,
+      body.theme-retroma .image-inner-wrapper img {
+        outline-color: rgba(0, 0, 0, 0.1);
       }
       
       body.theme-retroma {
@@ -326,12 +377,16 @@
         font-family: var(--font-main);
         font-weight: bold;
         font-size: 0.85rem;
-        transition: all 0.2s;
+        transition: filter 0.2s var(--motion-ease), transform 0.1s var(--motion-ease);
       }
 
       #link-popover button:hover {
         filter: brightness(1.2);
         transform: translateY(-1px);
+      }
+
+      #link-popover button:active {
+        transform: translateY(0) scale(var(--press-scale));
       }
 
       #link-popover .popover-label {
@@ -613,11 +668,14 @@
         align-items: center;
         gap: 8px;
         background: rgba(0, 0, 0, 0.85);
-        border: 1px solid var(--main-color);
+        border: none;
         padding: 6px 14px;
-        border-radius: 6px;
+        border-radius: 10px;
         z-index: 100;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(var(--main-color-rgb, 0,255,65), 0.1);
+        box-shadow:
+          0 0 0 1px rgba(var(--main-color-rgb, 0,255,65), 0.35),
+          0 4px 20px rgba(0, 0, 0, 0.5),
+          0 0 15px rgba(var(--main-color-rgb, 0,255,65), 0.1);
       }
       .canvas-tb-btn {
         background: transparent;
@@ -627,12 +685,16 @@
         font-size: 0.7rem;
         padding: 4px 10px;
         cursor: pointer;
-        transition: all 0.15s;
+        transition: background-color 0.15s var(--motion-ease), color 0.15s var(--motion-ease), transform 0.1s var(--motion-ease);
         letter-spacing: 0.5px;
+        border-radius: 4px;
       }
       .canvas-tb-btn:hover {
         background: var(--main-color);
         color: #000;
+      }
+      .canvas-tb-btn:active {
+        transform: scale(var(--press-scale));
       }
       .canvas-tb-divider {
         color: #333;
@@ -652,8 +714,14 @@
         border-radius: 6px;
         cursor: grab;
         box-shadow: 0 2px 15px rgba(0, 0, 0, 0.4), 0 0 8px rgba(var(--main-color-rgb, 0,255,65), 0.05);
-        transition: border-color 0.15s, box-shadow 0.15s;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        will-change: transform, box-shadow;
         overflow: hidden;
+      }
+      .canvas-card.is-dragging {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(var(--main-color-rgb, 0,255,65), 0.25) !important;
+        z-index: 10000 !important;
       }
 
       /* Keyboard Spawning Selection Glow */
@@ -662,6 +730,14 @@
         border-color: var(--main-color, #00ff41) !important;
         box-shadow: 0 0 15px rgba(0, 255, 65, 0.4), 0 4px 15px rgba(0, 0, 0, 0.8) !important;
         z-index: 9999 !important;
+      }
+      .canvas-selection-marquee {
+        position: absolute;
+        border: 1px dashed var(--main-color, #00ff41);
+        background: rgba(var(--main-color-rgb, 0, 255, 65), 0.08);
+        pointer-events: none;
+        z-index: 25000;
+        transition: none !important;
       }
       .canvas-card:hover {
         border-color: var(--main-color);
@@ -686,12 +762,19 @@
         min-height: 1em;
       }
       .canvas-card-delete {
+        position: relative;
         color: #444;
         cursor: pointer;
         font-size: 1rem;
         line-height: 1;
-        transition: color 0.15s;
+        transition: color 0.15s var(--motion-ease);
         padding: 0 2px;
+      }
+
+      .canvas-card-delete::before {
+        content: "";
+        position: absolute;
+        inset: -12px;
       }
       .canvas-card-delete:hover {
         color: var(--danger-color, #ff0055);
@@ -886,11 +969,17 @@
         position: absolute;
         border: 2px dashed #555;
         background: rgba(40, 40, 40, 0.4);
-        border-radius: 8px;
+        border-radius: 12px;
         z-index: 0; /* Behind cards */
         cursor: grab;
         display: flex;
         flex-direction: column;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        will-change: transform, box-shadow;
+      }
+      .canvas-group.is-dragging {
+        border-color: rgba(var(--main-color-rgb, 0,255,65), 0.6) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
       }
       .canvas-group:active {
         cursor: grabbing;
@@ -902,8 +991,8 @@
         padding: 4px 8px;
         background: rgba(20, 20, 20, 0.6);
         border-bottom: 1px dashed #555;
-        border-top-left-radius: 6px;
-        border-top-right-radius: 6px;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
       }
       .canvas-group-label {
         font-family: monospace;
@@ -1051,12 +1140,14 @@
         width: 150px;
         height: 100px;
         background: rgba(10, 10, 10, 0.85);
-        border: 1px solid #333;
-        border-radius: 6px;
+        border: none;
+        border-radius: 8px;
         z-index: 1000;
         overflow: hidden;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08),
+          0 4px 16px rgba(0, 0, 0, 0.55);
       }
       .canvas-minimap-node {
         position: absolute;
@@ -1070,9 +1161,10 @@
       .canvas-minimap-viewport {
         position: absolute;
         border: 1px solid var(--main-color, #00ff41);
-        background: rgba(255, 255, 255, 0.15);
+        background: color-mix(in srgb, var(--main-color, #00ff41) 16%, transparent);
         box-sizing: border-box;
         pointer-events: none;
+        border-radius: 2px;
       }
 
       /* Node Custom Colors */
@@ -2157,11 +2249,16 @@
         padding: 8px 15px;
         font-size: 0.75rem;
         text-transform: uppercase;
+        transition: border-color 0.2s var(--motion-ease), color 0.2s var(--motion-ease), transform 0.1s var(--motion-ease);
       }
 
       .pomodoro-btn:hover {
         border-color: var(--main-color);
         color: var(--main-color);
+      }
+
+      .pomodoro-btn:active {
+        transform: scale(var(--press-scale));
       }
 
       /* POMODORO COMPLETE MODAL */
@@ -3132,9 +3229,12 @@
         overflow-x: hidden;
         /* V19.34: Prevent horizontal scroll */
         background: rgba(0, 0, 0, 0.9);
-        border: 1px solid #333;
+        border: none;
+        border-radius: 8px;
         padding: 15px;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08),
+          0 8px 24px rgba(0, 0, 0, 0.55);
         text-align: left;
         z-index: 40;
         display: none;
@@ -3154,7 +3254,7 @@
         color: #888;
         border-bottom: 1px dashed #444;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: color 0.2s var(--motion-ease), border-bottom-color 0.2s var(--motion-ease);
       }
 
       .external-link {
@@ -3172,7 +3272,8 @@
         padding: 12px 5px;
         border-bottom: 1px solid #333;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background-color 0.2s var(--motion-ease);
+        border-radius: 4px;
       }
 
       .note-item:last-child {
@@ -3467,22 +3568,45 @@
         width: max-content;
         max-width: 240px;
         background: rgba(0, 0, 0, 0.88);
-        border: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.25);
+        border: none;
+        border-radius: 8px;
         padding: 0;
         z-index: 40;
         display: none;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+        box-shadow:
+          0 0 0 1px rgba(var(--main-color-rgb, 0, 255, 65), 0.2),
+          0 8px 24px rgba(0, 0, 0, 0.45);
         font-size: 0.75rem;
+        overflow: hidden;
       }
 
       #notes-discovery-hint.active {
         display: block;
-        animation: hintFadeIn 0.4s ease;
       }
 
-      @keyframes hintFadeIn {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
+      #notes-discovery-hint.active .discovery-header,
+      #notes-discovery-hint.active .discovery-body,
+      #notes-discovery-hint.active .discovery-footer {
+        animation: hintChunkIn 0.35s var(--motion-ease) both;
+      }
+
+      #notes-discovery-hint.active .discovery-body {
+        animation-delay: 0.1s;
+      }
+
+      #notes-discovery-hint.active .discovery-footer {
+        animation-delay: 0.2s;
+      }
+
+      @keyframes hintChunkIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       .discovery-header {
@@ -3525,12 +3649,20 @@
         cursor: pointer;
         opacity: 0.6;
         letter-spacing: 1px;
-        transition: opacity 0.2s;
+        transition: opacity 0.2s var(--motion-ease), transform 0.1s var(--motion-ease);
         font-weight: bold;
+        display: inline-block;
+        padding: 6px 4px;
+        min-height: 40px;
+        line-height: 28px;
       }
 
       .discovery-dismiss:hover {
         opacity: 1;
+      }
+
+      .discovery-dismiss:active {
+        transform: scale(var(--press-scale));
       }
 
       /* Hide discovery hint in zen mode */
@@ -3862,6 +3994,63 @@
       /* ---- SIDEBAR ---- */
       .notes-modal .config-header {
         border-bottom: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
+        height: 38px;
+        padding: 0 16px;
+        background: #080808;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .header-symbol-btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--main-color, #00ff41);
+        opacity: 0.6;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out, opacity 0.15s ease-out, transform 0.1s ease-out;
+      }
+      .header-symbol-btn svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        display: block;
+        pointer-events: none;
+      }
+      .header-symbol-btn:hover {
+        background: rgba(var(--main-color-rgb, 0, 255, 65), 0.15);
+        border-color: rgba(var(--main-color-rgb, 0, 255, 65), 0.4);
+        opacity: 1;
+      }
+      .header-symbol-btn.close-btn {
+        color: #ff4d4d;
+        border-color: rgba(255, 77, 77, 0.15);
+      }
+      .header-symbol-btn.close-btn:hover {
+        background: rgba(255, 77, 77, 0.15);
+        color: #ff3333;
+        border-color: rgba(255, 77, 77, 0.4);
+        opacity: 1;
+      }
+      .header-symbol-btn:active {
+        transform: scale(0.96);
+      }
+      
+      /* Toggle maximize icon display depending on editor state */
+      .note-editor-modal.maximized #note-maximize-btn .icon-min {
+        display: block !important;
+      }
+      .note-editor-modal.maximized #note-maximize-btn .icon-max {
+        display: none !important;
       }
 
       .notes-sidebar {
@@ -4967,14 +5156,19 @@
         border: 1px solid transparent;
         cursor: pointer;
         padding: 4px 8px;
+        min-height: 40px;
         font-size: 0.7rem;
         color: #888;
-        transition: all 0.2s;
+        transition: color 0.2s var(--motion-ease), border-color 0.2s var(--motion-ease), transform 0.1s var(--motion-ease);
       }
 
       .text-btn:hover {
         color: #ccc;
         border-color: #555;
+      }
+
+      .text-btn:active {
+        transform: scale(var(--press-scale));
       }
 
       .danger-btn {
@@ -5223,9 +5417,10 @@
       .block-drag-handle {
         position: absolute;
         left: 4px;
-        top: 0;
+        top: 50%;
+        transform: translateY(-50%);
         width: 20px;
-        height: 100%;
+        height: 20px;
         cursor: grab;
         opacity: 0;
         display: flex;
@@ -5233,15 +5428,24 @@
         justify-content: center;
         color: #555;
         font-size: 0.85rem;
-        transition: opacity 0.15s;
+        line-height: 1;
+        transition: opacity 0.15s, background-color 0.15s, color 0.15s;
         user-select: none;
-        z-index: 1;
+        z-index: 10;
+        border-radius: 4px;
       }
       .block-drag-handle::before {
         content: "⠿";
       }
       .block-wrapper:hover .block-drag-handle {
         opacity: 1;
+      }
+      .block-drag-handle:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--main-color);
+      }
+      .block-drag-handle:active {
+        cursor: grabbing;
       }
 
       /* Drag Target Indicator */
@@ -5549,7 +5753,7 @@
         padding: 2px 6px;
         cursor: pointer;
         opacity: 0;
-        transition: all 0.2s;
+        transition: opacity 0.2s var(--motion-ease), border-color 0.2s var(--motion-ease), color 0.2s var(--motion-ease), background-color 0.2s var(--motion-ease), transform 0.1s var(--motion-ease);
         z-index: 10;
       }
       .block-image:hover .image-delete-btn {
@@ -5788,7 +5992,7 @@
       .kanban-card.grabbing {
         border-style: dashed !important;
         opacity: 0.8;
-        transform: scale(0.98);
+        transform: scale(var(--press-scale));
       }
       /* V66: Ghost Navigation */
       .kanban-card.ghost {
@@ -7766,48 +7970,41 @@
     <!-- NOTE EDITOR MODAL (V3.0 Obsidian-Style) -->
     <div id="note-editor-modal" class="modal note-editor-modal notes-modal">
       <div class="config-header">
-        <div style="display: flex; align-items: center; gap: 10px">
-          OPERATOR_NOTES //
-          <span style="font-size: 0.6rem; opacity: 0.6">BLOCK_OS_v2.0</span>
-        </div>
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-left: auto;
-          "
-        >
+        <div class="note-header-actions" style="display: flex; align-items: center; gap: 8px;">
           <button
             id="note-help-btn"
-            class="sidebar-action-btn"
+            class="header-symbol-btn"
             title="Editor Help"
-            style="
-              font-size: 0.7rem;
-              width: auto;
-              padding: 0 8px;
-              height: 22px;
-              border-color: rgba(255, 255, 255, 0.1);
-            "
           >
-            [HELP]
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
           </button>
           <button
             id="note-maximize-btn"
-            class="sidebar-action-btn"
-            title="Maximize Editor"
-            style="
-              font-size: 0.7rem;
-              width: auto;
-              padding: 0 8px;
-              height: 22px;
-              border-color: rgba(255, 255, 255, 0.1);
-            "
+            class="header-symbol-btn"
+            title="Toggle Maximize"
           >
-            [MAX]
+            <svg class="icon-max" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+            <svg class="icon-min" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+              <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/>
+            </svg>
+          </button>
+          <button
+            id="note-editor-close"
+            class="header-symbol-btn close-btn"
+            title="Close Editor"
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
         </div>
-        <span class="close-modal" id="note-editor-close">X</span>
       </div>
       <div class="notes-container">
         <!-- SIDEBAR -->
@@ -7823,16 +8020,32 @@
           >
             <div
               style="
-                font-size: 0.6rem;
-                color: #444;
-                letter-spacing: 2px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
                 font-family: monospace;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-                padding-bottom: 4px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                padding-bottom: 6px;
                 margin-bottom: 2px;
               "
             >
-              NAV_SYSTEM // OPERATOR
+              <svg viewBox="0 0 512 512" style="width: 16px; height: 16px; color: var(--main-color, #00ff41); flex-shrink: 0;">
+                <path d="M 90,380 Q 256,435 422,380" stroke="currentColor" stroke-width="26" stroke-linecap="round" fill="none"/>
+                <path d="M 85,385 C 65,370 70,330 75,320 M 427,385 C 447,370 442,330 437,320" stroke="currentColor" stroke-width="20" stroke-linecap="round" fill="none"/>
+                <line x1="256" y1="130" x2="256" y2="400" stroke="currentColor" stroke-width="16" stroke-linecap="round" opacity="0.3"/>
+                <circle cx="256" cy="95" r="16" fill="currentColor"/>
+                <path d="M 256,70 L 256,120 M 231,95 L 281,95" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+                <path d="M 256,150 L 140,265 L 256,380" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <path d="M 256,150 L 372,265 L 256,380" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <circle cx="256" cy="150" r="14" fill="currentColor"/>
+                <circle cx="140" cy="265" r="14" fill="currentColor"/>
+                <circle cx="372" cy="265" r="14" fill="currentColor"/>
+                <circle cx="256" cy="265" r="14" fill="currentColor"/>
+                <circle cx="256" cy="380" r="14" fill="currentColor"/>
+              </svg>
+              <span style="font-size: 0.75rem; font-weight: bold; letter-spacing: 2px; color: var(--main-color, #00ff41); opacity: 0.85; text-transform: uppercase;">
+                Vinland
+              </span>
             </div>
             <div
               style="
