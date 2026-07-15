@@ -22,8 +22,7 @@ Vinland_New_Tab/
 ├── rules.json                 # declarativeNetRequest headers modification rules
 ├── index.html                 # Main markup and CSS design styles
 ├── js/
-│   ├── main.js                # App bootstrap and initialization coordinator
-│   ├── boot.js                # Environment, theme, and viewport setup
+│   ├── boot.js                # Sole app entry point: imports managers, wires globals, runs boot()
 │   │
 │   ├── core/                  # Core system engines and state wrappers
 │   │   ├── store.js           # Shared application state

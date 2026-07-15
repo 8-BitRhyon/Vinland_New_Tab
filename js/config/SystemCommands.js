@@ -177,5 +177,52 @@ export const SystemCommands = {
         }
       },
     });
+
+    // --- FOCUS ---
+    CommandRegistry.register({
+      id: "pomo:start",
+      trigger: "pomo",
+      title: "Start Pomodoro",
+      hint: "[time] e.g. 25m, 90s, 50:00",
+      action: (args) => {
+        if (window.Pomodoro) window.Pomodoro.start(args);
+      },
+    });
+
+    // --- INFO ---
+    CommandRegistry.register({
+      id: "info:weather",
+      trigger: "weather",
+      title: "Refresh Weather",
+      hint: "[location]",
+      action: (args) => {
+        if (args) {
+          State.CONFIG.location = args.trim();
+          if (window.Config) window.Config.save();
+        }
+        if (window.fetchWeather) window.fetchWeather();
+      },
+    });
+
+    // --- HELP ---
+    CommandRegistry.register({
+      id: "info:help",
+      trigger: "help",
+      title: "Open Operator Manual",
+      action: () => {
+        if (window.SettingsUI && window.SettingsUI.toggleHelp) window.SettingsUI.toggleHelp();
+        else if (window.ModalManager) window.ModalManager.open('help-modal');
+      },
+    });
+
+    CommandRegistry.register({
+      id: "info:man",
+      trigger: "man",
+      title: "Open Operator Manual",
+      action: () => {
+        if (window.SettingsUI && window.SettingsUI.toggleHelp) window.SettingsUI.toggleHelp();
+        else if (window.ModalManager) window.ModalManager.open('help-modal');
+      },
+    });
   },
 };

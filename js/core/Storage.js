@@ -1,4 +1,4 @@
-import { State } from './Store.js';
+import { State } from './store.js';
 
 /* =========================================
    INDEXEDDB - STORAGE MATRIX
@@ -74,13 +74,61 @@ export var VinlandDB = {
     }
 };
 
+// V19.36: Per-note sharding for the NOTES vault.
+// Each note is stored under NOTE_PREFIX+id; NOTES_INDEX holds the ordered id list.
+// saveData() only writes notes whose serialized form changed (diff-cache) and removes
+// orphaned keys for deleted notes. Avoids re-serializing the entire vault on every save.
+const NOTE_PREFIX = 'OPERATOR_NOTE_';
+const NOTES_INDEX = 'OPERATOR_NOTES_INDEX';
+
+// id -> last serialized string (in-memory diff cache)
+let noteCache = new Map();
+// ordered list of note ids currently on disk
+let noteIdList = [];
+
 export function loadData() {
     State.TASKS = VinlandDB.load('TASKS');
-    State.NOTES = VinlandDB.load('NOTES');
     State.BOARDS = VinlandDB.load('BOARDS');
     State.CANVASES = VinlandDB.load('CANVASES');
     State.COMMAND_HISTORY = VinlandDB.load('HISTORY');
-    
+
+    // --- NOTES: migrate legacy blob once, then hydrate from shards ---
+    var legacy = localStorage.getItem(VinlandDB.collections.NOTES);
+    if (legacy) {
+        try {
+            var legacyNotes = JSON.parse(legacy) || [];
+            legacyNotes.forEach(function (n) {
+                if (!n || !n.id) return;
+                localStorage.setItem(NOTE_PREFIX + n.id, JSON.stringify(n));
+            });
+            var ids = legacyNotes.filter(function (n) { return n && n.id; }).map(function (n) { return n.id; });
+            localStorage.setItem(NOTES_INDEX, JSON.stringify(ids));
+            localStorage.removeItem(VinlandDB.collections.NOTES);
+        } catch (e) {
+            console.error('VinlandDB: legacy NOTES migration failed', e);
+        }
+    }
+
+    State.NOTES = [];
+    noteCache = new Map();
+    noteIdList = [];
+    var indexRaw = localStorage.getItem(NOTES_INDEX);
+    if (indexRaw) {
+        try {
+            var ids = JSON.parse(indexRaw) || [];
+            ids.forEach(function (id) {
+                var raw = localStorage.getItem(NOTE_PREFIX + id);
+                if (!raw) return;
+                try {
+                    var note = JSON.parse(raw);
+                    State.NOTES.push(note);
+                    noteCache.set(id, raw);
+                    noteIdList.push(id);
+                } catch (e) { console.error('VinlandDB: note parse failed', id, e); }
+            });
+        } catch (e) { console.error('VinlandDB: NOTES_INDEX parse failed', e); }
+    }
+
     var sessions = parseInt(localStorage.getItem(VinlandDB.collections.SESSIONS) || '0') + 1;
     localStorage.setItem(VinlandDB.collections.SESSIONS, sessions.toString());
     var sessionEl = document.getElementById('session-count');
@@ -88,9 +136,54 @@ export function loadData() {
 }
 
 export function saveData() {
+    // TASKS / BOARDS / CANVASES / HISTORY: small collections, full write is fine.
     VinlandDB.save('TASKS', State.TASKS);
-    VinlandDB.save('NOTES', State.NOTES);
     VinlandDB.save('BOARDS', State.BOARDS);
     VinlandDB.save('CANVASES', State.CANVASES);
     VinlandDB.save('HISTORY', State.COMMAND_HISTORY);
+
+    // NOTES: differential per-note write.
+    var currentIds = (State.NOTES || []).map(function (n) { return n.id; });
+
+    (State.NOTES || []).forEach(function (note) {
+        if (!note || !note.id) return;
+        var serialized = JSON.stringify(note);
+        if (noteCache.get(note.id) !== serialized) {
+            localStorage.setItem(NOTE_PREFIX + note.id, serialized);
+            noteCache.set(note.id, serialized);
+        }
+    });
+
+    // Remove orphaned keys for notes no longer in State.NOTES.
+    noteIdList.forEach(function (id) {
+        if (currentIds.indexOf(id) === -1) {
+            localStorage.removeItem(NOTE_PREFIX + id);
+            noteCache.delete(id);
+        }
+    });
+
+    noteIdList = currentIds;
+    localStorage.setItem(NOTES_INDEX, JSON.stringify(noteIdList));
+}
+
+// Full resync of the notes vault (writes every note key + rebuilds index/cache).
+export function saveAllNotes() {
+    (State.NOTES || []).forEach(function (note) {
+        if (!note || !note.id) return;
+        var serialized = JSON.stringify(note);
+        localStorage.setItem(NOTE_PREFIX + note.id, serialized);
+        noteCache.set(note.id, serialized);
+    });
+    noteIdList = (State.NOTES || []).map(function (n) { return n.id; });
+    localStorage.setItem(NOTES_INDEX, JSON.stringify(noteIdList));
+}
+
+// Deletes all per-note keys and the index (used by #clear-data).
+export function clearAllNotes() {
+    noteIdList.forEach(function (id) {
+        localStorage.removeItem(NOTE_PREFIX + id);
+    });
+    noteCache = new Map();
+    noteIdList = [];
+    localStorage.removeItem(NOTES_INDEX);
 }

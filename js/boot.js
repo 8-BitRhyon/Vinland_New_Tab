@@ -355,6 +355,15 @@ function bindGlobals() {
       var hint = document.getElementById("notes-discovery-hint");
       if (hint) hint.classList.remove("active");
     };
+
+  // 10. Welcome Modal: dismiss ends first-run onboarding
+  const welcomeDismiss = document.getElementById("welcome-dismiss");
+  if (welcomeDismiss && State.CONFIG.first_run) {
+    welcomeDismiss.addEventListener("click", function () {
+      State.CONFIG.first_run = false;
+      if (typeof Config !== "undefined" && Config.save) Config.save();
+    });
+  }
 }
 
 // 4. THE BOOT SEQUENCE
@@ -415,6 +424,11 @@ async function boot() {
   }
 
   bindGlobals(); // [NEW] Bind static HTML buttons
+
+  // F. First-run onboarding: show the welcome modal once
+  if (State.CONFIG.first_run) {
+    if (window.ModalManager) window.ModalManager.open('welcome-modal');
+  }
 
   // E. Data Safety Net
   window.addEventListener('beforeunload', function() {

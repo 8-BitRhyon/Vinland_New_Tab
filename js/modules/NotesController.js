@@ -632,14 +632,16 @@ export const Notes = {
                 console.log('[Notes] Canvas container shown. offsetHeight:', canvasContainer.offsetHeight, '| offsetWidth:', canvasContainer.offsetWidth);
                 if (window.CanvasManager) window.CanvasManager.load(note.id);
             }
-            // Open the modal so the canvas is visible (especially from Quick Notes panel)
             if (window.ModalManager) window.ModalManager.open('note-editor-modal');
-            return; // Exit standard block/text rendering pipeline
+            return;
         }
         
         // Reset defaults for standard markdown/text notes
         if (canvasContainer) canvasContainer.style.display = 'none';
         if (toggleBtn) toggleBtn.style.display = 'inline-block';
+
+        // V19.37: Open modal BEFORE rendering so a render error can't prevent the editor from showing.
+        if (window.ModalManager) window.ModalManager.open('note-editor-modal');
 
         this.isPreviewMode = (note.viewMode === 'preview');
 
@@ -663,7 +665,12 @@ export const Notes = {
             
             if (toggleBtn) { toggleBtn.textContent = 'PREVIEW'; toggleBtn.classList.remove('active'); }
             
-            if (BlockEditor) BlockEditor.render(note.id, skipFocus);
+            try {
+                if (BlockEditor) BlockEditor.render(note.id, skipFocus);
+            } catch (e) {
+                console.error('[Notes] BlockEditor.render failed:', e);
+                if (window.showNotification) window.showNotification('Editor render error: ' + e.message, 'error');
+            }
         }
 
         var pathDisplay = document.getElementById('note-current-path');
@@ -786,7 +793,9 @@ export const Notes = {
             }
         }
 
-        ModalManager.open('note-editor-modal');
+        if (!document.getElementById('note-editor-modal').classList.contains('active')) {
+            ModalManager.open('note-editor-modal');
+        }
     },
 
     create: function (initialTitle, initialPath) {

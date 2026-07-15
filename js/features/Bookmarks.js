@@ -87,6 +87,13 @@ export function renderBottomBar(folderId) {
                 emptyMsg.style.fontStyle = 'italic';
                 emptyMsg.textContent = '[ EMPTY FOLDER ]';
                 container.appendChild(emptyMsg);
+                if (folderId === ROOT_ID) {
+                    var hint = document.createElement('span');
+                    hint.style.color = 'var(--dim-color)';
+                    hint.style.fontSize = '0.8rem';
+                    hint.textContent = ' No bookmarks yet — add some in Chrome to see them here.';
+                    container.appendChild(hint);
+                }
                 return;
             }
 

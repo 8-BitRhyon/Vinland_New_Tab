@@ -3217,7 +3217,7 @@
       /* V18.5: Notes Panel (Quick Access) */
       #notes-panel {
         position: absolute;
-        top: 100px;
+        bottom: 90px;
         right: 30px;
         left: auto;
         width: max-content;
@@ -3236,7 +3236,7 @@
           0 0 0 1px rgba(255, 255, 255, 0.08),
           0 8px 24px rgba(0, 0, 0, 0.55);
         text-align: left;
-        z-index: 40;
+        z-index: 60;
         display: none;
       }
 
@@ -3563,7 +3563,7 @@
       /* Notes Discovery Hint (First-Time Users) */
       #notes-discovery-hint {
         position: absolute;
-        top: 100px;
+        bottom: 90px;
         right: 30px;
         width: max-content;
         max-width: 240px;
@@ -3571,7 +3571,7 @@
         border: none;
         border-radius: 8px;
         padding: 0;
-        z-index: 40;
+        z-index: 60;
         display: none;
         box-shadow:
           0 0 0 1px rgba(var(--main-color-rgb, 0, 255, 65), 0.2),
@@ -7613,7 +7613,7 @@
             <td>Toggle notes panel</td>
           </tr>
           <tr>
-            <td class="help-cmd">focus [time]</td>
+            <td class="help-cmd">pomo [time]</td>
             <td>Start timer (e.g. 25, 1:30, 90s)</td>
           </tr>
           <tr>
@@ -7811,9 +7811,9 @@
           <div class="welcome-section-title">Quick Commands</div>
           <ul class="welcome-list">
             <li><code>task Buy groceries</code> - Create a task</li>
-            <li><code>focus 25</code> - Start 25 min timer</li>
+            <li><code>pomo 25</code> - Start a 25 min focus timer</li>
             <li><code>note Remember this</code> - Quick note</li>
-            <li><code>help</code> - Full command list</li>
+            <li><code>help</code> - Open the full command manual</li>
           </ul>
         </div>
 

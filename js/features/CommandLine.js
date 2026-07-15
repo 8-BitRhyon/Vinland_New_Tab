@@ -28,6 +28,14 @@ const QUOTES = [
 export const CommandLine = {
     init: function() {
         this.bindEvents();
+        this.showDefaultHint();
+    },
+
+    showDefaultHint: function() {
+        const hintBox = document.getElementById('command-hint');
+        if (!hintBox) return;
+        hintBox.innerHTML = '<span class="hint-syntax">Try:</span> task &lt;text&gt; · pomo 25 · note &lt;title&gt; · daily · help';
+        hintBox.style.display = 'block';
     },
 
     bindEvents: function() {
@@ -50,7 +58,7 @@ export const CommandLine = {
         
         if (!val.trim()) {
             suggestionsBox.style.display = 'none';
-            if (hintBox) hintBox.style.display = 'none';
+            this.showDefaultHint();
             return;
         }
 
@@ -300,9 +308,7 @@ export const CommandLine = {
         const sBox = document.getElementById('suggestions');
         if(sBox) sBox.style.display = 'none';
         
-        const hBox = document.getElementById('command-hint');
-        if(hBox) hBox.style.display = 'none';
-        
+        this.showDefaultHint();
         // Save to history
         this.addToHistory(cmd.trigger + (args ? ' ' + args : ''));
     },

@@ -1,7 +1,7 @@
 import { State } from '../core/Store.js';
 import { Config, saveConfig, loadConfig, THEME_PRESETS } from '../core/Config.js';
 import { ModalManager } from './ModalManager.js';
-import { DB, VinlandDB, saveData } from '../core/Storage.js';
+import { DB, VinlandDB, saveData, clearAllNotes } from '../core/Storage.js';
 import { safeText, validateURL } from '../core/Utils.js';
 import { Audio, playNotificationSound } from '../core/Audio.js';
 import { TabManager } from './TabManager.js';
@@ -1358,6 +1358,7 @@ export const SettingsUI = {
                  State.TASKS = [];
                  State.NOTES = [];
                  State.COMMAND_HISTORY = [];
+                 clearAllNotes();
                  saveData();
                  location.reload();
              }

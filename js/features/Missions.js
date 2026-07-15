@@ -14,7 +14,14 @@ export function renderMissions() {
     if (!list || !container) return;
 
     if (!State.TASKS || State.TASKS.length === 0) {
-        container.classList.remove('active');
+        // Empty state: keep panel visible with a discoverable CTA
+        container.classList.add('active');
+        list.innerHTML = '<div class="empty-state-hint">' +
+            '<div class="empty-state-title">NO ACTIVE MISSIONS</div>' +
+            '<div class="empty-state-body">Type <code>task Buy groceries</code> in the command line below to add your first task.</div>' +
+            '</div>';
+        list.style.cursor = 'default';
+        list.onclick = null;
         return;
     }
 
