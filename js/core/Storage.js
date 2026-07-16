@@ -129,6 +129,30 @@ export function loadData() {
         } catch (e) { console.error('VinlandDB: NOTES_INDEX parse failed', e); }
     }
 
+    // Fallback: if index was missing or yielded no notes, scan for orphaned shards.
+    // This can happen if a mid-migration crash removed the legacy blob but didn't
+    // finish writing the index. Rebuild the index from whatever shards exist.
+    if (State.NOTES.length === 0 && typeof localStorage.length === 'number') {
+        var recovered = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (!key || !key.startsWith(NOTE_PREFIX)) continue;
+            try {
+                var note = JSON.parse(localStorage.getItem(key));
+                if (note && note.id) {
+                    State.NOTES.push(note);
+                    noteCache.set(key.substring(NOTE_PREFIX.length), localStorage.getItem(key));
+                    recovered.push(note.id);
+                }
+            } catch (e) { /* skip malformed keys */ }
+        }
+        if (recovered.length > 0) {
+            noteIdList = recovered;
+            localStorage.setItem(NOTES_INDEX, JSON.stringify(recovered));
+            console.log('[loadData] recovered', recovered.length, 'notes from orphaned shards');
+        }
+    }
+
     var sessions = parseInt(localStorage.getItem(VinlandDB.collections.SESSIONS) || '0') + 1;
     localStorage.setItem(VinlandDB.collections.SESSIONS, sessions.toString());
     var sessionEl = document.getElementById('session-count');
