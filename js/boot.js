@@ -4,7 +4,7 @@
 import { State } from "./core/Store.js";
 import { Config } from "./core/Config.js";
 import { loadData, saveData } from "./core/Storage.js";
-import { Notes } from "./modules/NotesController.js";
+import { Notes, closeNoteEditor, renderNotes as legacyRenderNotes } from "./modules/NotesController.js";
 import { GraphManager } from "./modules/GraphManager.js";
 import { SettingsUI } from "./ui/SettingsUI.js";
 import { ModalManager } from "./ui/ModalManager.js";
@@ -70,6 +70,8 @@ window.Audio = Audio;
 window.SlashMenu = SlashMenu;
 window.PageActions = PageActions;
 window.CalloutModal = CalloutModal;
+window.closeNoteEditor = closeNoteEditor;
+window.renderNotes = legacyRenderNotes;
 
 // 3. MAP LEGACY FUNCTIONS (Fixes specific HTML buttons)
 window.toggleConfig = SettingsUI.toggleConfig.bind(SettingsUI);

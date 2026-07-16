@@ -1,4 +1,4 @@
-import { State } from './store.js';
+import { State } from './Store.js';
 
 /* =========================================
    INDEXEDDB - STORAGE MATRIX
@@ -171,9 +171,10 @@ export function saveData() {
 
     (State.NOTES || []).forEach(function (note) {
         if (!note || !note.id) return;
+        var key = NOTE_PREFIX + note.id;
         var serialized = JSON.stringify(note);
         if (noteCache.get(note.id) !== serialized) {
-            localStorage.setItem(NOTE_PREFIX + note.id, serialized);
+            localStorage.setItem(key, serialized);
             noteCache.set(note.id, serialized);
         }
     });

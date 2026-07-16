@@ -51,6 +51,11 @@ export function startPomodoro(timeInput) {
     // V18.1: Persist to chrome.storage for cross-tab sync
     savePomodoroState();
 
+    // Notify background service worker for alarm/notification
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+        chrome.runtime.sendMessage({ type: 'START_POMO', duration: duration }).catch(function() {});
+    }
+
     var container = document.getElementById('pomodoro-container');
     var pauseBtn = document.getElementById('pomodoro-pause');
     if (container) container.classList.add('active');
@@ -148,10 +153,28 @@ export function togglePomodoroPause() {
         POMODORO.paused = false;
         POMODORO.endTime = Date.now() + POMODORO.remaining;
         if (pauseBtn) pauseBtn.textContent = 'PAUSE';
+        
+        // Notify SW to resume alarm
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+            chrome.runtime.sendMessage({
+                type: 'RESUME_POMO',
+                remaining: POMODORO.remaining,
+                originalDuration: POMODORO.originalDuration
+            }).catch(function() {});
+        }
     } else {
         POMODORO.paused = true;
         POMODORO.remaining = POMODORO.endTime - Date.now();
         if (pauseBtn) pauseBtn.textContent = 'RESUME';
+        
+        // Notify SW to clear alarm (paused)
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+            chrome.runtime.sendMessage({
+                type: 'PAUSE_POMO',
+                remaining: POMODORO.remaining,
+                originalDuration: POMODORO.originalDuration
+            }).catch(function() {});
+        }
     }
     savePomodoroState(); // V18.1: Sync across tabs
 }
@@ -163,6 +186,12 @@ export function stopPomodoro() {
         clearInterval(POMODORO.interval);
         POMODORO.interval = null;
     }
+    
+    // Notify SW to clear alarm
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+        chrome.runtime.sendMessage({ type: 'STOP_POMO' }).catch(function() {});
+    }
+    
     var container = document.getElementById('pomodoro-container');
     if (container) container.classList.remove('active');
     savePomodoroState(); // V18.1: Sync across tabs
@@ -232,6 +261,11 @@ export function acknowledgePomodoroComplete() {
 
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ pomodoroCompleted: false, pomodoroAcknowledged: true });
+    }
+
+    // Notify SW
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+        chrome.runtime.sendMessage({ type: 'ACK_POMO' }).catch(function() {});
     }
 }
 

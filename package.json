@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/run-all.mjs"
+    "test": "node tests/run-all.mjs",
+    "test:e2e": "npx playwright test",
+    "test:all": "node tests/run-all.mjs && npx playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "playwright": "^1.61.1"
   }
 }

@@ -302,7 +302,7 @@ export const Notes = {
             }
         });
         var closeBtn = document.getElementById('note-editor-close');
-        if (closeBtn) closeBtn.onclick = function() { closeNoteEditor(); };
+        if (closeBtn) closeBtn.onclick = function() { window.closeNoteEditor(); };
 
         var sidebarToggle = document.getElementById('sidebar-toggle-btn');
         if (sidebarToggle) {
@@ -732,6 +732,7 @@ export const Notes = {
                         saveData();
                         Notes.open(note.id); // Reload to reset state
                         Notes.renderSidebar(); // Refresh sidebar to remove from trash count
+                        Notes.renderNotes(); // Refresh Quick Notes panel
                     };
                 }
                 var deleteBtn = document.getElementById('btn-delete-forever');
@@ -832,7 +833,7 @@ export const Notes = {
             if (el) el.focus();
         }, 100);
 
-        renderNotes();
+        this.renderNotes();
     },
 
     delete: function () {
@@ -902,7 +903,7 @@ export const Notes = {
         if (oldTitle !== note.title) {
             saveData();
             this.renderSidebar();
-            renderNotes();
+            this.renderNotes();
         }
         
         saveData();
@@ -1762,56 +1763,9 @@ export const Notes = {
    ========================================= */
 
 export function renderNotes() {
-    var list = document.getElementById('notes-list');
-    var container = document.getElementById('notes-panel');
-    var hint = document.getElementById('notes-discovery-hint');
-    if (!list || !container) return;
-
-    if (!State.NOTES || State.NOTES.length === 0) {
-        container.classList.remove('active');
-        // Show discovery hint for first-time users (if not dismissed)
-        if (hint && localStorage.getItem('VINLAND_NOTES_HINT_DISMISSED') !== '1') {
-            hint.classList.add('active');
-        }
-        return;
+    if (typeof Notes !== 'undefined' && Notes.renderNotes) {
+        Notes.renderNotes();
     }
-
-    // Notes exist: show panel, hide hint
-    container.classList.add('active');
-    if (hint) hint.classList.remove('active');
-    list.innerHTML = '';
-
-    var activeNotes = State.NOTES.filter(function(n) {
-        return !n.path || n.path.indexOf('/.trash') !== 0;
-    });
-
-    var notesToShow = activeNotes.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
-        .sort(function (a, b) {
-            var aTime = a.note.modified || a.note.created;
-            var bTime = b.note.modified || b.note.created;
-            return bTime - aTime;
-        })
-        .slice(0, 10);
-        
-    var fragment = document.createDocumentFragment();
-    notesToShow.forEach(function (item) {
-        var div = document.createElement('div');
-        div.className = 'note-item';
-        div.style.cursor = 'pointer';
-
-        var contentDisplay = item.note.content || item.note.text || '';
-        var titleText = item.note.title || (contentDisplay ? contentDisplay.split('\n')[0].substring(0, 20) : 'Untitled');
-        
-        div.innerHTML = '<div class="note-item-header"><span class="note-item-title-quick">' + safeText(titleText) + '</span></div>' +
-                        '<div class="note-item-teaser">' + safeText(Notes.getPlainTextPreview(contentDisplay)) + '</div>';
-
-        div.addEventListener('click', function () {
-            Notes.open(item.note.id);
-        });
-
-        fragment.appendChild(div);
-    });
-    list.appendChild(fragment);
 }
 
 export function addNote(text) {

@@ -11,6 +11,25 @@ export const GraphManager = {
     containerId: 'graph-container',
     isLocalMode: false, // V87: Local Focus Mode state
 
+    // V19.38: Persist graph node positions to localStorage
+    saveLayout: function() {
+        if (!this.simulation) return;
+        var nodes = this.simulation.nodes();
+        if (!nodes || nodes.length === 0) return;
+
+        nodes.forEach(function(n) {
+            if (n.x != null && n.y != null) {
+                Notes.graphLayout[n.id] = { x: n.x, y: n.y };
+            }
+        });
+
+        try {
+            localStorage.setItem('VINLAND_GRAPH_LAYOUT', JSON.stringify(Notes.graphLayout));
+        } catch (e) {
+            console.warn('[Graph] Failed to persist layout', e);
+        }
+    },
+
     init: function() {
         // Initial setup if needed
     },
@@ -54,6 +73,9 @@ export const GraphManager = {
         console.log('[Graph] Render called');
         var container = document.getElementById(this.containerId);
         if (!container) return;
+        
+        // V19.38: Save the current layout before clearing the container
+        this.saveLayout();
         
         if (typeof d3 === 'undefined') {
             console.error('[Graph] D3 is undefined!');
@@ -166,6 +188,17 @@ export const GraphManager = {
         }
 
         console.log('[Graph] Nodes:', nodes.length, '| Links:', links.length, '| Mode:', this.isLocalMode ? 'LOCAL' : 'GLOBAL');
+
+        // ─── V19.38: APPLY SAVED POSITIONS ──────────────────────
+        if (Notes.graphLayout && Object.keys(Notes.graphLayout).length > 0) {
+            nodes.forEach(function(n) {
+                var saved = Notes.graphLayout[n.id];
+                if (saved && saved.x != null && saved.y != null) {
+                    n.x = saved.x;
+                    n.y = saved.y;
+                }
+            });
+        }
 
         // ─── V87: CLUSTER COLORING ──────────────────────────────
         var groups = [...new Set(nodes.map(n => n.group))].filter(g => g !== 'BOARD').sort();
@@ -321,6 +354,8 @@ export const GraphManager = {
             node.select('text').classed('highlighted', false);
             link.classed('highlighted', false).classed('dimmed', false);
         }).on('click', function(event, d) {
+            // V19.38: Save layout before navigating away
+            self.saveLayout();
             if (d.type === 'board') {
                  if (window.KanbanManager) {
                      window.KanbanManager.open(d.id);
@@ -360,6 +395,11 @@ export const GraphManager = {
             if (!event.active) self.simulation.alphaTarget(0);
             event.subject.fx = null;
             event.subject.fy = null;
+            // V19.38: Save dragged node's position
+            if (event.subject && event.subject.x != null && event.subject.y != null) {
+                Notes.graphLayout[event.subject.id] = { x: event.subject.x, y: event.subject.y };
+                self.saveLayout();
+            }
         }
     }
 };
