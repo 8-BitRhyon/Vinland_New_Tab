@@ -1909,6 +1909,23 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .bg-asset-btn {
+        background: #222;
+        border: 1px solid var(--main-color);
+        color: var(--main-color);
+        padding: 8px 15px;
+        border-radius: 3px;
+        white-space: nowrap;
+        cursor: pointer;
+        font-family: var(--font-secondary);
+        font-size: 0.8rem;
+        line-height: 1;
+        transition: background 0.15s, color 0.15s;
+      }
+      .bg-asset-btn:hover {
+        background: var(--main-color);
+        color: #0a0a0a;
+      }
 
       .config-input::placeholder {
         color: #444;
@@ -7313,13 +7330,13 @@
                 style="display: none"
               ></textarea>
 
-              <!-- Add URL row -->
+              <!-- Asset controls: paste a URL to add, or upload a file -->
               <div
                 style="
                   display: flex;
                   gap: 8px;
                   align-items: center;
-                  margin-bottom: 10px;
+                  margin-bottom: 8px;
                 "
               >
                 <input
@@ -7333,41 +7350,14 @@
                 <button
                   type="button"
                   id="bg-add-url-btn"
-                  class="action-btn"
-                  style="
-                    background: #222;
-                    border: 1px solid var(--main-color);
-                    color: var(--main-color);
-                    padding: 8px 15px;
-                    white-space: nowrap;
-                  "
+                  class="bg-asset-btn"
                 >
                   + ADD URL
                 </button>
-              </div>
-
-              <div
-                style="
-                  display: flex;
-                  gap: 10px;
-                  align-items: center;
-                  justify-content: flex-end;
-                "
-              >
-                <span
-                  id="upload-status"
-                  style="font-size: 0.75rem; color: #888"
-                ></span>
                 <button
                   type="button"
                   id="upload-bg-btn"
-                  class="action-btn"
-                  style="
-                    background: #222;
-                    border: 1px solid var(--main-color);
-                    color: var(--main-color);
-                    padding: 8px 15px;
-                  "
+                  class="bg-asset-btn"
                 >
                   + UPLOAD
                 </button>
@@ -7378,6 +7368,19 @@
                   multiple
                   style="display: none"
                 />
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  justify-content: flex-end;
+                  min-height: 1rem;
+                "
+              >
+                <span
+                  id="upload-status"
+                  style="font-size: 0.75rem; color: #888"
+                ></span>
               </div>
             </div>
           </div>

@@ -1179,7 +1179,12 @@ export const SettingsUI = {
             card.appendChild(label);
 
             // Show preview: image or video
-            if (url.match(/\.(mp4|webm|ogg)$/i) || url.startsWith('db:')) {
+            var isVideo = /\.(mp4|webm|ogg)$/i.test(url);
+            if (url.startsWith('db:')) {
+                isVideo = /\.(mp4|webm|ogg)$/i.test(url.replace('db:', ''));
+            }
+
+            if (isVideo) {
                 var vid = document.createElement('video');
                 vid.muted = true;
                 vid.loop = true;
@@ -1187,16 +1192,15 @@ export const SettingsUI = {
                 vid.preload = 'metadata';
                 if (url.startsWith('db:')) {
                     var key = url.replace('db:', '');
-                    var self = this;
-                    if (window.DB) {
-                        window.DB.get(key).then(function(blob) {
-                            if (blob) {
-                                var objUrl = URL.createObjectURL(blob);
-                                vid.src = objUrl;
-                                vid.play().catch(function(){});
-                            }
-                        });
-                    }
+                    DB.get(key).then(function(blob) {
+                        if (blob) {
+                            var objUrl = URL.createObjectURL(blob);
+                            vid.src = objUrl;
+                            vid.play().catch(function(){});
+                        }
+                    }).catch(function(err) {
+                        console.error('renderBgThumbnails: failed to load', key, err);
+                    });
                 } else {
                     vid.src = url;
                     vid.play().catch(function(){});
@@ -1207,13 +1211,13 @@ export const SettingsUI = {
                 img.loading = 'lazy';
                 if (url.startsWith('db:')) {
                     var key = url.replace('db:', '');
-                    if (window.DB) {
-                        window.DB.get(key).then(function(blob) {
-                            if (blob) {
-                                img.src = URL.createObjectURL(blob);
-                            }
-                        });
-                    }
+                    DB.get(key).then(function(blob) {
+                        if (blob) {
+                            img.src = URL.createObjectURL(blob);
+                        }
+                    }).catch(function(err) {
+                        console.error('renderBgThumbnails: failed to load', key, err);
+                    });
                 } else {
                     img.src = url;
                 }

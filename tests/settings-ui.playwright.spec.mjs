@@ -285,3 +285,35 @@ test('15. Open help modal via help button click', async ({ page }) => {
   await closeModal(page);
   await expect(helpModal).not.toBeVisible({ timeout: 3000 });
 });
+
+// Regression: db: background thumbnails must render the uploaded media, not blank cards.
+test('16. Uploaded background shows a rendered thumbnail (not blank)', async ({ page }) => {
+  // Build a tiny valid PNG in-memory and upload it through the background file input.
+  const pngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQAY3Y2wAAAAAElFTkSuQmCC';
+  const buffer = Buffer.from(pngBase64, 'base64');
+  await page.evaluate(() => { if (window.SettingsUI) window.SettingsUI.toggleConfig(); });
+  await page.waitForTimeout(400);
+
+  const fileInput = page.locator('#bg-file-input');
+  await expect(fileInput).toBeAttached({ timeout: 5000 });
+  await fileInput.setInputFiles({
+    name: 'regression-test.png',
+    mimeType: 'image/png',
+    buffer: buffer,
+  });
+
+  await page.waitForTimeout(800);
+
+  const cards = page.locator('#bg-thumbnails .bg-thumb-card');
+  await expect(cards).toHaveCount(1, { timeout: 5000 });
+
+  const img = cards.first().locator('img');
+  await expect(img).toBeAttached({ timeout: 5000 });
+  const src = await img.getAttribute('src');
+  expect(src).toBeTruthy();
+  expect(src.startsWith('blob:')).toBeTruthy();
+  // The card should not be flagged as a failed load (red border).
+  const border = await cards.first().evaluate((el) => el.style.borderColor);
+  expect(border).not.toContain('255, 68, 68');
+});
