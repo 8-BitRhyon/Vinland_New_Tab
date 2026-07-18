@@ -261,6 +261,9 @@ export const Config = {
 
         // full-surface tokens (presets can set these; absent → default)
         root.style.setProperty('--bg-color', config.bg_color || '#000000');
+        // Form controls stay dark terminals regardless of the page surface,
+        // so a paper/light theme (e.g. retroma) does not tint inputs skin-colored.
+        root.style.setProperty('--input-bg', config.theme_preset === 'retroma' ? '#15120e' : (config.input_bg || '#0a0a0a'));
         root.style.setProperty('--danger-color', config.danger_color || '#ff0055');
         root.style.setProperty('--warning-color', config.warning_color || '#ffb800');
         root.style.setProperty('--board-color', config.board_color || '#00d4ff');

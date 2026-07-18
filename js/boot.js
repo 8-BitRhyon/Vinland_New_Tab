@@ -357,6 +357,25 @@ function bindGlobals() {
       if (hint) hint.classList.remove("active");
     };
 
+  // 9b. First-run CLI hints: X-dismiss (persisted) or auto-hide after first command
+  function dismissCliHints() {
+    localStorage.setItem("VINLAND_CLI_HINTS_DISMISSED", "1");
+    var cmdHint = document.getElementById("command-hint");
+    if (cmdHint) cmdHint.style.display = "none";
+    var scHint = document.getElementById("shortcut-hint");
+    if (scHint) scHint.style.display = "none";
+  }
+  window.dismissCliHints = dismissCliHints;
+
+  if (localStorage.getItem("VINLAND_CLI_HINTS_DISMISSED") === "1") {
+    var cmdHint = document.getElementById("command-hint");
+    if (cmdHint) cmdHint.style.display = "none";
+    var scHint = document.getElementById("shortcut-hint");
+    if (scHint) scHint.style.display = "none";
+  }
+  const cliHintDismiss = document.getElementById("command-hint-dismiss");
+  if (cliHintDismiss) cliHintDismiss.onclick = dismissCliHints;
+
   // 10. Welcome Modal: dismiss ends first-run onboarding
   const welcomeDismiss = document.getElementById("welcome-dismiss");
   if (welcomeDismiss && State.CONFIG.first_run) {

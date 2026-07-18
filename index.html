@@ -15,6 +15,7 @@
         --main-color: #00ff41;
         --secondary-color: #888888;
         --bg-color: #000;
+        --input-bg: #0a0a0a;
         --bg-overlay: rgba(0, 0, 0, 0.95);
         --danger-color: #ff0055;
         --warning-color: #ffb800;
@@ -1345,8 +1346,8 @@
 
       /* .25: Global textarea resizer styling */
       textarea::-webkit-resizer {
-        background-color: var(--bg-color, #000);
-        border: 1px solid var(--bg-color, #000);
+        background-color: var(--input-bg, #0a0a0a);
+        border: 1px solid var(--input-bg, #0a0a0a);
         background-image: radial-gradient(
           circle,
           var(--main-color) 1px,
@@ -1791,7 +1792,7 @@
 
       .config-input {
         /* .9: Terminal Uniformity */
-        background-color: var(--bg-color, #000);
+        background-color: var(--input-bg, #0a0a0a);
         color: var(--main-color);
         border: 1px solid #333;
         font-family: "Space Mono", monospace;
@@ -1802,6 +1803,12 @@
         /* Fixed width */
         font-size: 0.85rem;
         outline: none;
+      }
+
+      .config-select {
+        background-color: var(--input-bg, #0a0a0a);
+        color: var(--main-color);
+        border: 1px solid #333;
       }
 
       .config-input.wide-input {
@@ -3330,7 +3337,7 @@
         /* .34: Prevent horizontal scroll */
         background: rgba(0, 0, 0, 0.9);
         border: none;
-        border-radius: 8px;
+        border-radius: 0;
         padding: 15px;
         box-shadow:
           0 0 0 1px rgba(255, 255, 255, 0.08),
@@ -3763,6 +3770,22 @@
 
       .discovery-dismiss:active {
         transform: scale(var(--press-scale));
+      }
+
+      /* Shared first-run hint dismiss (X) for CLI hints */
+      .hint-dismiss {
+        color: var(--secondary-color);
+        font-size: 0.7rem;
+        cursor: pointer;
+        opacity: 0.55;
+        font-weight: bold;
+        margin-left: 8px;
+        padding: 0 4px;
+        transition: opacity 0.15s var(--motion-ease);
+      }
+      .hint-dismiss:hover {
+        opacity: 1;
+        color: var(--main-color);
       }
 
       /* Hide discovery hint in zen mode */
@@ -8875,7 +8898,10 @@
               spellcheck="false"
             />
           </div>
-          <div id="command-hint"></div>
+          <div id="command-hint">
+            <span id="command-hint-text"></span>
+            <span id="command-hint-dismiss" class="hint-dismiss" title="Dismiss hint">X</span>
+          </div>
         </div>
         <div id="suggestions"></div>
       </div>

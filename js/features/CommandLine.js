@@ -32,7 +32,9 @@ export const CommandLine = {
     showDefaultHint: function() {
         const hintBox = document.getElementById('command-hint');
         if (!hintBox) return;
-        hintBox.innerHTML = '<span class="hint-syntax">Try:</span> task &lt;text&gt; · pomo 25 · note &lt;title&gt; · daily · help';
+        if (localStorage.getItem('VINLAND_CLI_HINTS_DISMISSED') === '1') return;
+        const text = document.getElementById('command-hint-text');
+        if (text) text.innerHTML = '<span class="hint-syntax">Try:</span> task &lt;text&gt; · pomo 25 · note &lt;title&gt; · daily · help';
         hintBox.style.display = 'block';
     },
 
@@ -309,6 +311,9 @@ export const CommandLine = {
         this.showDefaultHint();
         // Save to history
         this.addToHistory(cmd.trigger + (args ? ' ' + args : ''));
+
+        // First command executed: dismiss the first-run CLI hints.
+        if (window.dismissCliHints) window.dismissCliHints();
     },
 
     addToHistory: function(cmd) {
