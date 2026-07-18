@@ -1,5 +1,5 @@
 /**
- * Vinland Tasks / Missions System — Playwright Integration Tests
+ * Vinland Tasks / Missions System - Playwright Integration Tests
  *
  * Tests the complete tasks workflow: add via CLI, priorities, categories,
  * completion toggle, progress bar, clear done, and empty state.

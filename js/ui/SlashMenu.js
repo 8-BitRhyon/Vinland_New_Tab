@@ -103,7 +103,7 @@ export const SlashMenu = {
         var menuTop, menuLeft;
         
         if (mouseEvent && mouseEvent.clientX) {
-            // V106: Explicit exact pointer positioning for Context Menus
+            // Explicit exact pointer positioning for Context Menus
             menuTop = mouseEvent.clientY + window.scrollY;
             menuLeft = mouseEvent.clientX + window.scrollX;
         } else if (selection.rangeCount > 0) {
@@ -119,7 +119,7 @@ export const SlashMenu = {
                 menuLeft = rect.left + window.scrollX;
             }
         } else {
-            // V106: Fallback for non-text blocks triggered without pointer (e.g. keyboard)
+            // Fallback for non-text blocks triggered without pointer (e.g. keyboard)
             var fallRect = blockEl.getBoundingClientRect();
             menuTop = fallRect.bottom + window.scrollY + 5;
             menuLeft = fallRect.left + window.scrollX;
@@ -248,7 +248,7 @@ export const SlashMenu = {
              currentText = currentText.replace(/\/[\w-]*$/, '').trim();
         }
 
-        // V106: Canvas — completely separate flow, creates a new note and exits
+        // Canvas - completely separate flow, creates a new note and exits
         if (cmdId === 'canvas') {
             const title = 'Untitled Canvas';
             const newCanvas = {
@@ -267,7 +267,7 @@ export const SlashMenu = {
                 window.Notes.renderSidebar();
             }
             this.filterQuery = '';
-            return; // Exit — do NOT re-render the block editor
+            return; // Exit - do NOT re-render the block editor
         }
 
         // Is this an insert command or a transform command?
@@ -342,6 +342,11 @@ export const SlashMenu = {
                             block.boardId = board.id;
                             BlockEditor.render(BlockEditor.activePageId);
                             PageManager.syncContent(BlockEditor.activePageId);
+                            // ponytail: createBoard persists BOARDS but the note's
+                            // kanban_ref link is only in memory until here - persist
+                            // now or the reference is lost if the tab closes before
+                            // the debounced autosave fires (orphaned board).
+                            window.saveData();
                         }
                     });
                     return; // Wait for modal

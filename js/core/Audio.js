@@ -76,7 +76,7 @@ export function play8BitSound() {
     } catch (e) { }
 }
 
-// V62: UI SOUND EFFECTS
+// UI SOUND EFFECTS
 export function playClickSound() {
     if (!State.CONFIG.ui_sounds) return;
     try {

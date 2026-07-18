@@ -10,7 +10,7 @@ export function safeCalculate(expression) {
     if (!tokens) return 'INVALID';
 
     var pos = 0;
-    var MAX_DEPTH = 50; // V18.11: Prevent stack overflow
+    var MAX_DEPTH = 50; // .11: Prevent stack overflow
 
     function parseExpression(depth) {
         if (depth > MAX_DEPTH) throw new Error('MAX_DEPTH');
@@ -45,7 +45,7 @@ export function safeCalculate(expression) {
         if (pos >= tokens.length) return 0;
         var token = tokens[pos++];
         if (token === '(') {
-            var result = parseExpression(depth + 1); // V18.11: Increment depth on nesting
+            var result = parseExpression(depth + 1); // .11: Increment depth on nesting
             pos++; // skip )
             return result;
         }

@@ -1,5 +1,5 @@
 /**
- * Vinland Notes Workflow — Playwright Integration Tests
+ * Vinland Notes Workflow - Playwright Integration Tests
  *
  * Tests the complete notes lifecycle: create, edit, save, close, reopen,
  * content persistence, and CLI command execution.
@@ -79,7 +79,7 @@ function getFirstBlock(page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto(APP_URL);
-  // Wait for the CLI input to appear — confirms boot sequence completed
+  // Wait for the CLI input to appear - confirms boot sequence completed
   await expect(page.locator('#cmd-input')).toBeVisible({ timeout: 15000 });
   // Brief buffer for any remaining async renders
   await page.waitForTimeout(500);
@@ -207,7 +207,7 @@ test('4. Title and content both persist across close and reopen', async ({ page 
 // 5. CLI Commands Execute Without Errors
 // ══════════════════════════════════════════
 test('5. CLI commands execute without errors', async ({ page }) => {
-  // "daily" — opens or creates today's daily note
+  // "daily" - opens or creates today's daily note
   await runCLI(page, 'daily');
   await page.waitForTimeout(500);
   const editor = page.locator('#note-editor-modal');
@@ -215,7 +215,7 @@ test('5. CLI commands execute without errors', async ({ page }) => {
     await closeEditor(page);
   }
 
-  // "pomo 10s" — short pomodoro
+  // "pomo 10s" - short pomodoro
   await runCLI(page, 'pomo 10s');
   await page.waitForTimeout(400);
   const pomoDisplay = page.locator('#pomodoro-timer, .pomodoro-time');
@@ -223,11 +223,11 @@ test('5. CLI commands execute without errors', async ({ page }) => {
     await expect(pomoDisplay.first()).toBeVisible();
   }
 
-  // "kill" — close all modals
+  // "kill" - close all modals
   await runCLI(page, 'kill');
   await page.waitForTimeout(300);
 
-  // "zen" — toggle zen mode on and off
+  // "zen" - toggle zen mode on and off
   await runCLI(page, 'zen');
   await page.waitForTimeout(300);
   await runCLI(page, 'zen');
@@ -285,7 +285,7 @@ test('8. Save status indicator shows SAVED after content change', async ({ page 
   const saveStatus = page.locator('#save-status');
   test.skip(
     !(await saveStatus.isVisible({ timeout: 2000 }).catch(() => false)),
-    'Save status element not in DOM — skipping'
+    'Save status element not in DOM - skipping'
   );
 
   // Type content to trigger auto-save
@@ -319,7 +319,7 @@ test('9. CLI suggestions appear when typing partial commands', async ({ page }) 
   const items = suggestions.locator('.suggestion-item');
   await expect(items.first()).toBeVisible({ timeout: 3000 });
 
-  // Clear input — suggestions should hide
+  // Clear input - suggestions should hide
   await cmdInput.fill('');
   await page.waitForTimeout(400);
   await expect(suggestions).not.toBeVisible({ timeout: 2000 });

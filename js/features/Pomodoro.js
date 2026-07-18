@@ -48,7 +48,7 @@ export function startPomodoro(timeInput) {
     POMODORO.remaining = duration;
     POMODORO.originalDuration = duration;
 
-    // V18.1: Persist to chrome.storage for cross-tab sync
+    // .1: Persist to chrome.storage for cross-tab sync
     savePomodoroState();
 
     // Notify background service worker for alarm/notification
@@ -65,7 +65,7 @@ export function startPomodoro(timeInput) {
     POMODORO.interval = setInterval(updatePomodoroDisplay, 100);
 }
 
-// V18.1: Save Pomodoro state to chrome.storage for cross-tab sync
+// .1: Save Pomodoro state to chrome.storage for cross-tab sync
 export function savePomodoroState() {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({
@@ -80,11 +80,11 @@ export function savePomodoroState() {
     }
 }
 
-// V18.2: Load Pomodoro state from chrome.storage
+// .2: Load Pomodoro state from chrome.storage
 export function loadPomodoroState() {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get(['pomodoro', 'pomodoroCompleted', 'pomodoroAcknowledged'], function (result) {
-            // V18.2: Check if there's an unacknowledged completion
+            // .2: Check if there's an unacknowledged completion
             if (result.pomodoroCompleted && !result.pomodoroAcknowledged) {
                 if (window.ModalManager) window.ModalManager.open('pomodoro-complete-modal');
             }
@@ -176,7 +176,7 @@ export function togglePomodoroPause() {
             }).catch(function() {});
         }
     }
-    savePomodoroState(); // V18.1: Sync across tabs
+    savePomodoroState(); // .1: Sync across tabs
 }
 
 export function stopPomodoro() {
@@ -194,10 +194,10 @@ export function stopPomodoro() {
     
     var container = document.getElementById('pomodoro-container');
     if (container) container.classList.remove('active');
-    savePomodoroState(); // V18.1: Sync across tabs
+    savePomodoroState(); // .1: Sync across tabs
 }
 
-// V61: High-fidelity HUD notification for Pomodoro
+// High-fidelity HUD notification for Pomodoro
 export function showPomodoroHUD() {
     var hud = document.getElementById('pomo-hud');
     var hudTime = document.getElementById('hud-time');
@@ -220,7 +220,7 @@ export function showPomodoroHUD() {
 export function showPomodoroComplete() {
     play8BitSound();
 
-    // V18.2: Mark as needing acknowledgment in storage
+    // .2: Mark as needing acknowledgment in storage
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ pomodoroCompleted: true, pomodoroAcknowledged: false });
     }
@@ -251,11 +251,11 @@ export function showPomodoroComplete() {
         });
     }
 
-    // V61: Trigger specialized Vinland HUD
+    // Trigger specialized Vinland HUD
     showPomodoroHUD();
 }
 
-// V18.2: Acknowledge Pomodoro completion (syncs across tabs)
+// .2: Acknowledge Pomodoro completion (syncs across tabs)
 export function acknowledgePomodoroComplete() {
     if (window.ModalManager) window.ModalManager.close('pomodoro-complete-modal');
 

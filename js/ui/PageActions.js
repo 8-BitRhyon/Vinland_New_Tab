@@ -17,7 +17,7 @@ function getShowConfirmModal() {
 
 export const PageActions = {
     isOpen: false,
-    highlightIndex: -1, // V87: Keyboard nav index
+    highlightIndex: -1, // Keyboard nav index
 
     init: function() {
         if (this._initialized) return;
@@ -92,7 +92,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Get currently visible (non-hidden) action items (excludes dividers)
+    // Get currently visible (non-hidden) action items (excludes dividers)
     getVisibleItems: function() {
         var items = document.querySelectorAll('.page-action-item:not(.page-action-divider)');
         var visible = [];
@@ -104,7 +104,7 @@ export const PageActions = {
         return visible;
     },
 
-    // V87: Update keyboard highlight on menu items
+    // Update keyboard highlight on menu items
     updateHighlight: function() {
         var items = document.querySelectorAll('.page-action-item');
         items.forEach(function(item) { item.classList.remove('highlighted'); });
@@ -130,10 +130,10 @@ export const PageActions = {
             if (search) { search.value = ''; search.focus(); }
             this.filter('');
             
-            // V87: Update dynamic pin label
+            // Update dynamic pin label
             this.updatePinLabel();
             
-            // V63.2: Populate footer with word count and last edited
+            // .2: Populate footer with word count and last edited
             if (Notes.activeNoteId) {
                 var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
                 if (note) {
@@ -175,7 +175,7 @@ export const PageActions = {
             item.style.display = text.includes(q) ? '' : 'none';
         });
 
-        // V87: Hide dividers when searching, show when query is empty
+        // Hide dividers when searching, show when query is empty
         dividers.forEach(function(div) {
             if (q) {
                 div.style.display = 'none';
@@ -208,7 +208,7 @@ export const PageActions = {
             case 'trash':
                 this.moveToTrash();
                 break;
-            // V87: New actions
+            // New actions
             case 'pin-toggle':
                 this.togglePin();
                 break;
@@ -239,7 +239,7 @@ export const PageActions = {
         if (!Notes.activeNoteId) return;
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
         if (note) {
-            // V70: Deep copy blocks to prevent reference issues
+            // Deep copy blocks to prevent reference issues
             var newBlocks = [];
             if (note.blocks && note.blocks.length > 0) {
                 newBlocks = JSON.parse(JSON.stringify(note.blocks));
@@ -266,7 +266,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Replaced native prompt() with ModalManager.openInput()
+    // Replaced native prompt() with ModalManager.openInput()
     moveToFolder: function() {
         if (!Notes.activeNoteId) return;
 
@@ -281,7 +281,7 @@ export const PageActions = {
         );
     },
 
-    // V87: Gentler filename sanitization — preserves spaces, dashes, underscores
+    // Gentler filename sanitization - preserves spaces, dashes, underscores
     exportMarkdown: function() {
         if (!Notes.activeNoteId) return;
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
@@ -297,7 +297,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Multi-file import support
+    // Multi-file import support
     importMarkdown: function() {
         var input = document.createElement('input');
         input.type = 'file';
@@ -317,7 +317,7 @@ export const PageActions = {
                     
                     var blocks = [];
                     var now = Date.now() + importedCount; // Offset to prevent ID collision
-                    // V88: Use robust parser to detect headings/lists/dividers etc.
+                    // Use robust parser to detect headings/lists/dividers etc.
                     if (typeof parseContentToBlocks === 'function') {
                         blocks = parseContentToBlocks(content);
                     } else {
@@ -375,7 +375,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Soft-delete — moves note to /.trash/ path instead of permanent splice
+    // Soft-delete - moves note to /.trash/ path instead of permanent splice
     moveToTrash: function() {
         if (!Notes.activeNoteId) return;
         getShowConfirmModal()(
@@ -404,7 +404,7 @@ export const PageActions = {
         );
     },
 
-    // V88: Permanent Delete (Destructive)
+    // Permanent Delete (Destructive)
     deleteNotePermanently: function(noteId) {
         var id = noteId || Notes.activeNoteId;
         if (!id) return;
@@ -443,7 +443,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Pin/Unpin toggle from menu
+    // Pin/Unpin toggle from menu
     togglePin: function() {
         if (!Notes.activeNoteId) return;
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
@@ -460,7 +460,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Update pin label text dynamically when menu opens
+    // Update pin label text dynamically when menu opens
     updatePinLabel: function() {
         var item = document.querySelector('[data-action="pin-toggle"] span');
         if (!item) return;
@@ -471,7 +471,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Copy raw markdown content to clipboard
+    // Copy raw markdown content to clipboard
     copyContent: function() {
         if (!Notes.activeNoteId) return;
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
@@ -484,7 +484,7 @@ export const PageActions = {
         }
     },
 
-    // V87: Convert current note's task blocks into a Kanban board
+    // Convert current note's task blocks into a Kanban board
     convertToBoard: function() {
         if (!Notes.activeNoteId) return;
         if (typeof KanbanManager === 'undefined' && typeof window.KanbanManager === 'undefined') {
@@ -520,7 +520,7 @@ export const PageActions = {
         getShowNotification()('Board created from "' + note.title + '"');
     },
 
-    // V87: Open graph view focused on current note
+    // Open graph view focused on current note
     showInGraph: function() {
         if (!Notes.activeNoteId) return;
         

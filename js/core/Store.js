@@ -62,9 +62,9 @@ const DEFAULT_CONFIG = {
         { name: "DRIVE", url: "https://drive.google.com" }
     ],
     // Toggles
-    auto_clear_interval: 'daily', // V18.5: never, daily, 2days, weekly, biweekly, monthly
-    hide_completed_tasks: false, // V18.4: Auto-hide completed tasks
-    enable_blur_overlay: true, // V18.8: Toggle for blur overlay
+    auto_clear_interval: 'daily', // .5: never, daily, 2days, weekly, biweekly, monthly
+    hide_completed_tasks: false, // .4: Auto-hide completed tasks
+    enable_blur_overlay: true, // .8: Toggle for blur overlay
     last_clear_date: "", // stored as YYYY-MM-DD
     custom_commands: [
         { trigger: "gh", url: "https://github.com" },
@@ -82,7 +82,7 @@ export const State = {
     CONFIG: getDefaultConfig(),
     TASKS: [],
     NOTES: [],
-    BOARDS: [], // V3.0: Kanban Boards collection
+    BOARDS: [], // .0: Kanban Boards collection
     CANVASES: [], // Phase 3: Visual Canvas data
     COMMAND_HISTORY: [],
     FLAT_BOOKMARKS: [],
@@ -90,7 +90,7 @@ export const State = {
     // Core State
     IS_PREVIEW_MODE: false,
     CONFIG_DIRTY: false,
-    WEATHER_CACHE: null, // V18.11: Memory-first weather cache
+    WEATHER_CACHE: null, // .11: Memory-first weather cache
     DYNAMIC_ICON_URL: 'icon.png',
     
     // Additional globals tracked in Store

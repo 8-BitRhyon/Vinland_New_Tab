@@ -28,13 +28,13 @@ export function renderMissions() {
     container.classList.add('active');
     list.innerHTML = '';
 
-    // V18.4: Filter out completed tasks if setting enabled
+    // .4: Filter out completed tasks if setting enabled
     var tasksToRender = State.TASKS;
     if (State.CONFIG.hide_completed_tasks) {
         tasksToRender = State.TASKS.filter(function (t) { return !t.completed; });
     }
 
-    // V18.4: If all filtered out and hide enabled, show message
+    // .4: If all filtered out and hide enabled, show message
     if (tasksToRender.length === 0 && State.TASKS.length > 0) {
         list.innerHTML = '<div class="note-time" style="opacity:0.5">[' + State.TASKS.length + ' completed - click or use Settings to show]</div>';
         list.style.cursor = 'pointer';
@@ -49,11 +49,11 @@ export function renderMissions() {
         list.onclick = null;
     }
 
-    // V18.0: Sort by priority (high first)
+    // .0: Sort by priority (high first)
     var sortedTasks = tasksToRender.slice().sort(function (a, b) {
         var priorityOrder = { high: 0, medium: 1, normal: 2, low: 3 };
-        var aPri = priorityOrder[a.priority] || 2;
-        var bPri = priorityOrder[b.priority] || 2;
+        var aPri = priorityOrder[a.priority] ?? 2;
+        var bPri = priorityOrder[b.priority] ?? 2;
         return aPri - bPri;
     });
 
@@ -66,7 +66,7 @@ export function renderMissions() {
             div.classList.add('priority-' + task.priority);
         }
 
-        // V18.0: Priority indicator
+        // .0: Priority indicator
         var priorityIndicator = document.createElement('span');
         priorityIndicator.className = 'priority-indicator';
         if (task.priority === 'high') {
@@ -105,7 +105,7 @@ export function renderMissions() {
         textSpan.textContent = task.text;
         div.appendChild(textSpan);
 
-        // V18.0: Category badge
+        // .0: Category badge
         if (task.category) {
             var catBadge = document.createElement('span');
             catBadge.className = 'category-badge';

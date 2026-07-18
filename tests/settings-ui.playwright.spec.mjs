@@ -1,5 +1,5 @@
 /**
- * Vinland Settings UI, Theme Switching & Zen Mode — Playwright Integration Tests
+ * Vinland Settings UI, Theme Switching and Zen Mode - Playwright Integration Tests
  *
  * Tests the config modal, theme preset application, help modal, and zen mode toggle.
  *
@@ -69,12 +69,8 @@ test('1. Open settings modal via evaluate', async ({ page }) => {
   await expect(header).toBeVisible({ timeout: 2000 });
 
   // Save button should be visible
-  const saveBtn = page.locator('#config-save-btn');
+  const saveBtn = page.locator('#header-save-btn');
   await expect(saveBtn).toBeVisible({ timeout: 2000 });
-
-  // Reset defaults button should be visible
-  const resetBtn = page.locator('#reset-defaults-btn');
-  await expect(resetBtn).toBeVisible({ timeout: 2000 });
 
   // Close settings
   await closeModal(page);
@@ -120,9 +116,13 @@ test('4. Settings modal has background configuration fields', async ({ page }) =
   const bgColor = page.locator('#cfg-bg-color');
   await expect(bgColor).toBeVisible({ timeout: 2000 });
 
-  // Background URLs textarea
-  const bgInput = page.locator('#cfg-backgrounds');
-  await expect(bgInput).toBeVisible({ timeout: 2000 });
+  // Background thumbnail grid (replaced textarea)
+  const bgGrid = page.locator('#bg-thumbnails');
+  await expect(bgGrid).toBeVisible({ timeout: 2000 });
+
+  // Upload button should be visible
+  const uploadBtn = page.locator('#upload-bg-btn');
+  await expect(uploadBtn).toBeVisible({ timeout: 2000 });
 
   await closeModal(page);
 });
@@ -133,10 +133,10 @@ test('5. Settings modal has import/export theme buttons', async ({ page }) => {
   const configModal = page.locator('#config-modal');
   await expect(configModal).toBeVisible({ timeout: 5000 });
 
-  const importBtn = page.locator('#import-theme-btn');
+  const importBtn = page.locator('#btn-import-theme');
   await expect(importBtn).toBeVisible({ timeout: 2000 });
 
-  const exportBtn = page.locator('#export-theme-btn');
+  const exportBtn = page.locator('#btn-export-theme');
   await expect(exportBtn).toBeVisible({ timeout: 2000 });
 
   await closeModal(page);

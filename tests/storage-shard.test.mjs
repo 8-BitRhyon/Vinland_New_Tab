@@ -1,8 +1,8 @@
 /**
- * Vinland Storage Sharding — Unit Tests
+ * Vinland Storage Sharding - Unit Tests
  *
  * Tests the REAL js/core/storage.js (per-note sharding) against the real
- * js/core/store.js State. No copied extracts — tests cannot drift from source.
+ * js/core/store.js State. No copied extracts - tests cannot drift from source.
  *
  * Run with: node tests/storage-shard.test.mjs
  * (aggregated by tests/run-all.mjs)
@@ -221,6 +221,33 @@ test('(i) saveAllNotes fully resyncs every shard + index', () => {
   assert.ok(localStorageShim.has(noteShardKey('a')), 'shard a missing after saveAllNotes');
   assert.ok(localStorageShim.has(noteShardKey('b')), 'shard b missing after saveAllNotes');
   assert.deepEqual(indexIds(), ['a', 'b'], 'index wrong after saveAllNotes');
+});
+
+test('(j) canvas note offload writes _external marker, not full canvasData', () => {
+  freshState();
+  localStorageShim.clear();
+  State.NOTES = [{
+    id: 'canvas_1',
+    title: 'C',
+    type: 'canvas',
+    canvasData: { nodes: [{ id: 'node_1', title: 'n' }], edges: [] },
+  }];
+  saveData();
+  const raw = localStorageShim.raw(noteShardKey('canvas_1'));
+  assert.ok(raw, 'canvas shard not written');
+  const parsed = JSON.parse(raw);
+  assert.equal(parsed.canvasData && parsed.canvasData._external, true, 'shard should carry _external marker');
+  assert.ok(!raw.includes('node_1'), 'canvas payload should not be in localStorage shard');
+});
+
+test('(k) non-canvas note serializes normally (no marker)', () => {
+  freshState();
+  localStorageShim.clear();
+  State.NOTES = [{ id: 'n1', title: 'N', content: 'hello' }];
+  saveData();
+  const parsed = JSON.parse(localStorageShim.raw(noteShardKey('n1')));
+  assert.equal(parsed.canvasData, undefined, 'non-canvas note should not get canvasData marker');
+  assert.equal(parsed.content, 'hello', 'content wrong for non-canvas note');
 });
 
 // ============================================================

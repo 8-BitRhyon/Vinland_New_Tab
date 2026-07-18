@@ -1,5 +1,5 @@
 /**
- * Vinland New Tab — Playwright Configuration
+ * Vinland New Tab - Playwright Configuration
  *
  * Run with:
  *   npx playwright test

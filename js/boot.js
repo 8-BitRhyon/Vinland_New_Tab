@@ -113,7 +113,7 @@ window.toggleWeather = function () {
   }
 };
 
-// V63: Explicitly bind to avoid inline handler scope issues and CSP violations
+// Explicitly bind to avoid inline handler scope issues and CSP violations
 function bindGlobals() {
   console.log("[Boot] Binding globals...");
   // 1. Weather
@@ -131,7 +131,7 @@ function bindGlobals() {
       window.toggleHelp();
     };
 
-  // V75: Graph Toggle Binding
+  // Graph Toggle Binding
   const graphBtn = document.getElementById("open-graph-btn");
   if (graphBtn)
     graphBtn.onclick = function () {
@@ -143,7 +143,7 @@ function bindGlobals() {
       }
     };
 
-  // V106: Board+ Button (always override with toggle)
+  // Board+ Button (always override with toggle)
   const boardBtn = document.getElementById("add-board-btn-sidebar");
   if (boardBtn) {
     boardBtn.onclick = function () {
@@ -171,7 +171,7 @@ function bindGlobals() {
     };
   }
 
-  // V106: FLD+ Button (always override with toggle)
+  // FLD+ Button (always override with toggle)
   const fldBtn = document.getElementById("add-folder-btn-sidebar");
   if (fldBtn) {
     fldBtn.onclick = function () {
@@ -209,14 +209,13 @@ function bindGlobals() {
     };
 
   // 4. Modals (Close Buttons)
-  // [FIX] Define safe close callback for ModalManager
   window.closeSettingsModal = function () {
     if (window.SettingsUI) window.SettingsUI.close();
   };
 
   const closeButtons = document.querySelectorAll(".close-modal");
   closeButtons.forEach((btn) => {
-    // [FIX] Do NOT force close. Let ModalManager handle safety checks.
+    // Do NOT force close. Let ModalManager handle safety checks.
     btn.onclick = function () {
       window.ModalManager.closeTop(false);
     };
@@ -290,7 +289,7 @@ function bindGlobals() {
       window.Notes.downloadNotes();
     };
 
-  // 7. Page Actions (Context Menu) — init() handles click binding
+  // 7. Page Actions (Context Menu); init() handles click binding
 
   const pinNoteBtn = document.getElementById("pin-note-btn");
   if (pinNoteBtn)
@@ -415,7 +414,7 @@ async function boot() {
   // C. Initial Renders & Features
   if (renderMissions) renderMissions();
   if (checkStreakReset) checkStreakReset();
-  if (window.renderDock) window.renderDock(); // [NEW] Link render
+  if (window.renderDock) window.renderDock(); // Link render
   if (SettingsUI.initBackground) SettingsUI.initBackground();
 
   // D. Initialize Weather
@@ -425,7 +424,7 @@ async function boot() {
     fetchWeather();
   }
 
-  bindGlobals(); // [NEW] Bind static HTML buttons
+  bindGlobals(); // Bind static HTML buttons
 
   // F. First-run onboarding: show the welcome modal once
   if (State.CONFIG.first_run) {

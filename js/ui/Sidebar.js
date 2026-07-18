@@ -19,7 +19,7 @@ export function buildDirectoryStructure(notes) {
     notes.forEach(function (note) {
         var path = note.path || '/';
         
-        // V88: Hide Trash from standard tree
+        // Hide Trash from standard tree
         if (path.indexOf('/.trash') === 0) return;
 
         var parts = path.split('/').filter(function (p) { return p.length > 0; });
@@ -38,7 +38,7 @@ export function buildDirectoryStructure(notes) {
         current.__files__.push(note);
     });
 
-    // V87: Inject explicit (empty) folders so they persist in the tree
+    // Inject explicit (empty) folders so they persist in the tree
     var Notes = window.Notes;
     if (Notes && Notes.explicitFolders) {
         Notes.explicitFolders.forEach(function(folderPath) {
@@ -67,7 +67,7 @@ export function filterTreeStructure(structure, query) {
     var newStructure = { __files__: [], __path__: structure.__path__ };
     var hasMatch = false;
 
-    // V3.9: Get folder name from path
+    // .9: Get folder name from path
     var pathParts = structure.__path__.split('/').filter(Boolean);
     var folderName = pathParts[pathParts.length - 1] || '';
     var folderNameMatch = folderName.toLowerCase().indexOf(query) !== -1;
@@ -117,9 +117,9 @@ export function renderFileTree(structure, basePath, forceExpand) {
         // Header (ASCII ICONS)
         var header = document.createElement('div');
         header.className = 'tree-folder-header';
-        header.setAttribute('draggable', 'true'); // V3.9: Make folders draggable
+        header.setAttribute('draggable', 'true'); // .9: Make folders draggable
 
-        // V3.9: Check persistent state
+        // .9: Check persistent state
         // If forceExpand is true (searching), we expand IF there's a match in children or if it's a match itself
         var isExpanded = forceExpand || (typeof Notes !== 'undefined' && Notes.expandedFolders && Notes.expandedFolders.indexOf(fullPath) !== -1);
 
@@ -196,7 +196,7 @@ export function renderFileTree(structure, basePath, forceExpand) {
             var iconEl = header.querySelector('.folder-icon');
             if (iconEl) iconEl.textContent = nowOpen ? '[-]' : '[+]';
 
-            // V3.9: Update persistent state
+            // .9: Update persistent state
             if (typeof Notes !== 'undefined') {
                 var idx = Notes.expandedFolders.indexOf(fullPath);
                 if (nowOpen) {
@@ -277,10 +277,10 @@ export function renderSidebar(query) {
 
     sidebarList.innerHTML = '';
 
-    // V63.4: ALL TASKS entry removed - Task Manager deprecated
+    // .4: ALL TASKS entry removed - Task Manager deprecated
     // Future: Will link to Task Modal instead
 
-    // V3.9: Tree View Implementation
+    // .9: Tree View Implementation
     var searchInput = document.getElementById('notes-search');
     var filterTerm = (query || (searchInput ? searchInput.value : '')).toLowerCase();
 
@@ -305,7 +305,7 @@ export function renderSidebar(query) {
         sidebarList.appendChild(tree);
     }
 
-    // V3.9: Add "Move to Root" Drop Target at bottom
+    // .9: Add "Move to Root" Drop Target at bottom
     var rootDrop = document.createElement('div');
     rootDrop.innerHTML = '[ PURGE_GROUPING_DATA ]';
     rootDrop.style = 'margin: 20px 10px; padding: 15px; border: 1px dashed var(--dim-color); color: var(--dim-color); font-size: 0.65rem; text-align: center; border-radius: 4px;';
@@ -332,7 +332,7 @@ export function renderSidebar(query) {
     });
     sidebarList.appendChild(rootDrop);
 
-    // V15.0: BOARDS SECTION - V65 Enhanced
+    // .0: BOARDS SECTION - V65 Enhanced
     if (State.BOARDS && State.BOARDS.length > 0) {
         var boardSection = document.createElement('div');
         boardSection.className = 'tree-boards-section';
@@ -369,7 +369,7 @@ export function renderSidebar(query) {
                 if (typeof KanbanManager !== 'undefined') KanbanManager.open(board.id); 
             };
             
-            // V65: Delete board button with dedicated modal
+            // Delete board button with dedicated modal
             var boardDelete = document.createElement('button');
             boardDelete.className = 'tree-board-delete';
             boardDelete.textContent = 'X';
@@ -386,8 +386,7 @@ export function renderSidebar(query) {
                             if (idx !== -1) {
                                 State.BOARDS.splice(idx, 1);
                                 saveData();
-                                if (typeof KanbanManager !== 'undefined') KanbanManager.syncPage(); // V67
-                                renderSidebar(); // Recursive call to self (exported function)
+                                if (typeof KanbanManager !== 'undefined') KanbanManager.syncPage(); //                                 renderSidebar(); // Recursive call to self (exported function)
                             }
                         },
                         null,
@@ -408,7 +407,7 @@ export function renderSidebar(query) {
 
 // ... (existing code)
 
-    // V88: Trash Button in Footer
+    // Trash Button in Footer
     var sidebarFooter = document.querySelector('.sidebar-footer');
     if (!sidebarFooter) {
         sidebarFooter = document.createElement('div');

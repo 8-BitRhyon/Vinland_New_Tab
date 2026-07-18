@@ -176,7 +176,7 @@ export const PageManager = {
 
     // Add a block to a page object
     addBlock: function (page, blockType, content, afterBlockId) {
-        if (HistoryManager && HistoryManager.push) HistoryManager.push(page.id); // V70: Snapshot tracking
+        if (HistoryManager && HistoryManager.push) HistoryManager.push(page.id); // Snapshot tracking
         if (!page) return null;
 
         var newBlock = {
@@ -184,8 +184,8 @@ export const PageManager = {
             type: blockType,
             content: content || '',
             order: (page.blocks ? page.blocks.length : 0),
-            level: 0, // V68: Indentation level (0-5)
-            align: 'left' // V68: Text alignment
+            level: 0, // Indentation level (0-5)
+            align: 'left' // Text alignment
         };
 
         // Type-specific defaults
@@ -217,14 +217,14 @@ export const PageManager = {
 
     // Update a specific block
     updateBlock: function (pageId, blockId, updates) {
-        if (HistoryManager && HistoryManager.push) HistoryManager.push(pageId); // V70: Snapshot tracking
+        if (HistoryManager && HistoryManager.push) HistoryManager.push(pageId); // Snapshot tracking
         var page = State.NOTES.find(function (n) { return n.id === pageId; });
         if (!page) return false;
 
         var block = page.blocks.find(function (b) { return b.id === blockId; });
         if (!block) return false;
 
-        // V15.1: Tracking completion timestamp
+        // .1: Tracking completion timestamp
         if (block.type === 'task' && updates.checked === true && !block.completedAt) {
             updates.completedAt = Date.now();
         } else if (block.type === 'task' && updates.checked === false) {
@@ -233,7 +233,7 @@ export const PageManager = {
 
         Object.assign(block, updates);
         
-        // V68: Clamp level
+        // Clamp level
         if (block.level !== undefined) {
             block.level = Math.max(0, Math.min(5, block.level));
         }
@@ -244,7 +244,7 @@ export const PageManager = {
 
     // Delete a block
     deleteBlock: function (pageId, blockId) {
-        if (HistoryManager && HistoryManager.push) HistoryManager.push(pageId); // V70: Snapshot tracking
+        if (HistoryManager && HistoryManager.push) HistoryManager.push(pageId); // Snapshot tracking
         var page = State.NOTES.find(function (n) { return n.id === pageId; });
         if (!page) return false;
 
@@ -325,7 +325,7 @@ export const PageManager = {
                     else content = '[[KANBAN:?]]'; // Fallback
                     break;
                 case 'callout':
-                    // V104: Fix serialization to include '>' prefix for every line
+                    // Fix serialization to include '>' prefix for every line
                     var lines = (b.content || '[!INFO] Information').split('\n');
                     content = lines.map(l => '> ' + l).join('\n');
                     break;
@@ -343,7 +343,7 @@ export const PageManager = {
         }).join('\n');
     },
 
-    // V88: Migration - Path Schema
+    // Migration - Path Schema
     migrateNotesToPathSchema: function() {
         if (!State.NOTES) return;
         var changed = false;
@@ -359,7 +359,7 @@ export const PageManager = {
         }
     },
 
-    // V88: Migration - Block Schema
+    // Migration - Block Schema
     migrateNotesToBlockSchema: function() {
         if (!State.NOTES) return;
         var changed = false;
@@ -379,7 +379,7 @@ export const PageManager = {
         }
     },
 
-    // V101: Migration - Legacy Task Timestamps
+    // Migration - Legacy Task Timestamps
     migrateLegacyTasks: function() {
         if (!State.NOTES) return;
         var changed = false;

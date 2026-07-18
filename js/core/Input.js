@@ -35,7 +35,7 @@ export function initKeyboardShortcuts() {
     
     if (ModalManager && ModalManager.init) ModalManager.init();
     if (TabManager && TabManager.init) TabManager.init();
-    // PageActions.init() removed — called in boot.js
+    // PageActions.init() removed - called in boot.js
 
     // Capture-phase: CMD+Shift+X (close tab)
     document.addEventListener('keydown', function(e) {

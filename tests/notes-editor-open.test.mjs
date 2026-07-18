@@ -1,5 +1,5 @@
 /**
- * Notes Editor Open — TDD: Red → Green
+ * Notes Editor Open - TDD: Red → Green
  *
  * Bug: ModalManager.open('note-editor-modal') is at the END of Notes.open(),
  * after BlockEditor.render(). If BlockEditor.render throws, the modal never opens.
@@ -49,7 +49,7 @@ console.log('\n─── Notes.open() line ordering ───');
 
 // RED test: reads the source, finds the two key lines, and asserts
 // that ModalManager.open comes BEFORE BlockEditor.render.
-// The current buggy code has them in the WRONG order — so this FAILS.
+// The current buggy code has them in the WRONG order - so this FAILS.
 
 test('ModalManager.open must be called BEFORE BlockEditor.render in Notes.open()', () => {
   const src = readFileSync(
@@ -72,7 +72,7 @@ test('ModalManager.open must be called BEFORE BlockEditor.render in Notes.open()
   const renderCall = findLine(openLines, /BlockEditor\.render\(/);
 
   // The canvas-specific one (usually first, inside `if (note.type === 'canvas')`) returns
-  // early — it only runs for canvas notes. For non-canvas notes we need at least one
+  // early - it only runs for canvas notes. For non-canvas notes we need at least one
   // ModalManager.open BEFORE BlockEditor.render.
   const openBeforeRender = modalOpenIndices.some(idx => idx < renderCall.idx);
 
@@ -84,7 +84,7 @@ test('ModalManager.open must be called BEFORE BlockEditor.render in Notes.open()
   assert.ok(
     openBeforeRender,
     `FAIL: All ${modalOpenIndices.length} ModalManager.open calls (${modalOpenIndices.map(i => i + openStart + 1).join(', ')}) come AFTER ` +
-    `BlockEditor.render (line ${openStart + renderCall.idx + 1}) in open() — ` +
+    `BlockEditor.render (line ${openStart + renderCall.idx + 1}) in open() - ` +
     'a render error silently prevents the modal from opening.\n' +
     'Fix: add a ModalManager.open before BlockEditor.render and ' +
     'wrap render in try/catch.'

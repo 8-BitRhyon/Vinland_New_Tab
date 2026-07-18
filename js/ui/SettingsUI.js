@@ -21,6 +21,8 @@ function showNotification(msg) {
     var toast = document.createElement('div');
     toast.id = 'notif-toast';
     toast.textContent = msg;
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
     toast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--bg-overlay); border:1px solid var(--main-color); color:var(--main-color); padding:15px 30px; font-family:"Space Mono", monospace; font-size:14px; z-index:30000; box-shadow:0 0 20px rgba(0,0,0,0.5); opacity:0; transition:opacity 0.3s; pointer-events:none; backdrop-filter:blur(5px);';
 
     document.body.appendChild(toast);
@@ -56,12 +58,10 @@ function markDirty() {
     var headerSaveBtn = document.getElementById('header-save-btn');
     if (headerSaveBtn) {
         headerSaveBtn.innerText = 'SAVE *';
-        // V19.34: UX Improvement - "Hot Button" Style
-        // Solid background (Main Color) + Dark Text + Outer Glow = High Urgency
         headerSaveBtn.style.background = 'var(--main-color)'; 
-        headerSaveBtn.style.color = '#000'; // High contrast
-        headerSaveBtn.style.boxShadow = '0 0 15px var(--main-color)'; // Strong outer glow
-        headerSaveBtn.style.textShadow = 'none'; // Clean text for readability
+        headerSaveBtn.style.color = '#000';
+        headerSaveBtn.style.boxShadow = '0 0 15px var(--main-color)';
+        headerSaveBtn.style.textShadow = 'none';
         headerSaveBtn.style.border = '1px solid var(--main-color)'; 
     }
 }
@@ -74,7 +74,6 @@ export const SettingsUI = {
         }
     },
     
-    // V88: Dynamic Favicon
     updateDynamicIcon: function(color) {
         var link = document.querySelector("link[rel*='icon']");
         if (!link) {
@@ -96,19 +95,6 @@ export const SettingsUI = {
         // Expose for ModalManager (avoid circular import)
         window.closeSettingsModal = this.close.bind(this);
 
-        // Bind settings toggle button (Correct ID: config-btn)
-        // REMOVED: Handled by boot.js bindGlobals (onclick) to prevent double-toggle
-        /*
-        const btn = document.getElementById('config-btn');
-        if (btn) btn.addEventListener('click', this.toggleConfig.bind(this));
-        
-        const helpBtn = document.getElementById('help-btn');
-        if (helpBtn) helpBtn.addEventListener('click', this.toggleHelp.bind(this));
-
-        const headerSaveBtn = document.getElementById('header-save-btn');
-        if (headerSaveBtn) headerSaveBtn.addEventListener('click', this.saveConfigFromUI.bind(this));
-        */
-        
         // Tab Navigation Binding
         var navItems = document.querySelectorAll('.config-nav-item');
         var self = this;
@@ -118,10 +104,8 @@ export const SettingsUI = {
                 this.classList.add('active');
                 
                 var tab = this.getAttribute('data-tab');
-                // Hide all tabs
                 document.querySelectorAll('.config-tab').forEach(t => t.style.display = 'none');
-                
-                // Show selected tab
+
                 var target = document.getElementById('tab-' + tab);
                 if (target) target.style.display = 'block';
 
@@ -133,7 +117,7 @@ export const SettingsUI = {
             };
         });
         
-        // Background Upload Binding
+        // Background upload and URL binding
         var uploadBtn = document.getElementById('upload-bg-btn');
         var fileInput = document.getElementById('bg-file-input');
         if (uploadBtn && fileInput) {
@@ -141,10 +125,28 @@ export const SettingsUI = {
             fileInput.onchange = this.handleBackgroundUpload.bind(this);
         }
 
-        this.bindBackupButtons(); // [FIX] Bind Export/Import Buttons
+        var addUrlBtn = document.getElementById('bg-add-url-btn');
+        var addUrlInput = document.getElementById('bg-add-url');
+        if (addUrlBtn && addUrlInput) {
+            addUrlBtn.onclick = function() {
+                var val = addUrlInput.value.trim();
+                if (!val) return;
+                var ta = document.getElementById('cfg-backgrounds');
+                if (ta) {
+                    ta.value += (ta.value ? '\n' : '') + val;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                addUrlInput.value = '';
+                if (window.SettingsUI) window.SettingsUI.renderBgThumbnails();
+            };
+            addUrlInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') addUrlBtn.click();
+            });
+        }
 
+        this.bindBackupButtons();
 
-        // Theme Action Buttons
         var self = this;
         var btnSaveTheme = document.getElementById('btn-save-theme');
         if(btnSaveTheme) btnSaveTheme.onclick = function() { self.openThemeModal('save'); };
@@ -158,7 +160,7 @@ export const SettingsUI = {
         var btnDeleteTheme = document.getElementById('btn-delete-theme');
         if(btnDeleteTheme) btnDeleteTheme.onclick = function() { self.deleteCustomTheme(); };
 
-        // Theme Modal Bindings
+        // Theme modal bindings
         var themeCancel = document.getElementById('theme-modal-cancel');
         if(themeCancel) themeCancel.onclick = this.closeThemeModal.bind(this);
         
@@ -168,8 +170,7 @@ export const SettingsUI = {
         var themeConfirm = document.getElementById('theme-modal-confirm');
         if(themeConfirm) themeConfirm.onclick = this.handleThemeModalConfirm.bind(this);
         
-        // CHANGED: Bind all config inputs to markDirty
-        // CHANGED: Bind all config inputs to checkDirty (True State Check)
+        // Bind all config inputs to checkDirty
         var checkDirtyHandler = function(e) {
              if (ModalManager.stack.includes('config-modal')) {
                  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
@@ -178,7 +179,7 @@ export const SettingsUI = {
                         if (window.SettingsUI && window.SettingsUI.checkDirty) {
                             window.SettingsUI.checkDirty(); 
                         } else {
-                            markDirty(); // Fallback
+                            markDirty();
                         }
                      }, 10);
                  }
@@ -187,7 +188,7 @@ export const SettingsUI = {
         document.addEventListener('input', checkDirtyHandler);
         document.addEventListener('change', checkDirtyHandler);
         
-        // Nav Arrow Key Binding
+        // Arrow key navigation
         document.addEventListener('keydown', function(e) {
             // Only active if config modal is showing
             var configModal = document.getElementById('config-modal');
@@ -219,12 +220,11 @@ export const SettingsUI = {
         console.log('[SettingsUI] toggleConfig called');
         var modal = document.getElementById('config-modal');
         var helpModal = document.getElementById('help-modal');
-        // Use ModalManager to check state
         if (ModalManager.stack.includes('config-modal') || (modal && modal.classList.contains('active'))) {
             this.close();
         } else {
             console.log('[SettingsUI] Opening from toggle...');
-            if (helpModal) helpModal.style.display = 'none'; // Legacy hygiene
+            if (helpModal) helpModal.style.display = 'none';
             this.open();
         }
     },
@@ -256,9 +256,7 @@ export const SettingsUI = {
         }
     },
     
-    // ... (keeping loadConfigToUI and other methods) ...
-    
-    // Theme Modal Logic
+    // Theme modal logic
     themeModalMode: null,
     
     openThemeModal: function(mode) {
@@ -277,7 +275,7 @@ export const SettingsUI = {
              return; 
         }
 
-        // Use ModalManager to Open
+        // Open via ModalManager
         ModalManager.open('theme-modal');
 
         if (mode === 'save') {
@@ -380,6 +378,7 @@ export const SettingsUI = {
         this.renderDockLinksConfig();
         this.renderCustomCommandsList();
         this.renderThemePresets();
+        this.renderBgThumbnails();
         this.updateBackgroundPreview();
 
         // Raw
@@ -390,8 +389,7 @@ export const SettingsUI = {
         var defaultTabContent = document.getElementById('tab-interface');
         if(defaultTabContent) defaultTabContent.style.display = 'block';
 
-        // [FIX] Capture Baseline State from UI (Normalized)
-        // This handles type coercion and default values correctly.
+        // Capture baseline state for dirty tracking
         if (this.getConfigFromUI) {
             this.baseline = JSON.stringify(this.getConfigFromUI());
         }
@@ -403,18 +401,15 @@ export const SettingsUI = {
 
     close: function(force) {
         if (!force && CONFIG_DIRTY) {
-            // Unsaved changes confirmation
             if (window.showConfirmModal) {
                 var self = this;
                 window.showConfirmModal(
                     "UNSAVED CHANGES",
                     "You have unsaved changes.",
                     function() {
-                        // Confirm (Save)
                         self.saveConfigFromUI();
                     },
                     function() {
-                        // Discard (Reset)
                         CONFIG_DIRTY = false;
                         resetSaveButtonState();
                         loadConfig(); 
@@ -422,7 +417,7 @@ export const SettingsUI = {
                         ModalManager.close('config-modal');
                     },
                     "SAVE & CLOSE",
-                    "DISCARD CHANGES" // New Discard Button
+                    "DISCARD CHANGES"
                 );
                 return;
             }
@@ -432,7 +427,6 @@ export const SettingsUI = {
         ModalManager.close('config-modal');
     },
 
-    // New Helper: Reads UI state into a Config object
     getConfigFromUI: function() {
         // Clone existing config to start (preserves detailed objects not in UI)
         var draft = JSON.parse(JSON.stringify(State.CONFIG));
@@ -496,7 +490,6 @@ export const SettingsUI = {
         return draft;
     },
     
-    // New Helper: True Dirty Check
     checkDirty: function() {
         if (this.baseline) {
              var current = JSON.stringify(this.getConfigFromUI());
@@ -517,7 +510,7 @@ export const SettingsUI = {
         var rawTab = document.getElementById('tab-maintenance');
         if (rawTab && rawTab.style.display !== 'none') {
             console.log('[SettingsUI] Saving from RAW JSON');
-            var rawInput = document.getElementById('cfg-json-dump'); // [FIX] Correct ID
+            var rawInput = document.getElementById('cfg-json-dump');
             if (rawInput) {
                 try {
                     var newConfig = JSON.parse(rawInput.value);
@@ -529,8 +522,8 @@ export const SettingsUI = {
                     State.WEATHER_CACHE = null; 
                     if (window.fetchWeather) window.fetchWeather();
                     if (window.renderBottomBar) window.renderBottomBar(State.ROOT_ID);
-                    if (window.renderDock) window.renderDock(); // [NEW] Update Dock Immediately
-                    if (window.Bookmarks && window.Bookmarks.init) window.Bookmarks.init(); // [NEW] Update Bookmarks Immediately
+                    if (window.renderDock) window.renderDock();
+                    if (window.Bookmarks && window.Bookmarks.init) window.Bookmarks.init();
                     if (window.initIntegrations) window.initIntegrations();
                     this.initBackground();
                     if (typeof updateTime === 'function') updateTime(); 
@@ -573,7 +566,7 @@ export const SettingsUI = {
         el = document.getElementById('cfg-color'); if(el) CONFIG.theme_color = el.value.trim() || '#00FF41';
         el = document.getElementById('cfg-theme-preset'); if(el) CONFIG.theme_preset = el.value;
         el = document.getElementById('cfg-secondary-color'); if(el) CONFIG.secondary_color = el.value;
-        el = document.getElementById('cfg-sounds'); if(el) CONFIG.typing_sounds = el.checked; // Fixed mapping
+        el = document.getElementById('cfg-sounds'); if(el) CONFIG.typing_sounds = el.checked;
         el = document.getElementById('cfg-ui-sounds'); if(el) CONFIG.ui_sounds = el.checked;
 
         // Filter & Backgrounds
@@ -609,15 +602,15 @@ export const SettingsUI = {
         Config.save();
         Config.applyTheme();
         
-        // Re-renders
+        // Post-save re-renders
         if (window.renderMissions) window.renderMissions();
-        if (window.TabManager) TabManager.init(); // Refresh tabs visibility
+        if (window.TabManager) TabManager.init();
         
         State.WEATHER_CACHE = null; 
         if (window.fetchWeather) window.fetchWeather();
         if (window.renderBottomBar) window.renderBottomBar(State.ROOT_ID);
-        if (window.renderDock) window.renderDock(); // [NEW] Update Dock Immediately
-         if (window.Bookmarks && window.Bookmarks.init) window.Bookmarks.init(); // [NEW] Update Bookmarks Immediately
+        if (window.renderDock) window.renderDock();
+        if (window.Bookmarks && window.Bookmarks.init) window.Bookmarks.init();
         if (window.initIntegrations) window.initIntegrations();
         this.initBackground();
         if (typeof updateTime === 'function') updateTime();
@@ -632,7 +625,7 @@ export const SettingsUI = {
         var CONFIG = State.CONFIG;
         var video = document.getElementById('bg-video');
         
-        // Apply Filters
+        // Filter and overlay setup
         var filters = [];
         if (CONFIG.filter_enabled) {
             filters.push('grayscale(' + (CONFIG.filter_grayscale || 0) + '%)');
@@ -648,10 +641,8 @@ export const SettingsUI = {
         } else {
              if (video) {
                  video.style.display = 'block';
-                 // Source management is handled by video module, here we just ensure visibility/filter
+                 // Source management handled by video module; just ensure visibility
                  if (window.BackgroundManager && window.BackgroundManager.playRandom) {
-                     // Only play random if source changed? 
-                     // For now, let's not force reload if just saving settings to avoid flicker
                  }
              }
         }
@@ -668,9 +659,6 @@ export const SettingsUI = {
         else document.body.classList.remove('blur-overlay');
     },
 
-    /* =========================================
-       DYNAMIC CONFIG LISTS (Dock/Commands)
-       ========================================= */
     /* =========================================
        DYNAMIC CONFIG LISTS (Dock/Commands)
        ========================================= */
@@ -698,7 +686,7 @@ export const SettingsUI = {
             inputLabel.value = safeText(link.name || ''); 
             inputLabel.className = 'config-input';
             inputLabel.style.flex = '1';
-            inputLabel.style.minWidth = '0'; // Flex fix
+            inputLabel.style.minWidth = '0';
             inputLabel.placeholder = 'Label';
             inputLabel.title = 'Link Label';
             inputLabel.onchange = function() { self.updateDockLink(index, 'name', this.value); };
@@ -716,9 +704,9 @@ export const SettingsUI = {
             
             // Delete Button
             var deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn danger-btn'; // Use global danger class if avail
+            deleteBtn.className = 'btn danger-btn';
             deleteBtn.style.cssText = 'width:32px; height:32px; display:flex; align-items:center; justify-content:center; padding:0; background:rgba(255,50,50,0.2); color:#ff5555; border:1px solid rgba(255,50,50,0.3); border-radius:4px; cursor:pointer; flex-shrink:0;';
-            deleteBtn.innerHTML = '&#10005;'; // X symbol
+            deleteBtn.innerHTML = '&#10005;';
             deleteBtn.title = 'Remove Link';
             deleteBtn.onclick = function() { self.removeDockLink(index); };
             deleteBtn.onmouseover = function() { this.style.background = 'rgba(255,50,50,0.4)'; };
@@ -732,7 +720,7 @@ export const SettingsUI = {
         
         var addBtn = document.getElementById('add-dock-btn');
         if(addBtn) {
-            // Unbind old to be safe (though simple overwrite works)
+            // Unbind old to be safe
             addBtn.onclick = function() {
                 var nameInput = document.getElementById('new-dock-name');
                 var urlInput = document.getElementById('new-dock-url');
@@ -746,7 +734,6 @@ export const SettingsUI = {
                     urlInput.value = '';
                     markDirty();
                     self.renderDockLinksConfig();
-                    // Auto-focus back to name for rapid entry?
                     nameInput.focus();
                 } else {
                     alert('Please enter both a Label and URL.');
@@ -763,7 +750,6 @@ export const SettingsUI = {
     },
     
     removeDockLink: function(index) {
-        // V104: Toggle Behavior - Close if already open
         var confirmModal = document.getElementById('confirm-modal');
         if (confirmModal && confirmModal.classList.contains('active')) {
              if (window.ModalManager) ModalManager.close('confirm-modal');
@@ -771,7 +757,6 @@ export const SettingsUI = {
         }
 
         var self = this;
-        // V102: Use Custom Confirm Modal
         if (window.showConfirmModal) {
             window.showConfirmModal(
                 'REMOVE DOCK LINK',
@@ -828,11 +813,11 @@ export const SettingsUI = {
             inputUrl.title = 'Command URL';
             inputUrl.onchange = function() { self.updateCommand(index, 'url', this.value); };
             
-            // Delete Button
+            // Delete button
             var deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn danger-btn'; // Use global danger class if avail
+            deleteBtn.className = 'btn danger-btn';
             deleteBtn.style.cssText = 'width:32px; height:32px; display:flex; align-items:center; justify-content:center; padding:0; background:rgba(255,50,50,0.2); color:#ff5555; border:1px solid rgba(255,50,50,0.3); border-radius:4px; cursor:pointer; flex-shrink:0;';
-            deleteBtn.innerHTML = '&#10005;'; // X symbol
+            deleteBtn.innerHTML = '&#10005;';
             deleteBtn.title = 'Remove Command';
             deleteBtn.onclick = function() { self.removeCommand(index); };
             deleteBtn.onmouseover = function() { this.style.background = 'rgba(255,50,50,0.4)'; };
@@ -875,9 +860,7 @@ export const SettingsUI = {
         }
     },
     
-    // --- Custom Commands CRUD ---
     removeCommand: function(index) {
-        // V104: Toggle Behavior - Close if already open
         var confirmModal = document.getElementById('confirm-modal');
         if (confirmModal && confirmModal.classList.contains('active')) {
              if (window.ModalManager) ModalManager.close('confirm-modal');
@@ -917,7 +900,6 @@ export const SettingsUI = {
              select.appendChild(opt);
         });
         
-        // Custom Themes Support (V19.30)
         var CONFIG = State.CONFIG;
         if (CONFIG.custom_themes && CONFIG.custom_themes.length > 0) {
             var optGroup = document.createElement('optgroup');
@@ -987,21 +969,33 @@ export const SettingsUI = {
         setInput('cfg-blur', preset.filter_blur);
         if (preset.clock_font) setInput('cfg-font', preset.clock_font);
         if (preset.secondary_font) {
-            // Remove quotes for input value if present? 
-            // The presets store like "'Space Mono', monospace" or just "Space Mono"
-            // The input usually expects just the name if it's a select box?
-            // Let's check index.html select values.
-            // Actually Config.js presets have: secondary_font: "'Space Mono', monospace"
-            // But input is likely a SELECT or TEXT?
-            // If SELECT, value must match option.
-            // Let's assume the preset value matches the select option value.
             setInput('cfg-font-secondary', preset.secondary_font);
         }
-        
-        showNotification('PRESET LOADED: ' + preset.name);
+
+        // apply preset tokens immediately (live preview) and write to CONFIG
+        // so applyTheme picks up the full surface look.
+        var CONFIG = State.CONFIG;
+        CONFIG.theme_preset = key;
+        ['theme_color','secondary_color','bg_color','danger_color','warning_color','board_color','dim_color'].forEach(function(k) {
+            if (preset[k] !== undefined) CONFIG[k] = preset[k];
+        });
+        ['1','2','3','4','5'].forEach(function(i) {
+            var k = 'graph_col_'+i;
+            if (preset[k] !== undefined) CONFIG[k] = preset[k];
+        });
+        CONFIG.filter_grayscale = preset.filter_grayscale;
+        CONFIG.filter_contrast = preset.filter_contrast;
+        CONFIG.filter_brightness = preset.filter_brightness;
+        CONFIG.filter_blur = preset.filter_blur;
+        if (preset.clock_font) CONFIG.clock_font = preset.clock_font;
+        if (preset.secondary_font) CONFIG.secondary_font = preset.secondary_font;
+        // Overlay toggles (retrogreen enables crt; retroma disables all)
+        if (preset.crt_effect !== undefined) CONFIG.crt_effect = preset.crt_effect;
+        if (preset.vignette_effect !== undefined) CONFIG.vignette_effect = preset.vignette_effect;
+        if (preset.noise_effect !== undefined) CONFIG.noise_effect = preset.noise_effect;
+        Config.applyTheme();
     },
     
-    // Theme Modal Logic
     themeModalMode: null,
     
     openThemeModal: function(mode) {
@@ -1021,7 +1015,7 @@ export const SettingsUI = {
         }
 
         // Use ModalManager
-        ModalManager.open('theme-modal'); 
+        ModalManager.open('theme-modal');
 
         if (mode === 'save') {
             title.textContent = 'SAVE THEME PRESET';
@@ -1069,15 +1063,13 @@ export const SettingsUI = {
     
     getCurrentThemeAsObject: function() {
         var CONFIG = State.CONFIG;
-        // Grab current UI values or Config values? UI values are arguably better for WYSWYG save.
-        // Let's use UI values.
+        // Grab current UI values or Config values; UI values give WYSWYG save.
         return {
              theme_color: (document.getElementById('cfg-color')||{}).value,
              filter_grayscale: parseInt((document.getElementById('cfg-grayscale')||{}).value),
              filter_contrast: parseInt((document.getElementById('cfg-contrast')||{}).value),
              filter_brightness: parseInt((document.getElementById('cfg-brightness')||{}).value),
              filter_blur: parseInt((document.getElementById('cfg-blur')||{}).value),
-             // Fonts could be added here if we expanded settings UI to fully support all props
         };
     },
     
@@ -1146,8 +1138,115 @@ export const SettingsUI = {
                  if(savedCount === files.length) {
                      if(uploadStatus) uploadStatus.textContent = 'Upload Complete!';
                      setTimeout(function() { if(uploadStatus) uploadStatus.textContent = ''; }, 2000);
+                     if (window.SettingsUI) window.SettingsUI.renderBgThumbnails();
                  }
              });
+        });
+    },
+
+    renderBgThumbnails: function() {
+        var grid = document.getElementById('bg-thumbnails');
+        var ta = document.getElementById('cfg-backgrounds');
+        if (!grid || !ta) return;
+        var urls = ta.value.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+        grid.innerHTML = '';
+
+        urls.forEach(function(url, i) {
+            var card = document.createElement('div');
+            card.className = 'bg-thumb-card';
+            card.title = url;
+
+            var del = document.createElement('button');
+            del.className = 'thumb-delete';
+            del.textContent = '✕';
+            del.title = 'Remove';
+            del.setAttribute('aria-label', 'Remove background');
+            del.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var lines = ta.value.split('\n').map(function(s) { return s.trim(); });
+                lines.splice(i, 1);
+                ta.value = lines.join('\n');
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.dispatchEvent(new Event('change', { bubbles: true }));
+                if (window.SettingsUI) window.SettingsUI.renderBgThumbnails();
+            });
+            card.appendChild(del);
+
+            var label = document.createElement('div');
+            label.className = 'thumb-label';
+            var display = url.replace(/^db:/, '').replace(/^.*[/\\]/, '');
+            label.textContent = display.length > 20 ? display.slice(0, 18) + '…' : display;
+            card.appendChild(label);
+
+            // Show preview: image or video
+            if (url.match(/\.(mp4|webm|ogg)$/i) || url.startsWith('db:')) {
+                var vid = document.createElement('video');
+                vid.muted = true;
+                vid.loop = true;
+                vid.playsInline = true;
+                vid.preload = 'metadata';
+                if (url.startsWith('db:')) {
+                    var key = url.replace('db:', '');
+                    var self = this;
+                    if (window.DB) {
+                        window.DB.get(key).then(function(blob) {
+                            if (blob) {
+                                var objUrl = URL.createObjectURL(blob);
+                                vid.src = objUrl;
+                                vid.play().catch(function(){});
+                            }
+                        });
+                    }
+                } else {
+                    vid.src = url;
+                    vid.play().catch(function(){});
+                }
+                card.appendChild(vid);
+            } else {
+                var img = document.createElement('img');
+                img.loading = 'lazy';
+                if (url.startsWith('db:')) {
+                    var key = url.replace('db:', '');
+                    if (window.DB) {
+                        window.DB.get(key).then(function(blob) {
+                            if (blob) {
+                                img.src = URL.createObjectURL(blob);
+                            }
+                        });
+                    }
+                } else {
+                    img.src = url;
+                }
+                img.addEventListener('error', function() {
+                    img.style.display = 'none';
+                    card.style.borderColor = '#ff4444';
+                    label.textContent = '(failed) ' + label.textContent;
+                });
+                card.appendChild(img);
+            }
+
+            // Click to preview: apply this background immediately
+            card.addEventListener('click', function() {
+                var CONFIG = window.State ? window.State.CONFIG : null;
+                if (!CONFIG) return;
+                CONFIG.background_type = 'media';
+                var bgSelect = document.getElementById('cfg-bg-type');
+                if (bgSelect) bgSelect.value = 'media';
+
+                // Set this as the only active background temporarily
+                var prev = CONFIG.backgrounds;
+                CONFIG.backgrounds = [url];
+                if (window.SettingsUI && window.SettingsUI.initBackground) {
+                    window.SettingsUI.initBackground();
+                }
+                CONFIG.backgrounds = prev;
+
+                grid.querySelectorAll('.bg-thumb-card').forEach(function(c) { c.classList.remove('active'); });
+                card.classList.add('active');
+                setTimeout(function() { card.classList.remove('active'); }, 2000);
+            });
+
+            grid.appendChild(card);
         });
     },
 

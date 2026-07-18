@@ -13,10 +13,10 @@ export const TabManager = {
     activeIndex: -1,
     history: [], // For back/forward navigation
     historyIndex: -1,
-    isUpdating: false, // V63.2 FIX: Recursion guard
+    isUpdating: false, // .2 FIX: Recursion guard
 
     init: function() {
-        // V63.4: Respect settings toggle (Targeting Correct Selector)
+        // .4: Respect settings toggle (Targeting Correct Selector)
         var bar = document.getElementById('editor-tab-bar'); 
         if (!bar) bar = document.querySelector('.editor-tab-bar');
 
@@ -29,7 +29,7 @@ export const TabManager = {
              if (bar) bar.style.display = 'flex';
         }
 
-        // V63.5: Load saved tabs from localStorage (persistent across sessions)
+        // .5: Load saved tabs from localStorage (persistent across sessions)
         var saved = localStorage.getItem('VINLAND_TABS');
         if (saved && State.CONFIG.notes_tabs_enabled !== false) {
             try {
@@ -39,13 +39,13 @@ export const TabManager = {
             } catch(e) {}
         }
         if (State.CONFIG.notes_tabs_enabled !== false) {
-            // V85: Race Condition Fix - If tabs empty but notes exist, open first note instead of auto-creating later
+            // Race Condition Fix - If tabs empty but notes exist, open first note instead of auto-creating later
             if (this.tabs.length === 0 && typeof State !== 'undefined' && State.NOTES && State.NOTES.length > 0) {
                  var first = State.NOTES[0];
                  this.openTab(first.id, first.title);
             }
             
-            // V85: Re-tether 'Ghost' Empty Note on Reload
+            // Re-tether 'Ghost' Empty Note on Reload
             // If we have exactly 1 tab, and it is empty/untitled, mark it as auto-created so it gets deleted if closed/replaced.
             if (this.tabs.length === 1 && typeof Notes !== 'undefined') {
                  var noteId = this.tabs[0].noteId;
@@ -94,10 +94,10 @@ export const TabManager = {
     },
 
     openTab: function(noteId, title) {
-        // V63.4: Respect settings toggle immediately
+        // .4: Respect settings toggle immediately
         if (State.CONFIG.notes_tabs_enabled === false) return;
         
-        // V63.2 FIX: Prevent recursion
+        // .2 FIX: Prevent recursion
         if (this.isUpdating) return;
         
         // Check if already open
@@ -124,7 +124,7 @@ export const TabManager = {
     closeTab: function(index) {
         if (index < 0 || index >= this.tabs.length) return;
         
-        // V87: Auto-delete untitled/empty notes when tab is closed
+        // Auto-delete untitled/empty notes when tab is closed
         var closedTab = this.tabs[index];
         if (closedTab && closedTab.noteId && typeof Notes !== 'undefined') {
             var note = State.NOTES.find(function(n) { return n.id === closedTab.noteId; });
@@ -149,8 +149,8 @@ export const TabManager = {
         
         if (this.tabs.length === 0) {
             this.activeIndex = -1;
-            // V63.2: Auto-create new note when all tabs closed
-            // V83: Re-implemented legacy logic (Always create new note).
+            // .2: Auto-create new note when all tabs closed
+            // Re-implemented legacy logic (Always create new note).
              // Guard: Prevent loop if we are already cleaning up.
             if (typeof Notes !== 'undefined' && !Notes.isCleaningUpAutoNote) {
                  // Removed: Notes.autoCreatedNoteId = null; (Preserve ID for cleanup)
@@ -177,7 +177,7 @@ export const TabManager = {
         this.render();
     },
 
-    // V63.4: Helper to close by ID (for ghost tag cleanup)
+    // .4: Helper to close by ID (for ghost tag cleanup)
     closeTabById: function(noteId) {
         var idx = this.tabs.findIndex(t => t.noteId === noteId);
         if (idx !== -1) this.closeTab(idx);
@@ -190,7 +190,7 @@ export const TabManager = {
         this.activeIndex = index;
         var tab = this.tabs[index];
         
-        // V63.2 FIX: Use guard to prevent Notes.open from calling openTab again
+        // .2 FIX: Use guard to prevent Notes.open from calling openTab again
         this.isUpdating = true;
         if (typeof Notes !== 'undefined') Notes.open(tab.noteId);
         this.isUpdating = false;
@@ -244,7 +244,7 @@ export const TabManager = {
         }
     },
 
-    // V63.4: Arrow key adjacent tab switching
+    // .4: Arrow key adjacent tab switching
     switchAdjacent: function(direction) {
         if (this.tabs.length <= 1) return;
         var nextIdx = this.activeIndex + direction;

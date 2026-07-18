@@ -9,6 +9,16 @@ const DEFAULT_CONFIG = {
     user_name: "",
     theme_color: "#00FF41",
     secondary_color: "#888888",
+    bg_color: "#000000",
+    danger_color: "#ff0055",
+    warning_color: "#ffb800",
+    board_color: "#00d4ff",
+    dim_color: "#555555",
+    graph_col_1: "#00ff41",
+    graph_col_2: "#00e5ff",
+    graph_col_3: "#ff0055",
+    graph_col_4: "#ffb800",
+    graph_col_5: "#9d00ff",
     secondary_font: "'Space Mono', monospace",
     clock_font: "Space Mono",
     clock_font_size: 7,
@@ -175,11 +185,35 @@ export const THEME_PRESETS = {
         filter_brightness: 45,
         filter_blur: 0,
         crt_effect: true
+    },
+    retroma: {
+        name: "Retroma",
+        theme_preset: "retroma",
+        theme_color: "#a54a3c",
+        secondary_color: "#7c766e",
+        bg_color: "#e6ddce",
+        danger_color: "#c0392b",
+        warning_color: "#e67e22",
+        board_color: "#2980b9",
+        dim_color: "#9e9589",
+        graph_col_1: "#a54a3c",
+        graph_col_2: "#7c766e",
+        graph_col_3: "#c0392b",
+        graph_col_4: "#e67e22",
+        graph_col_5: "#433e38",
+        clock_font: "Space Mono",
+        secondary_font: "'Space Mono', monospace",
+        filter_grayscale: 0,
+        filter_contrast: 100,
+        filter_brightness: 100,
+        filter_blur: 0,
+        crt_effect: false,
+        vignette_effect: false,
+        noise_effect: false
     }
 };
 
 export const Config = {
-    // Load config from LocalStorage
     load: function() {
         try {
             const stored = localStorage.getItem(CONFIG_KEY);
@@ -188,7 +222,6 @@ export const Config = {
                 // Merge stored config with defaults to ensure new fields exist
                 State.CONFIG = Object.assign({}, DEFAULT_CONFIG, parsed);
                 
-                // Safety checks for arrays
                 if (!Array.isArray(State.CONFIG.dock_links)) State.CONFIG.dock_links = DEFAULT_CONFIG.dock_links;
                 if (!Array.isArray(State.CONFIG.custom_commands)) State.CONFIG.custom_commands = [];
                 if (!Array.isArray(State.CONFIG.backgrounds)) State.CONFIG.backgrounds = [];
@@ -202,7 +235,6 @@ export const Config = {
         return State.CONFIG;
     },
 
-    // Save config to LocalStorage
     save: function() {
         try {
             State.CONFIG.version = CONFIG_VERSION;
@@ -218,7 +250,6 @@ export const Config = {
         }
     },
 
-    // Apply Theme (CSS Variables)
     applyTheme: function() {
         const config = State.CONFIG;
         const root = document.documentElement;
@@ -227,6 +258,25 @@ export const Config = {
         const color = config.theme_color || '#00FF41';
         root.style.setProperty('--main-color', color);
         root.style.setProperty('--secondary-color', config.secondary_color || '#888888');
+
+        // full-surface tokens (presets can set these; absent → default)
+        root.style.setProperty('--bg-color', config.bg_color || '#000000');
+        root.style.setProperty('--danger-color', config.danger_color || '#ff0055');
+        root.style.setProperty('--warning-color', config.warning_color || '#ffb800');
+        root.style.setProperty('--board-color', config.board_color || '#00d4ff');
+        root.style.setProperty('--dim-color', config.dim_color || '#555555');
+        ['1','2','3','4','5'].forEach(function(i) {
+            var key = 'graph_col_'+i;
+            root.style.setProperty('--graph-col-'+i, config[key] || DEFAULT_CONFIG[key]);
+        });
+
+        // retroma body class - set when the retroma preset (or theme_color)
+        // signals a warm/paper surface; others remove it so body CSS vars apply.
+        if (config.theme_preset === 'retroma' || color.toLowerCase() === '#a54a3c') {
+            document.body.classList.add('theme-retroma');
+        } else {
+            document.body.classList.remove('theme-retroma');
+        }
 
         // 2. RGB Calculation for RGBA support
         let r = 0, g = 255, b = 65;
@@ -242,7 +292,7 @@ export const Config = {
         // 3. Fonts
         const mainFont = config.clock_font || 'Space Mono';
         const secFont = config.secondary_font || "'Space Mono', monospace";
-        root.style.setProperty('--font-main', mainFont + ', monospace'); // Ensure fallback
+        root.style.setProperty('--font-main', mainFont + ', monospace');
         root.style.setProperty('--font-secondary', secFont);
 
         // 4. Clock Size
@@ -273,7 +323,6 @@ export const Config = {
         }
     },
     
-    // Internal icon update if not global
     updateIcon: function(color) {
          var svg = `
             <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">

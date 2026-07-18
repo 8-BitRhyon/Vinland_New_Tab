@@ -62,7 +62,7 @@ export function renderBottomBar(folderId) {
 
     try {
         chrome.bookmarks.getChildren(folderId, function (children) {
-            // V15.4: Clear container inside callback to prevent race condition doubling
+            // .4: Clear container inside callback to prevent race condition doubling
             container.innerHTML = '';
 
             // Always render back button first to prevent getting trapped
@@ -91,7 +91,7 @@ export function renderBottomBar(folderId) {
                     var hint = document.createElement('span');
                     hint.style.color = 'var(--dim-color)';
                     hint.style.fontSize = '0.8rem';
-                    hint.textContent = ' No bookmarks yet — add some in Chrome to see them here.';
+                    hint.textContent = ' No bookmarks yet - add some in Chrome to see them here.';
                     container.appendChild(hint);
                 }
                 return;

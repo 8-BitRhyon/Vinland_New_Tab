@@ -119,8 +119,20 @@ export const SystemCommands = {
       hint: "[name]",
       action: (args) => {
         console.log("Switching theme to", args);
-        if (window.SettingsUI && window.SettingsUI.applyThemePreset) {
-          window.SettingsUI.applyThemePreset(args);
+        if (args === 'default') {
+          // Reset to defaults: clear theme_preset and re-apply
+          if (window.State && window.State.CONFIG) {
+            window.State.CONFIG.theme_preset = '';
+            window.State.CONFIG.theme_color = '#00FF41';
+            window.State.CONFIG.secondary_color = '#888888';
+            if (window.Config && window.Config.applyTheme) {
+              window.Config.applyTheme();
+            }
+          }
+          return;
+        }
+        if (window.SettingsUI && window.SettingsUI.loadThemePreset) {
+          window.SettingsUI.loadThemePreset(args);
         }
       },
     });

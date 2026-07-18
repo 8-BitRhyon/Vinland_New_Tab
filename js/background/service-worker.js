@@ -26,7 +26,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       pomodoroCompleted: false,
       pomodoroAcknowledged: false,
     });
-    console.log('[SW] Vinland SW installed — storage initialized.');
+    console.log('[SW] Vinland SW installed - storage initialized.');
   }
 
   if (details.reason === 'update') {
@@ -151,7 +151,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'pomo-end') {
-    console.log('[SW] Pomo alarm fired — showing notification');
+    console.log('[SW] Pomo alarm fired - showing notification');
 
     // Mark completion in storage so the new tab page picks it up
     chrome.storage.local.set(

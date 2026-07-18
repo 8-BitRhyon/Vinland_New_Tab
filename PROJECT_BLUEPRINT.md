@@ -50,7 +50,7 @@ Vinland_New_Tab/
 
 ### 1. Spatial Node Layout
 *   **Card Types**: Text nodes, file cards (linking local markdown files), embed nodes (iframes), and spatial groups.
-*   **Spatial Grouping**: Group nodes (`.canvas-group`) automatically act as bounding containers—moving a group moves all nested card components together.
+*   **Spatial Grouping**: Group nodes (`.canvas-group`) automatically act as bounding containers-moving a group moves all nested card components together.
 *   **Auto Snapping**: Connectors snap automatically to the closest cardinal ports (North, South, East, West).
 
 ### 2. Multi-Node Selection & Dragging

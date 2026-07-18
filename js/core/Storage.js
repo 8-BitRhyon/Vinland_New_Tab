@@ -41,10 +41,21 @@ export const DB = {
                 request.onerror = function (e) { reject(e); };
             });
         });
+    },
+    delete: function (key) {
+        return DB.open().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                var tx = db.transaction(STORE_NAME, "readwrite");
+                var store = tx.objectStore(STORE_NAME);
+                store.delete(key);
+                tx.oncomplete = function () { resolve(); };
+                tx.onerror = function (e) { reject(e); };
+            });
+        });
     }
 };
 
-// V15.2: Voltron Architecture - VinlandDB Wrapper
+// .2: Voltron Architecture - VinlandDB Wrapper
 export var VinlandDB = {
     collections: {
         TASKS: 'OPERATOR_TASKS_V2',
@@ -74,7 +85,7 @@ export var VinlandDB = {
     }
 };
 
-// V19.36: Per-note sharding for the NOTES vault.
+// .36: Per-note sharding for the NOTES vault.
 // Each note is stored under NOTE_PREFIX+id; NOTES_INDEX holds the ordered id list.
 // saveData() only writes notes whose serialized form changed (diff-cache) and removes
 // orphaned keys for deleted notes. Avoids re-serializing the entire vault on every save.
@@ -85,6 +96,19 @@ const NOTES_INDEX = 'OPERATOR_NOTES_INDEX';
 let noteCache = new Map();
 // ordered list of note ids currently on disk
 let noteIdList = [];
+// id -> last serialized canvasData (avoids redundant IndexedDB writes)
+let canvasCache = new Map();
+
+// ponytail: keep the big canvas payload out of localStorage. The per-note shard
+// stores only a marker; the real canvasData lives in IndexedDB (see saveData).
+const CANVAS_IDX_PREFIX = 'vinland_canvas_';
+
+function serializeNote(note) {
+    if (!note || !note.canvasData) return JSON.stringify(note);
+    var clone = Object.assign({}, note);
+    clone.canvasData = { _external: true };
+    return JSON.stringify(clone);
+}
 
 export function loadData() {
     State.TASKS = VinlandDB.load('TASKS');
@@ -111,6 +135,7 @@ export function loadData() {
 
     State.NOTES = [];
     noteCache = new Map();
+    canvasCache = new Map();
     noteIdList = [];
     var indexRaw = localStorage.getItem(NOTES_INDEX);
     if (indexRaw) {
@@ -153,6 +178,21 @@ export function loadData() {
         }
     }
 
+    // ponytail: hydrate canvasData from IndexedDB for notes whose shard only
+    // carries the {_external:true} marker. Fire-and-forget so loadData stays
+    // synchronous (the node unit-test path calls it without await; IndexedDB is
+    // absent there anyway). Known ceiling: a canvas opened in the same tick as
+    // boot may render before IDB resolves - local and fast enough to ignore.
+    if (typeof indexedDB !== 'undefined') {
+        State.NOTES.forEach(function (note) {
+            if (note && note.canvasData && note.canvasData._external === true) {
+                DB.get(CANVAS_IDX_PREFIX + note.id).then(function (real) {
+                    if (real) note.canvasData = real;
+                }).catch(function () { /* leave marker; canvas will show empty */ });
+            }
+        });
+    }
+
     var sessions = parseInt(localStorage.getItem(VinlandDB.collections.SESSIONS) || '0') + 1;
     localStorage.setItem(VinlandDB.collections.SESSIONS, sessions.toString());
     var sessionEl = document.getElementById('session-count');
@@ -172,10 +212,23 @@ export function saveData() {
     (State.NOTES || []).forEach(function (note) {
         if (!note || !note.id) return;
         var key = NOTE_PREFIX + note.id;
-        var serialized = JSON.stringify(note);
+        var serialized = serializeNote(note);
         if (noteCache.get(note.id) !== serialized) {
             localStorage.setItem(key, serialized);
             noteCache.set(note.id, serialized);
+        }
+        // ponytail: mirror real canvasData to IndexedDB, deduped via canvasCache
+        // so unchanged canvases skip the (heavier) IDB write. Skip empty canvases.
+        if (typeof indexedDB !== 'undefined' && note.canvasData && !note.canvasData._external) {
+            var hasCanvasContent = (note.canvasData.nodes && note.canvasData.nodes.length) ||
+                                   (note.canvasData.edges && note.canvasData.edges.length);
+            if (hasCanvasContent) {
+                var real = JSON.stringify(note.canvasData);
+                if (canvasCache.get(note.id) !== real) {
+                    DB.save(CANVAS_IDX_PREFIX + note.id, note.canvasData);
+                    canvasCache.set(note.id, real);
+                }
+            }
         }
     });
 
@@ -195,9 +248,17 @@ export function saveData() {
 export function saveAllNotes() {
     (State.NOTES || []).forEach(function (note) {
         if (!note || !note.id) return;
-        var serialized = JSON.stringify(note);
+        var serialized = serializeNote(note);
         localStorage.setItem(NOTE_PREFIX + note.id, serialized);
         noteCache.set(note.id, serialized);
+        if (typeof indexedDB !== 'undefined' && note.canvasData && !note.canvasData._external) {
+            var hasCanvasContent2 = (note.canvasData.nodes && note.canvasData.nodes.length) ||
+                                    (note.canvasData.edges && note.canvasData.edges.length);
+            if (hasCanvasContent2) {
+                canvasCache.set(note.id, JSON.stringify(note.canvasData));
+                DB.save(CANVAS_IDX_PREFIX + note.id, note.canvasData);
+            }
+        }
     });
     noteIdList = (State.NOTES || []).map(function (n) { return n.id; });
     localStorage.setItem(NOTES_INDEX, JSON.stringify(noteIdList));
@@ -207,8 +268,13 @@ export function saveAllNotes() {
 export function clearAllNotes() {
     noteIdList.forEach(function (id) {
         localStorage.removeItem(NOTE_PREFIX + id);
+        // ponytail: drop the offloaded canvas payload too, so IDB doesn't
+        // accumulate orphaned vinland_canvas_* entries. Guarded - the node
+        // unit-test env has no indexedDB.
+        if (typeof indexedDB !== 'undefined') DB.delete(CANVAS_IDX_PREFIX + id);
     });
     noteCache = new Map();
+    canvasCache = new Map();
     noteIdList = [];
     localStorage.removeItem(NOTES_INDEX);
 }

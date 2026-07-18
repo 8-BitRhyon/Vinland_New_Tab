@@ -12,7 +12,6 @@ export const ModalManager = {
             var modal = document.getElementById('confirm-modal');
             if (!modal) return;
             
-            // V103: Scoped Selectors for Safety
             var titleEl = modal.querySelector('#confirm-title') || document.getElementById('confirm-title');
             var msgEl = modal.querySelector('#confirm-msg') || document.getElementById('confirm-msg');
             
@@ -21,12 +20,10 @@ export const ModalManager = {
             
             if(msgEl) msgEl.innerText = msg;
             
-            // Container for buttons
             var actionsDiv = modal.querySelector('.modal-actions');
             if (!actionsDiv) return;
-            actionsDiv.innerHTML = ''; // Clear existing
+            actionsDiv.innerHTML = '';
             
-            // 1. CANCEL BUTTON (Always present)
             var btnCancel = document.createElement('button');
             btnCancel.className = 'btn';
             btnCancel.innerText = 'CANCEL';
@@ -36,10 +33,10 @@ export const ModalManager = {
             };
             actionsDiv.appendChild(btnCancel);
             
-            // 2. SECONDARY BUTTON (Optional: "DISCARD")
+            // SECONDARY BUTTON (Optional: "DISCARD")
             if (secondaryText) {
                 var btnSec = document.createElement('button');
-                btnSec.className = 'btn danger-btn'; // V103: Fixed class name from 'confirm-btn-danger' to global 'danger-btn'
+                btnSec.className = 'btn danger-btn';
                 btnSec.innerText = secondaryText;
                 btnSec.style.marginLeft = '10px';
                 btnSec.onclick = function() {
@@ -49,11 +46,11 @@ export const ModalManager = {
                 actionsDiv.appendChild(btnSec);
             }
             
-            // 3. PRIMARY BUTTON (SAVE/CONFIRM/DELETE)
+            // PRIMARY BUTTON (SAVE/CONFIRM/DELETE)
             var btnOk = document.createElement('button');
             btnOk.className = 'btn primary-btn';
             
-            // V103: If intent is destructive (delete), style appropriately
+            // If intent is destructive (delete), style appropriately
             if (title.toLowerCase().includes('remove') || title.toLowerCase().includes('delete')) {
                 btnOk.className = 'btn danger-btn';
             }
@@ -111,19 +108,27 @@ export const ModalManager = {
         const modal = document.getElementById(modalId);
         if (!modal) return;
         
-        // V62: UI Sound - Assuming playModalSound is global or imported later. 
-        // For now, checks if it exists globally to avoid errors during refactor.
         if (typeof playModalSound === 'function') playModalSound(); 
         
-        // 1. Show modal
         modal.classList.add('active');
-        modal.style.display = 'flex'; // Consistent with Vinland flex layout
+        modal.style.display = 'flex';
+
+        // a11y: dialog semantics + keyboard focus management
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        this._lastFocus = document.activeElement;
+        const exemptTrap = (modalId === 'note-editor-modal'); // editor owns Tab for indent
+        // Defer focus to avoid trusted-click interference: if open() is called
+        // while a keyboard event is still propagating (e.g. Enter from CLI),
+        // focusing a button in the dialog causes the browser to dispatch a
+        // click on it.  setTimeout(0) lets the current event finish first.
+        setTimeout(() => this._focusDialog(modal), 0);
+        if (!exemptTrap) this._installTrap(modal);
         
         // 2. Manage Z-Index stacking (V15.3+: Higher base to avoid CLI overlap)
         modal.style.zIndex = 21000 + this.stack.length; 
         
-        // V27: One Modal Policy - Close conflicting "Main" modals
-        // If opening a main modal (Settings/Manual/Graph), close others to prevent clutter.
+        // Other main modals close to prevent clutter.
         // Helper modals (Note Help/Confirm) are exempt and stack on top.
         const mainModals = ['config-modal', 'help-modal', 'graph-modal', 'history-modal'];
         if (mainModals.includes(modalId)) {
@@ -131,10 +136,8 @@ export const ModalManager = {
                 if (id !== modalId) {
                     const other = document.getElementById(id);
                     if (other && other.classList.contains('active')) {
-                        // Close without triggering full stack reset if possible, or just hide
                         other.classList.remove('active');
                         other.style.display = 'none';
-                        // Remove from stack if present
                         this.stack = this.stack.filter(item => item !== id);
                     }
                 }
@@ -153,7 +156,6 @@ export const ModalManager = {
 
     toggle: function(modalId) {
         var modal = document.getElementById(modalId);
-        // Check both stack and class for robustness
         if (this.stack.includes(modalId) || (modal && modal.classList.contains('active'))) {
             this.close(modalId);
         } else {
@@ -163,7 +165,6 @@ export const ModalManager = {
 
     closeTop: function(force) {
         if (this.stack.length === 0) {
-            // Command Input Cleanup as fallback (V15.3)
             var input = document.getElementById('cmd-input');
             if (input && (input.value || document.activeElement === input)) {
                 input.value = '';
@@ -176,10 +177,8 @@ export const ModalManager = {
 
         const modalId = this.stack[this.stack.length - 1];
         
-        // V15.3: Priority Safety Gates
         if (!force) {
             if (modalId === 'config-modal') {
-                // Settings modal - check for unsaved changes
                 if (typeof window.closeSettingsModal === 'function') {
                     window.closeSettingsModal(); 
                     return;
@@ -192,7 +191,7 @@ export const ModalManager = {
                 }
             }
             if (modalId === 'confirm-modal') {
-                // Close the confirm modal - if settings still has unsaved changes,
+                // Close the confirm modal; if settings still has unsaved changes,
                 // the next ESC will re-trigger the unsaved changes modal (recursive behavior)
                 console.log('[closeTop] Closing confirm-modal, stack before:', JSON.stringify(this.stack));
                 this.stack.pop();
@@ -200,8 +199,7 @@ export const ModalManager = {
                 var confirmModal = document.getElementById(modalId);
                 if (confirmModal) {
                     confirmModal.classList.remove('active');
-                    // Don't set inline display:none - CSS handles it via .active class
-                    confirmModal.style.display = ''; // Clear any inline display style
+                    confirmModal.style.display = '';
                 }
                 console.log('[closeTop] Confirm-modal hidden, returning');
                 return;
@@ -214,18 +212,16 @@ export const ModalManager = {
             }
         }
 
-        // Standard close logic
         this.stack.pop();
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('active');
             modal.style.display = 'none';
-            // V61: Force-reset maximized state and restore icons on close
-            // V85: Removed force-reset of maximized state (User Request: Absolute Throughput)
-            // State is now persisted via localStorage in NotesController.
+            this._removeTrap(modal);
         }
 
         if (this.stack.length === 0) {
+            this._restoreFocus();
             var overlay = document.getElementById('modal-overlay');
             if (overlay) overlay.classList.remove('active');
         }
@@ -235,26 +231,76 @@ export const ModalManager = {
         while(this.stack.length > 0) this.closeTop();
     },
 
-    // Global Init - Run this in init()
+    // a11y: move focus into the dialog (first focusable, else the dialog itself)
+    _focusDialog: function(modal) {
+        const focusable = this._focusable(modal);
+        if (focusable.length) {
+            try { focusable[0].focus(); } catch (e) {}
+        } else {
+            modal.setAttribute('tabindex', '-1');
+            try { modal.focus(); } catch (e) {}
+        }
+    },
+
+    _focusable: function(modal) {
+        return Array.prototype.slice.call(
+            modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]')
+        ).filter(function (el) {
+            return el.offsetParent !== null || el.getClientRects().length > 0;
+        });
+    },
+
+    // a11y: keep Tab focus inside the dialog (wrap first<->last)
+    _installTrap: function(modal) {
+        const self = this;
+        const handler = function (e) {
+            if (e.key !== 'Tab') return;
+            const f = self._focusable(modal);
+            if (!f.length) return;
+            const first = f[0];
+            const last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault(); last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault(); first.focus();
+            }
+        };
+        modal._trapHandler = handler;
+        modal.addEventListener('keydown', handler);
+    },
+
+    _removeTrap: function(modal) {
+        if (modal && modal._trapHandler) {
+            modal.removeEventListener('keydown', modal._trapHandler);
+            modal._trapHandler = null;
+        }
+    },
+
+    // a11y: return focus to the element that opened the dialog
+    _restoreFocus: function() {
+        if (this._lastFocus && typeof this._lastFocus.focus === 'function') {
+            try { this._lastFocus.focus(); } catch (e) {}
+        }
+        this._lastFocus = null;
+    },
+
     close: function(modalId) {
-        // If no ID provided, default to closeTop
         if (!modalId) {
             this.closeTop();
             return;
         }
 
-        // Remove from stack
         this.stack = this.stack.filter(id => id !== modalId);
         
-        // Hide element
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('active');
             modal.style.display = 'none';
+            this._removeTrap(modal);
         }
 
-        // Cleanup
         if (this.stack.length === 0) {
+            this._restoreFocus();
             var overlay = document.getElementById('modal-overlay');
             if (overlay) overlay.classList.remove('active');
         }
@@ -266,7 +312,6 @@ export const ModalManager = {
 
         this.initConfirmModal();
 
-        // Handle ESC Key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (this.stack.length > 0) {
@@ -277,7 +322,7 @@ export const ModalManager = {
             }
         });
 
-        // Handle Click Outside (The Overlay)
+        // Handle click outside (the overlay)
         var overlay = document.getElementById('modal-overlay');
         if (overlay) {
             overlay.addEventListener('click', (e) => {

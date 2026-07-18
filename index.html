@@ -14,6 +14,7 @@
       :root {
         --main-color: #00ff41;
         --secondary-color: #888888;
+        --bg-color: #000;
         --bg-overlay: rgba(0, 0, 0, 0.95);
         --danger-color: #ff0055;
         --warning-color: #ffb800;
@@ -25,7 +26,7 @@
         --dim-color: #555555;
         --board-color: #00d4ff;
 
-        /* V87: Knowledge Graph Cluster Palette */
+        /* Knowledge Graph Cluster Palette */
         --graph-col-1: #00ff41; /* Green (Main) */
         --graph-col-2: #00e5ff; /* Cyan */
         --graph-col-3: #ff0055; /* Red/Pink */
@@ -148,7 +149,7 @@
         font-family: var(--font-secondary);
       }
 
-      /* V89: Notion-Style Drag Handle */
+      /* Notion-Style Drag Handle */
       /* Position the handle absolutely in the left gutter */
       .block-wrapper {
           position: relative;
@@ -237,7 +238,7 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background-color: #000;
+        background-color: var(--bg-color, #000);
         font-family: "Space Mono", monospace;
         color: var(--main-color);
         transition: background-color 0.3s ease, color 0.3s ease;
@@ -309,11 +310,11 @@
         display: block;
       }
 
-      /* V3.9: Inline Link Popover */
+      /* .9: Inline Link Popover */
       #link-popover {
         position: fixed;
         display: none;
-        z-index: calc(var(--z-context-menu) + 2); /* V38: Higher than editor and slash-menu */
+        z-index: calc(var(--z-context-menu) + 2); /* Higher than editor and slash-menu */
         background: #111;
         border: 1px solid var(--main-color);
         padding: 12px;
@@ -352,7 +353,7 @@
       }
 
       #link-popover input {
-        background: #000;
+        background: var(--bg-color, #000);
         border: 1px solid #333;
         color: var(--main-color);
         padding: 10px;
@@ -463,12 +464,12 @@
         width: 24px;
         height: 24px;
         cursor: pointer;
-        z-index: 22000; /* V27: Forefront above settings (21000) but below alerts (30000) */
+        z-index: 22000; /* Forefront above settings (21000) but below alerts (30000) */
         opacity: 0.5;
         transition: all 0.3s;
         fill: var(--main-color);
         filter: drop-shadow(var(--text-shadow));
-        pointer-events: auto; /* V21: Ensure clickable over overlay */
+        pointer-events: auto; /* Ensure clickable over overlay */
       }
 
       #config-btn:hover {
@@ -485,7 +486,7 @@
         width: 24px;
         height: 24px;
         cursor: pointer;
-        z-index: 22000; /* V27: Forefront above settings (21000) but below alerts (30000) */
+        z-index: 22000; /* Forefront above settings (21000) but below alerts (30000) */
         opacity: 0.5;
         transition: all 0.3s;
         color: var(--main-color);
@@ -499,7 +500,7 @@
         filter: drop-shadow(var(--text-shadow));
         user-select: none;
         -webkit-user-select: none;
-        pointer-events: auto; /* V21: Ensure clickable over overlay */
+        pointer-events: auto; /* Ensure clickable over overlay */
       }
 
       #help-btn:hover {
@@ -546,7 +547,7 @@
         display: none;
         min-width: 140px;
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        color: var(--main-color); /* V102: Fix visibility */
+        color: var(--main-color); /* Fix visibility */
       }
 
       #weather-widget.active {
@@ -571,7 +572,7 @@
         opacity: 0.7;
       }
 
-      /* V63.4: Sidebar Active Tag Highlight */
+      /* .4: Sidebar Active Tag Highlight */
       .tag-item.active-tag,
       .tag.active-tag {
         color: var(--main-color);
@@ -646,7 +647,7 @@
         color: var(--main-color);
       }
       
-      /* V106: Canvas Container */
+      /* Canvas Container */
       #canvas-container {
         position: relative;
         width: 100%;
@@ -934,7 +935,7 @@
       .canvas-card-embed-body {
         width: 100%;
         height: calc(100% - 30px);
-        background: #000;
+        background: var(--bg-color, #000);
         position: relative;
       }
       .canvas-card-embed-body iframe {
@@ -1025,7 +1026,7 @@
         z-index: 10;
       }
 
-      /* V107: URL Smart Card Styles */
+      /* URL Smart Card Styles */
       .canvas-card-smart-body {
         flex: 1;
         width: 100%;
@@ -1252,24 +1253,24 @@
       .modal {
         display: none;
         position: fixed;
-        /* V19.18: Modern centering - fixes subpixel blur */
+        /* .18: Modern centering - fixes subpixel blur */
         inset: 0;
         margin: auto;
         width: 550px;
         max-width: 95vw;
-        max-height: 80vh; /* V15.7: Increased height for better visibility */
+        max-height: 80vh; /* .7: Increased height for better visibility */
         background: var(--bg-overlay);
         border: 1px solid var(--main-color);
         padding: 0;
-        z-index: var(--z-modal-base); /* V15.3: Sync with ModalManager base */
+        z-index: var(--z-modal-base); /* .3: Sync with ModalManager base */
         box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
         text-align: left;
-        overflow: hidden; /* V15.7: Parent should not scroll, children should */
+        overflow: hidden; /* .7: Parent should not scroll, children should */
         color: #ccc;
         flex-direction: column;
       }
 
-      /* V18.7: Modal overlay backdrop with blur */
+      /* .7: Modal overlay backdrop with blur */
       .modal-overlay {
         display: none;
         position: fixed;
@@ -1292,7 +1293,7 @@
         z-index: calc(var(--z-modal-base) + 1);
       }
 
-      /* V15.8: Highly visible scrollbars for accessibility */
+      /* .8: Highly visible scrollbars for accessibility */
       .modal-body::-webkit-scrollbar,
       .note-preview::-webkit-scrollbar,
       .notes-sidebar::-webkit-scrollbar,
@@ -1342,10 +1343,10 @@
         margin-bottom: 15px;
       }
 
-      /* V19.25: Global textarea resizer styling */
+      /* .25: Global textarea resizer styling */
       textarea::-webkit-resizer {
-        background-color: #000;
-        border: 1px solid #000;
+        background-color: var(--bg-color, #000);
+        border: 1px solid var(--bg-color, #000);
         background-image: radial-gradient(
           circle,
           var(--main-color) 1px,
@@ -1367,9 +1368,9 @@
         justify-content: space-between;
         align-items: center;
         flex-shrink: 0;
-        /* V19.5: Never shrink */
+        /* .5: Never shrink */
         height: 60px;
-        /* V19.5: Fixed height */
+        /* .5: Fixed height */
         position: sticky;
         top: 0;
         width: 100%;
@@ -1403,7 +1404,7 @@
         background: #fff;
       }
 
-      /* V19.30: Header Update Theme button */
+      /* .30: Header Update Theme button */
       #header-update-btn {
         background: transparent;
         color: var(--main-color);
@@ -1427,12 +1428,12 @@
       }
 
       .close-modal {
-        position: relative; /* V70: Flexbox alignment */
+        position: relative; /* Flexbox alignment */
         /* Removed absolute pos top/right */
         cursor: pointer;
         color: var(--secondary-color);
         transition: all 0.2s;
-        /* V69: Square Design matching image-delete-btn */
+        /* Square Design matching image-delete-btn */
         width: 30px;
         height: 30px;
         border: 1px solid var(--dim-color);
@@ -1443,10 +1444,10 @@
         font-family: var(--font-main);
         font-size: 0.9rem;
         z-index: 10;
-        margin-left: 15px; /* V70: Spacing from content */
+        margin-left: 15px; /* Spacing from content */
       }
 
-      /* V67: Preview Mode Styles */
+      /* Preview Mode Styles */
       .note-preview blockquote {
         border-left: 4px solid var(--main-color);
         margin-left: 0;
@@ -1465,7 +1466,7 @@
         color: var(--main-color);
       }
 
-      /* V89: Fix for Preview Checkbox Alignment */
+      /* Fix for Preview Checkbox Alignment */
       .block-task-preview {
         display: flex;
         align-items: flex-start;
@@ -1473,7 +1474,7 @@
         margin-bottom: 5px;
       }
 
-      /* V68: Preview Alignment Support for Flex Items */
+      /* Preview Alignment Support for Flex Items */
       .note-preview .preview-bullet.align-center,
       .note-preview .block-task-preview.align-center {
         justify-content: center;
@@ -1485,7 +1486,7 @@
         text-align: right;
       }
 
-      /* V71: Calculator Preview Styles */
+      /* Calculator Preview Styles */
       .calc-preview {
         background: rgba(0, 0, 0, 0.3);
         border: 1px solid #333;
@@ -1517,14 +1518,14 @@
         background: rgba(255, 68, 68, 0.1);
       }
 
-      /* V18.13: BIOS-Style Settings Layout */
-      /* V19.19: Base modal sizing only */
+      /* .13: BIOS-Style Settings Layout */
+      /* .19: Base modal sizing only */
       #config-modal {
         width: 800px;
         max-width: 95vw;
       }
 
-      /* V19.19: Active state controls layout and scrolling */
+      /* .19: Active state controls layout and scrolling */
       #config-modal.active {
         display: flex !important;
         flex-direction: column;
@@ -1535,7 +1536,7 @@
 
       .config-header {
         flex: 0 0 auto;
-        /* V19.8: Do not grow, do not shrink */
+        /* .8: Do not grow, do not shrink */
       }
 
       .config-body {
@@ -1544,19 +1545,19 @@
         flex: 1;
         /* Consume ALL available vertical space */
         min-height: 0;
-        /* V19.16: Removed overflow: hidden - was blocking .config-content scroll */
+        /* .16: Removed overflow: hidden - was blocking .config-content scroll */
       }
 
       .config-sidebar {
         width: 200px;
         min-width: 200px;
         background: #050505;
-        /* V19.11: Dark to visualize full height */
+        /* .11: Dark to visualize full height */
         border-right: 1px solid #333;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
-        /* V19.11: Independent scroll */
+        /* .11: Independent scroll */
       }
 
       .config-search {
@@ -1617,7 +1618,7 @@
       }
 
       .config-content {
-        /* V19.15: Force height constraint for scroll */
+        /* .15: Force height constraint for scroll */
         flex: 1;
         height: 100%;
         /* Forces constraint to parent */
@@ -1629,7 +1630,7 @@
         background: #0d0d0d;
       }
 
-      /* V15.3+: Standardized Modal Scrollbars */
+      /* .3+: Standardized Modal Scrollbars */
       .config-content::-webkit-scrollbar,
       .config-nav::-webkit-scrollbar {
         width: 8px;
@@ -1669,10 +1670,10 @@
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        /* V19.3: Align buttons */
+        /* .3: Align buttons */
         gap: 10px;
         position: relative;
-        /* V19.2.2: Ensure visibility */
+        /* .2.2: Ensure visibility */
         z-index: 50;
       }
 
@@ -1762,7 +1763,7 @@
 
       .config-group,
       .config-row {
-        /* V19.15: Unified 20px padding */
+        /* .15: Unified 20px padding */
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1779,7 +1780,7 @@
         margin-bottom: 0;
         /* Override old margin */
         flex-shrink: 0;
-        /* V19.7: Prevent text squishing */
+        /* .7: Prevent text squishing */
       }
 
       .config-hint {
@@ -1789,8 +1790,8 @@
       }
 
       .config-input {
-        /* V19.9: Terminal Uniformity */
-        background-color: #000;
+        /* .9: Terminal Uniformity */
+        background-color: var(--bg-color, #000);
         color: var(--main-color);
         border: 1px solid #333;
         font-family: "Space Mono", monospace;
@@ -1825,6 +1826,88 @@
 
       .config-input:focus {
         border-color: var(--main-color);
+      }
+
+      /* .39: Background thumbnail grid */
+      .bg-thumbnail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+        min-height: 60px;
+      }
+      .bg-thumbnail-grid:empty::after {
+        content: 'No media assets. Upload files or paste URLs above.';
+        grid-column: 1 / -1;
+        font-size: 0.75rem;
+        color: #555;
+        font-family: var(--font-secondary);
+        padding: 16px 0;
+        text-align: center;
+      }
+      .bg-thumb-card {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        border: 1px solid #333;
+        border-radius: 3px;
+        overflow: hidden;
+        cursor: pointer;
+        background: #0a0a0a;
+        transition: border-color 0.15s, opacity 0.3s;
+      }
+      .bg-thumb-card:hover {
+        border-color: var(--main-color);
+      }
+      .bg-thumb-card.active {
+        border-color: var(--main-color);
+        box-shadow: 0 0 8px rgba(var(--main-color-rgb), 0.4);
+      }
+      .bg-thumb-card img,
+      .bg-thumb-card video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .bg-thumb-card .thumb-delete {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.7);
+        color: #ff4444;
+        border: none;
+        border-radius: 2px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s;
+        line-height: 1;
+        padding: 0;
+      }
+      .bg-thumb-card:hover .thumb-delete {
+        opacity: 1;
+      }
+      .bg-thumb-card .thumb-delete:hover {
+        background: rgba(255,0,0,0.5);
+      }
+      .bg-thumb-card .thumb-label {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 2px 4px;
+        font-size: 0.55rem;
+        font-family: var(--font-secondary);
+        color: #aaa;
+        background: rgba(0,0,0,0.6);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .config-input::placeholder {
@@ -1986,7 +2069,7 @@
 
       input:checked + .slider:before {
         transform: translateX(22px);
-        background-color: #000;
+        background-color: var(--bg-color, #000);
       }
 
       /* DOCK EDITOR */
@@ -2003,7 +2086,7 @@
         align-items: center;
         padding: 8px;
         border-bottom: 1px solid #1a1a1a;
-        background: #0a0a0a;
+        background: var(--bg-color, #0a0a0a);
       }
 
       .dock-item:hover {
@@ -2138,7 +2221,7 @@
         color: #000;
       }
 
-      /* V102: ZEN MODE */
+      /* ZEN MODE */
       body.zen-mode #status-bar,
       body.zen-mode #weather-widget,
       body.zen-mode #config-btn,
@@ -2442,7 +2525,7 @@
         width: fit-content;
         max-width: 90vw;
         min-width: 320px;
-        z-index: var(--z-toast) !important; /* V28: STRICT HIERARCHY - TOP */
+        z-index: var(--z-toast) !important; /* STRICT HIERARCHY - TOP */
         max-height: fit-content;
         overflow-y: auto;
         backdrop-filter: blur(10px);
@@ -2469,7 +2552,7 @@
       #theme-modal {
         width: 480px;
         overflow-y: auto;
-        /* V19.24 */
+        /* .24 */
         max-height: fit-content;
       }
 
@@ -2505,7 +2588,7 @@
 
       /* GRAPH VIEW STYLES */
       .graph-modal {
-        /* V28: Removed legacy z-index: 10005. Handled by ModalManager (21000+) */
+        /* Removed legacy z-index: 10005. Handled by ModalManager (21000+) */
         border: 1px solid var(--main-color);
         box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
         backdrop-filter: blur(15px);
@@ -2513,7 +2596,7 @@
         background: rgba(5, 5, 8, 0.95) !important;
       }
 
-      /* V87: Graph Mode Toggle Button */
+      /* Graph Mode Toggle Button */
       .graph-mode-toggle {
         background: transparent;
         border: 1px solid var(--main-color);
@@ -2536,7 +2619,7 @@
         font-weight: bold;
       }
 
-      /* V87: Active node pulse animation */
+      /* Active node pulse animation */
       @keyframes graphNodePulse {
         0%,
         100% {
@@ -2550,8 +2633,8 @@
         animation: graphNodePulse 2s ease-in-out infinite;
       }
 
-      /* V3.9: Maximized Note Editor */
-      /* V30: True Full Screen Maximize */
+      /* .9: Maximized Note Editor */
+      /* True Full Screen Maximize */
       .note-editor-modal.maximized {
         width: 100vw !important;
         height: 100vh !important;
@@ -2567,10 +2650,10 @@
         z-index: var(--z-modal-maximized) !important; /* Force top layer */
       }
 
-      /* V15.1: Ensure child modals overlap maximized editor */
-      /* V28: Sanitation - Cleaned up old overrides */
+      /* .1: Ensure child modals overlap maximized editor */
+      /* Sanitation - Cleaned up old overrides */
 
-      /* V58: Z-index hierarchy for modals */
+      /* Z-index hierarchy for modals */
       /* Level 1: Standard modals (21000) */
       /* Level 2: Notes modal maximized (25000) */
       /* Level 3: Child modals over maximized (26000) */
@@ -2584,7 +2667,7 @@
         z-index: var(--z-modal-child) !important;
       }
 
-      /* V61: Clean maximized footer alignment using container pseudo-element */
+      /* Clean maximized footer alignment using container pseudo-element */
       .note-editor-modal.maximized .notes-container {
         height: calc(100% - 60px);
         padding-bottom: 0;
@@ -2607,7 +2690,7 @@
       .note-editor-modal.maximized .block-editor,
       .note-editor-modal.maximized .note-preview {
         flex: 1;
-        /* V63.4: REMOVED display:flex - let JS control visibility via style.display */
+        /* .4: REMOVED display:flex - let JS control visibility via style.display */
         flex-direction: column;
         height: auto !important; /* Allow flex to take over when visible */
         overflow-y: auto;
@@ -2622,7 +2705,7 @@
         border-right: none !important;
       }
 
-      /* V15.1: Block Divider Styles */
+      /* .1: Block Divider Styles */
       .block-divider {
         border: none;
         border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -2633,7 +2716,7 @@
       .note-help-modal {
         max-width: 450px !important;
         height: fit-content !important;
-        z-index: var(--z-context-menu) !important; /* V36: Higher than Editor */
+        z-index: var(--z-context-menu) !important; /* Higher than Editor */
       }
 
       .graph-node {
@@ -2650,7 +2733,7 @@
       }
 
       .graph-link {
-        /* V60: Use theme secondary color for links */
+        /* Use theme secondary color for links */
         stroke: var(--secondary-color, #ff00ff);
         stroke-opacity: 0.5;
         stroke-width: 1.5px;
@@ -2702,7 +2785,7 @@
 
       .folder-modal-footer {
         display: flex;
-        justify-content: center; /* V63.4: Center the buttons */
+        justify-content: center; /* .4: Center the buttons */
         gap: 10px;
         padding: 15px 25px;
         background: rgba(0, 0, 0, 0.3);
@@ -2737,7 +2820,7 @@
         min-height: 120px;
         margin-top: 10px;
         font-family: "Space Mono", monospace;
-        /* V19.24 */
+        /* .24 */
         width: 100%;
         box-sizing: border-box;
         max-height: 400px;
@@ -2928,7 +3011,7 @@
         outline: 1px dashed var(--main-color);
       }
 
-      /* V65: Boards Section Styling */
+      /* Boards Section Styling */
       .tree-boards-section {
         margin-top: 20px;
         border-top: 1px solid rgba(0, 204, 255, 0.2);
@@ -3126,7 +3209,7 @@
         top: 100%;
         left: 0;
         width: 100%;
-        background: #000;
+        background: var(--bg-color, #000);
         border: 1px solid var(--main-color);
         border-top: none;
         max-height: 300px;
@@ -3168,7 +3251,7 @@
         background: rgba(0, 0, 0, 0.2);
       }
 
-      /* V114: Dataview Query Block Elements */
+      /* Dataview Query Block Elements */
       .block-query-container {
         border: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
         background: rgba(0, 0, 0, 0.2);
@@ -3214,7 +3297,7 @@
         text-decoration: underline;
       }
 
-      /* V18.5: Notes Panel (Quick Access) */
+      /* .5: Notes Panel (Quick Access) */
       #notes-panel {
         position: absolute;
         bottom: 90px;
@@ -3224,10 +3307,10 @@
         max-width: 280px;
         min-width: 200px;
         max-height: 40vh;
-        /* V18.4: Reduced to prevent overlap */
+        /* .4: Reduced to prevent overlap */
         overflow-y: auto;
         overflow-x: hidden;
-        /* V19.34: Prevent horizontal scroll */
+        /* .34: Prevent horizontal scroll */
         background: rgba(0, 0, 0, 0.9);
         border: none;
         border-radius: 8px;
@@ -3240,7 +3323,7 @@
         display: none;
       }
 
-      /* V19.34: Fix Text Overflow */
+      /* .34: Fix Text Overflow */
       #notes-list {
         word-break: break-word;
         overflow-wrap: break-word;
@@ -3332,7 +3415,7 @@
         max-width: 280px;
         min-width: 200px;
         max-height: 30vh;
-        /* V18.4: Reduced to prevent clock obstruction */
+        /* .4: Reduced to prevent clock obstruction */
         overflow-y: auto;
         background: rgba(0, 0, 0, 0.9);
         border: 1px solid #333;
@@ -3410,7 +3493,7 @@
         font-weight: bold;
       }
 
-      /* V18.0: Priority Indicators */
+      /* .0: Priority Indicators */
       .priority-indicator {
         font-weight: bold;
         margin-right: 2px;
@@ -3430,7 +3513,7 @@
         opacity: 0.7;
       }
 
-      /* V18.0: Category Badge */
+      /* .0: Category Badge */
       .category-badge {
         font-size: 0.6rem;
         background: rgba(255, 255, 255, 0.1);
@@ -3440,7 +3523,7 @@
         border-radius: 3px;
       }
 
-      /* V18.0: Progress Bar */
+      /* .0: Progress Bar */
       .progress-container {
         width: 100%;
         max-width: 300px;
@@ -3470,7 +3553,7 @@
         letter-spacing: 1px;
       }
 
-      /* V18.0: Streak Counter */
+      /* .0: Streak Counter */
       .streak-container {
         display: inline-flex;
         align-items: center;
@@ -3523,7 +3606,7 @@
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
         text-align: left;
         z-index: var(--z-search);
-        /* V18.9: Increased to be just below overlays */
+        /* .9: Increased to be just below overlays */
         display: none;
       }
 
@@ -4065,7 +4148,7 @@
           min-width 0.2s ease;
       }
 
-      /* V57: Sidebar collapsed state */
+      /* Sidebar collapsed state */
       .notes-sidebar.collapsed {
         width: 0;
         min-width: 0;
@@ -4090,7 +4173,7 @@
         font-size: 0.65rem;
         border-radius: 2px;
         height: 26px;
-        /* V3.9: Thinner profile */
+        /* .9: Thinner profile */
         letter-spacing: 1px;
         transition: all 0.2s ease;
       }
@@ -4233,7 +4316,7 @@
         transform: rotate(-90deg);
       }
 
-      /* V61: Prevent layout shifts between modes */
+      /* Prevent layout shifts between modes */
       .block-editor,
       .note-preview {
         scrollbar-gutter: stable;
@@ -4387,7 +4470,7 @@
         /* Critical for flex shrinking */
       }
 
-      /* V63.2: Tab Bar */
+      /* .2: Tab Bar */
       .editor-tab-bar {
         display: flex;
         align-items: center;
@@ -4442,7 +4525,7 @@
         font-family: var(--font-primary);
         cursor: pointer;
         transition: all 0.15s;
-        width: 140px; /* V63.5: Fixed width for consistent UI */
+        width: 140px; /* .5: Fixed width for consistent UI */
         flex-shrink: 0;
       }
 
@@ -4495,7 +4578,7 @@
         color: var(--main-color);
       }
 
-      /* V63.2: Slimmer Header */
+      /* .2: Slimmer Header */
       .editor-header {
         padding: 8px 16px;
         border-bottom: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
@@ -4521,13 +4604,13 @@
         white-space: nowrap;
       }
 
-      /* V63.2: Page Actions Menu */
+      /* .2: Page Actions Menu */
       .page-actions-trigger {
         font-size: 0.9rem;
         letter-spacing: 1px;
       }
 
-      /* V63.2 FIX: Position relative on editor-header-right for menu anchoring */
+      /* .2 FIX: Position relative on editor-header-right for menu anchoring */
       .editor-header-right {
         position: relative;
       }
@@ -4608,7 +4691,7 @@
         margin: 4px 0;
       }
 
-      /* V63.2: Page Actions Footer */
+      /* .2: Page Actions Footer */
       .page-actions-footer {
         padding: 10px 12px;
         border-top: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.1);
@@ -4618,7 +4701,7 @@
         justify-content: space-between;
       }
 
-      /* V63.2: Tags Bar (replaces footer) */
+      /* .2: Tags Bar (replaces footer) */
       .editor-tags-bar {
         padding: 6px 16px;
         min-height: 28px;
@@ -4628,7 +4711,7 @@
         border: none;
       }
 
-      /* V63.2: Editable Path Input - V65 widened */
+      /* .2: Editable Path Input - V65 widened */
       .note-path-input {
         background: transparent;
         border: none;
@@ -4646,7 +4729,7 @@
         border-bottom: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
       }
 
-      /* V65: Title uses flex to share space with path input */
+      /* Title uses flex to share space with path input */
       #active-note-title {
         background: transparent;
         border: none;
@@ -4711,7 +4794,7 @@
         line-height: 1.8;
       }
 
-      /* V63.4: Weather Loading Animation */
+      /* .4: Weather Loading Animation */
       @keyframes weatherPulse {
         0% {
           opacity: 0.5;
@@ -4740,12 +4823,12 @@
         display: none;
         flex: 1;
         width: 100%;
-        padding: 20px 52px; /* V63.4: Aligned with Block Editor (24px + 28px) */
+        padding: 20px 52px; /* .4: Aligned with Block Editor (24px + 28px) */
         overflow-y: auto;
         color: #ccc;
         font-family: var(--font-secondary);
         font-size: 1rem;
-        line-height: 1.4; /* V63: Slightly tighter than 1.6 */
+        line-height: 1.4; /* Slightly tighter than 1.6 */
       }
 
       .note-preview.active {
@@ -4756,13 +4839,13 @@
       .note-preview h2,
       .note-preview h3 {
         color: var(--main-color);
-        margin: 0 0 6px 0; /* V82: Match Editor .block-wrapper margin */
+        margin: 0 0 6px 0; /* Match Editor .block-wrapper margin */
         padding: 0;
         font-weight: bold;
         line-height: 1.2;
       }
 
-      /* V82: Strict Parity with Editor (6px Spacing) */
+      /* Strict Parity with Editor (6px Spacing) */
       .note-preview p {
         margin: 0 0 6px 0;
         line-height: 1.5;
@@ -4775,15 +4858,15 @@
       }
 
       .note-preview h1 {
-        font-size: 1.8rem; /* V50: Match .block-h1 */
+        font-size: 1.8rem; /* Match .block-h1 */
       }
 
       .note-preview h2 {
-        font-size: 1.4rem; /* V50: Match .block-h2 */
+        font-size: 1.4rem; /* Match .block-h2 */
       }
 
       .note-preview h3 {
-        font-size: 1.1rem; /* V50: Match .block-h3 */
+        font-size: 1.1rem; /* Match .block-h3 */
       }
 
       .note-preview code {
@@ -4817,7 +4900,7 @@
         color: #000;
       }
 
-      /* V63.6: Markdown Table Styles (Preview Mode) */
+      /* .6: Markdown Table Styles (Preview Mode) */
       .markdown-table {
         width: 100%;
         border-collapse: collapse;
@@ -4848,7 +4931,7 @@
         background: rgba(255, 255, 255, 0.02);
       }
 
-      /* V64: WYSIWYG Table Editor Styles */
+      /* WYSIWYG Table Editor Styles */
       .block-table {
         position: relative;
         margin: 15px 0;
@@ -5084,7 +5167,7 @@
         background: rgba(244, 68, 68, 0.1);
       }
 
-      /* V63.6: Preview Image Styles */
+      /* .6: Preview Image Styles */
       .preview-image-container {
         margin: 15px 0;
         text-align: center;
@@ -5220,7 +5303,7 @@
           max-width: none;
           transform: none;
           max-height: 15vh;
-          /* V18.5: Further reduced */
+          /* .5: Further reduced */
           overflow-y: auto;
           font-size: 0.7rem;
           z-index: 100 !important;
@@ -5242,7 +5325,7 @@
           word-break: break-word;
         }
 
-        /* V18.7: Notes panel matches Tasks panel styling */
+        /* .7: Notes panel matches Tasks panel styling */
         #notes-panel {
           position: fixed;
           bottom: 60px;
@@ -5298,7 +5381,7 @@
           bottom: auto;
           /* Override previous bottom: 200px */
           max-height: 15vh;
-          /* V18.8: Strict height limit to avoid clock */
+          /* .8: Strict height limit to avoid clock */
         }
 
         #mission-log::-webkit-scrollbar {
@@ -5306,10 +5389,10 @@
           /* Force scrollbar */
         }
 
-        /* V18.7: Notes panel matches Tasks panel in very narrow viewport */
+        /* .7: Notes panel matches Tasks panel in very narrow viewport */
         #notes-panel {
           bottom: 85px;
-          /* V18.8: Raised higher to clear shortcut hint + dock */
+          /* .8: Raised higher to clear shortcut hint + dock */
           left: 10px;
           right: 10px;
           width: auto;
@@ -5345,7 +5428,7 @@
           max-width: 200px;
         }
 
-        /* V18.6: Responsive modals for narrow viewports */
+        /* .6: Responsive modals for narrow viewports */
         .modal {
           width: 95vw;
           max-height: 85vh;
@@ -5371,18 +5454,18 @@
            PHASE 3: BLOCK EDITOR STYLES
            ========================================= */
       .block-editor {
-        flex: 1; /* V48: Match note-preview layout */
-        padding: 20px 52px; /* V69: Updated per user request */
-        min-height: 100px; /* V44: Reduced from 300px */
+        flex: 1; /* Match note-preview layout */
+        padding: 20px 52px; /* Updated per user request */
+        min-height: 100px; /* Reduced from 300px */
         outline: none;
         font-family: var(--font-secondary);
         overflow-y: auto;
-        position: relative; /* V65: Required for selection box positioning */
+        position: relative; /* Required for selection box positioning */
         overflow-y: auto;
-        position: relative; /* V65: Required for selection box positioning */
+        position: relative; /* Required for selection box positioning */
       }
 
-      /* V44: Task text sizing in Editor mode */
+      /* Task text sizing in Editor mode */
       .task-text {
         font-size: 1rem;
         flex: 1;
@@ -5396,7 +5479,7 @@
         pointer-events: none;
       }
 
-      /* V78: FLEXBOX ALIGNMENT SYSTEM (Strict Preview Match) */
+      /* FLEXBOX ALIGNMENT SYSTEM (Strict Preview Match) */
 
       /* 1. The Wrapper is a Row */
       .block-wrapper {
@@ -5413,7 +5496,7 @@
 
 
 
-      /* 2. Drag Handle — fades in on hover */
+      /* Drag Handle: fades in on hover */
       .block-drag-handle {
         position: absolute;
         left: 4px;
@@ -5459,7 +5542,7 @@
         border-left: 2px solid var(--main-color);
       }
 
-      /* V88: Flash on Reorder / Type Change */
+      /* Flash on Reorder / Type Change */
       @keyframes blockFlash {
         0% {
           background: rgba(255, 215, 0, 0.15);
@@ -5485,7 +5568,7 @@
         width: 100%; /* Default: span full width */
         outline: none;
         color: #ddd;
-        word-wrap: break-word; /* V49: Force wrap for long lines */
+        word-wrap: break-word; /* Force wrap for long lines */
         overflow-wrap: break-word;
         white-space: pre-wrap;
         min-height: 1.2rem;
@@ -5493,7 +5576,7 @@
         text-align: left;
       }
 
-      /* V108: Explicitly reset/standardize Typography tags to prevent User-Agent margin bloat */
+      /* Explicitly reset/standardize Typography tags to prevent User-Agent margin bloat */
       .block-h1, .block-h2, .block-h3 {
         color: var(--main-color);
         margin: 0; /* Wrapper handles the 6px margin-bottom */
@@ -5558,7 +5641,7 @@
       /* Bullet Styles */
       .block-wrapper[data-block-type="bullet"] .block-content {
         position: relative;
-        margin-left: 24px; /* V107: Push content right to prevent bullet overlapping Drag Handle */
+        margin-left: 24px; /* Push content right to prevent bullet overlapping Drag Handle */
       }
       .block-wrapper[data-block-type="bullet"] .block-content::before {
         content: "\2022";
@@ -5573,7 +5656,7 @@
 
       .block-wrapper[data-block-type="numbered"] .block-content {
         position: relative;
-        margin-left: 24px; /* V107: Push content right to prevent number overlapping Drag Handle */
+        margin-left: 24px; /* Push content right to prevent number overlapping Drag Handle */
       }
       /* Only show number if data-number is present on wrapper */
       .block-wrapper[data-block-type="numbered"][data-number]
@@ -5665,12 +5748,12 @@
         position: relative;
         margin: 10px 0;
         overflow-x: auto;
-        white-space: pre-wrap; /* V46: Preserve line breaks */
+        white-space: pre-wrap; /* Preserve line breaks */
         line-height: 1.5;
         color: #ddd;
       }
 
-      /* V49: Override .note-preview code for code block contents */
+      /* Override .note-preview code for code block contents */
       .block-code code,
       .block-code .code-inner {
         background: transparent;
@@ -5696,23 +5779,23 @@
 
       .block-divider {
         border: none;
-        border-top: 1px dashed #666; /* V90: Brightened for visibility */
+        border-top: 1px dashed #666; /* Brightened for visibility */
         margin: 24px 0;
         flex: 1;
-        width: auto; /* V91: Let flex handle width so button sits next to it */
+        width: auto; /* Let flex handle width so button sits next to it */
       }
 
-      /* V43: Divider wrapper and delete button */
+      /* Divider wrapper and delete button */
       .block-divider-wrapper {
         display: flex;
         align-items: center;
         gap: 10px;
         position: relative;
-        flex: 1; /* V90: Allow wrapper to expand in parent flex container */
-        width: 100%; /* V90: Force full width */
+        flex: 1; /* Allow wrapper to expand in parent flex container */
+        width: 100%; /* Force full width */
       }
       .divider-delete-btn {
-        position: relative; /* V91: No longer absolute */
+        position: relative; /* No longer absolute */
         background: transparent;
         border: 1px solid var(--dim-color);
         color: var(--dim-color);
@@ -5730,7 +5813,7 @@
         color: #f44;
       }
 
-      /* V63.6: Image block and delete button (matches Divider edge-alignment to avoid overlap) */
+      /* .6: Image block and delete button (matches Divider edge-alignment to avoid overlap) */
       .block-image {
         position: relative;
         margin: 20px 0;
@@ -5765,7 +5848,7 @@
         background: rgba(244, 68, 68, 0.1);
         transform: translateY(-50%) scale(1.1);
       }
-      /* V63.6: Image caption - single line only */
+      /* .6: Image caption - single line only */
       .image-caption {
         display: block;
         text-align: center;
@@ -5778,7 +5861,7 @@
         text-overflow: ellipsis;
       }
 
-      /* V43: Code block inner element for focus */
+      /* Code block inner element for focus */
       .code-inner {
         display: block;
         width: 100%;
@@ -5818,12 +5901,12 @@
         color: #aaa;
       }
 
-      /* V65: Pipeline HUD Pivot Design - Compacted */
+      /* Pipeline HUD Pivot Design - Compacted */
       .block-kanban-ref {
         font-family: var(--font-primary) !important;
         background: rgba(0, 204, 255, 0.02) !important;
         border: 1px solid rgba(0, 204, 255, 0.1) !important;
-        padding: 8px 12px !important; /* V65: tighter padding */
+        padding: 8px 12px !important; /* tighter padding */
         position: relative;
         transition: all 0.2s;
       }
@@ -5837,7 +5920,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 8px; /* V65: tighter margin */
+        margin-bottom: 8px; /* tighter margin */
       }
 
       .kanban-embed-icon {
@@ -5852,11 +5935,11 @@
         font-weight: bold;
       }
 
-      /* V65: Pipeline HUD Active Column List */
+      /* Pipeline HUD Active Column List */
       .kanban-hud-pipeline {
         list-style: none;
         padding: 0;
-        margin: 4px 0 8px 0; /* V65: tighter margin */
+        margin: 4px 0 8px 0; /* tighter margin */
         border-left: 1px dashed rgba(0, 204, 255, 0.3);
         padding-left: 12px;
       }
@@ -5886,7 +5969,7 @@
         font-size: 0.6rem;
       }
 
-      /* V65: Quick Injection Bar */
+      /* Quick Injection Bar */
       .kanban-hud-input-wrap {
         display: flex;
         align-items: center;
@@ -5911,12 +5994,12 @@
         color: #444;
       }
 
-      /* V65: Segmented Progress Bar */
+      /* Segmented Progress Bar */
       .kanban-hud-telemetry {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-top: 8px; /* V65: tighter margin */
+        margin-top: 8px; /* tighter margin */
         font-size: 0.6rem;
         color: #555;
       }
@@ -5940,7 +6023,7 @@
         box-shadow: 0 0 5px rgba(0, 204, 255, 0.5);
       }
 
-      /* V65: Persistence UI Styles */
+      /* Persistence UI Styles */
       .kanban-setup-container {
         display: flex;
         align-items: center;
@@ -5981,7 +6064,7 @@
         color: #f55;
       }
 
-      /* V66: Vim-Ban Focus Styles */
+      /* Vim-Ban Focus Styles */
       .kanban-card.focused {
         border-color: var(--main-color) !important;
         background: rgba(0, 204, 255, 0.1) !important;
@@ -5994,7 +6077,7 @@
         opacity: 0.8;
         transform: scale(var(--press-scale));
       }
-      /* V66: Ghost Navigation */
+      /* Ghost Navigation */
       .kanban-card.ghost {
         opacity: 0.5;
         background: rgba(255, 255, 255, 0.05) !important;
@@ -6005,7 +6088,7 @@
         filter: grayscale(1);
       }
 
-      /* V66.1: COMPACT HUD STYLES (Stealth Mode) */
+      /* .1: COMPACT HUD STYLES (Stealth Mode) */
       .kanban-hud-wrapper {
         background: rgba(10, 10, 12, 0.6);
         border: 1px solid #333;
@@ -6153,7 +6236,7 @@
       .slash-menu {
         position: fixed;
         display: none;
-        z-index: calc(var(--z-context-menu) + 1); /* V37: Higher than editor */
+        z-index: calc(var(--z-context-menu) + 1); /* Higher than editor */
         background: #080808;
         border: 1px solid #1a1a1a;
         border-radius: 6px;
@@ -6163,7 +6246,7 @@
         overflow-y: auto;
         padding: 6px 0;
         font-family: var(--font-secondary);
-        /* V40: Themed scrollbar */
+        /* Themed scrollbar */
         scrollbar-width: thin;
         scrollbar-color: var(--main-color) transparent;
       }
@@ -6366,7 +6449,7 @@
         display: flex;
         gap: 20px;
         overflow-x: auto;
-        /* V41: Themed scrollbar */
+        /* Themed scrollbar */
         scrollbar-width: thin;
         scrollbar-color: var(--main-color) transparent;
       }
@@ -6415,7 +6498,7 @@
         gap: 10px;
       }
 
-      /* V65: Enhanced Kanban Card with Delete */
+      /* Enhanced Kanban Card with Delete */
       .kanban-card {
         position: relative;
         background: rgba(255, 255, 255, 0.03);
@@ -6465,7 +6548,7 @@
         color: #f55;
       }
 
-      /* V65: Card Edit Textarea */
+      /* Card Edit Textarea */
       .kanban-card-edit {
         width: 100%;
         background: rgba(0, 0, 0, 0.3);
@@ -6478,7 +6561,7 @@
         outline: none;
       }
 
-      /* V65: Inline Input Area */
+      /* Inline Input Area */
       .kanban-input-area {
         margin: 10px;
         padding: 10px;
@@ -6540,7 +6623,7 @@
         color: #f55;
       }
 
-      /* V65: Column Header with Actions */
+      /* Column Header with Actions */
       .kanban-column-header {
         padding: 12px 15px;
         font-size: 0.65rem;
@@ -6594,7 +6677,7 @@
         color: #f55;
       }
 
-      /* V65: Add Column Button */
+      /* Add Column Button */
       .kanban-add-column {
         min-width: 200px;
         height: 100%;
@@ -6616,7 +6699,7 @@
         color: var(--main-color);
       }
 
-      /* V65: Kanban Tags */
+      /* Kanban Tags */
       .kanban-tag {
         display: inline-block;
         padding: 2px 6px;
@@ -6721,7 +6804,7 @@
         color: #000;
       }
 
-      /* V67: Notion-Style Kanban HUD (Deep Content System) */
+      /* Notion-Style Kanban HUD (Deep Content System) */
       .hud-tag {
         color: var(--main-color);
         background: rgba(0, 255, 65, 0.1);
@@ -6770,7 +6853,7 @@
         background: rgba(0, 255, 65, 0.1);
       }
 
-      /* V76: Knowledge Graph Styles */
+      /* Knowledge Graph Styles */
       .graph-node {
         cursor: pointer;
         stroke: #fff;
@@ -6812,6 +6895,37 @@
         opacity: 0.1 !important;
         stroke-opacity: 0.1 !important;
       }
+
+      /* P0 a11y: visible keyboard focus for every interactive control.
+         Sits last in the cascade so it wins over the scattered `outline: none`. */
+      :focus-visible {
+        outline: 2px solid var(--main-color);
+        outline-offset: 2px;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      [role="button"]:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible,
+      .dock-item:focus-visible,
+      .slash-item:focus-visible,
+      .sidebar-note-item:focus-visible,
+      .canvas-card-delete:focus-visible,
+      .modal-close:focus-visible {
+        outline: 2px solid var(--main-color);
+        outline-offset: 2px;
+      }
+
+      /* P0 a11y: honor reduced-motion; stop CRT/scanline/glow for users who ask. */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
     </style>
   </head>
 
@@ -6828,7 +6942,7 @@
         <span class="kanban-modal-title" id="kanban-modal-title"
           >DATA_BOARD // BUFFERING</span
         >
-        <button class="kanban-modal-close close-modal" id="kanban-modal-close-btn">
+        <button class="kanban-modal-close close-modal" id="kanban-modal-close-btn" aria-label="Close kanban board">
           X
         </button>
       </div>
@@ -7187,65 +7301,83 @@
               style="flex-direction: column; align-items: stretch"
             >
               <span class="config-label" style="margin-bottom: 10px"
-                >MEDIA URLs (One per line)</span
+                >MEDIA ASSETS</span
               >
+
+              <!-- Visual thumbnail grid -->
+              <div id="bg-thumbnails" class="bg-thumbnail-grid"></div>
+
+              <!-- Hidden textarea for data persistence (synced with grid) -->
               <textarea
                 id="cfg-backgrounds"
-                class="config-input"
-                style="
-                  width: 100%;
-                  display: block;
-                  height: 80px;
-                  max-height: 400px;
-                  resize: vertical;
-                "
+                style="display: none"
               ></textarea>
 
-              <div style="text-align: right">
-                <div
+              <!-- Add URL row -->
+              <div
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  margin-bottom: 10px;
+                "
+              >
+                <input
+                  type="text"
+                  id="bg-add-url"
+                  class="config-input"
+                  placeholder="Paste image/video URL..."
+                  style="flex: 1"
+                  autocomplete="off"
+                />
+                <button
+                  type="button"
+                  id="bg-add-url-btn"
+                  class="action-btn"
                   style="
-                    font-size: 0.7rem;
-                    color: #555;
-                    margin-top: 5px;
-                    margin-bottom: 15px;
-                    font-family: var(--font-secondary);
+                    background: #222;
+                    border: 1px solid var(--main-color);
+                    color: var(--main-color);
+                    padding: 8px 15px;
+                    white-space: nowrap;
                   "
                 >
-                  // DRAG CORNER TO RESIZE
-                </div>
-                <div
+                  + ADD URL
+                </button>
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  gap: 10px;
+                  align-items: center;
+                  justify-content: flex-end;
+                "
+              >
+                <span
+                  id="upload-status"
+                  style="font-size: 0.75rem; color: #888"
+                ></span>
+                <button
+                  type="button"
+                  id="upload-bg-btn"
+                  class="action-btn"
                   style="
-                    display: flex;
-                    gap: 10px;
-                    align-items: center;
-                    justify-content: flex-end;
+                    background: #222;
+                    border: 1px solid var(--main-color);
+                    color: var(--main-color);
+                    padding: 8px 15px;
                   "
                 >
-                  <span
-                    id="upload-status"
-                    style="font-size: 0.75rem; color: #888"
-                  ></span>
-                  <button
-                    type="button"
-                    id="upload-bg-btn"
-                    class="action-btn"
-                    style="
-                      background: #222;
-                      border: 1px solid var(--main-color);
-                      color: var(--main-color);
-                      padding: 8px 15px;
-                    "
-                  >
-                    + UPLOAD
-                  </button>
-                  <input
-                    type="file"
-                    id="bg-file-input"
-                    accept="video/*,image/*"
-                    multiple
-                    style="display: none"
-                  />
-                </div>
+                  + UPLOAD
+                </button>
+                <input
+                  type="file"
+                  id="bg-file-input"
+                  accept="video/*,image/*"
+                  multiple
+                  style="display: none"
+                />
               </div>
             </div>
           </div>
@@ -7369,7 +7501,7 @@
                 style="flex: 2"
                 autocomplete="off"
               />
-              <button id="add-dock-btn">+</button>
+              <button id="add-dock-btn" aria-label="Add dock">+</button>
             </div>
             <div id="dock-list"></div>
 
@@ -7393,7 +7525,7 @@
                 style="flex: 2"
                 autocomplete="off"
               />
-              <button id="add-cmd-btn">+</button>
+              <button id="add-cmd-btn" aria-label="Add command">+</button>
             </div>
             <div id="custom-cmd-list"></div>
 
@@ -7864,7 +7996,7 @@
             >
           </div>
         </div>
-        <button class="pomodoro-dismiss-btn" id="pomo-dismiss-btn">
+        <button class="pomodoro-dismiss-btn" id="pomo-dismiss-btn" aria-label="Dismiss pomodoro notification">
           ACKNOWLEDGE
         </button>
       </div>

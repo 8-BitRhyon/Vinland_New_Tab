@@ -294,7 +294,7 @@ export const CommandLine = {
         console.log(`[CLI] Executing ${cmd.id} with args: "${args}"`);
         try {
             cmd.action(args);
-            // V105: visual feedback
+            // visual feedback
              if (window.showNotification) showNotification(`COMMAND: ${cmd.title}`);
         } catch(e) {
             console.error(e);

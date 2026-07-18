@@ -1,4 +1,4 @@
-# Vinland — Design & Architecture
+# Vinland - Design & Architecture
 
 > Single source of truth for the Vinland Chrome new-tab extension.
 > All facts verified against source code (`js/*` and `index.html`).
@@ -6,7 +6,7 @@
 
 ## 1. What Vinland is
 
-A Manifest V3 Chrome **new-tab override** — a keyboard-first personal
+A Manifest V3 Chrome **new-tab override** - a keyboard-first personal
 command center. Vanilla JS + D3 (v7), no bundler, no framework. Local-first
 storage (localStorage + IndexedDB).
 
@@ -17,49 +17,49 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 ## 2. Entry point & boot order (AUTHORITATIVE)
 
 - **`index.html` → `js/boot.js` is the sole entry.** `js/main.js` has been
-  deleted — it is dead code. Do not re-add it or treat it as an entry point.
+  deleted - it is dead code. Do not re-add it or treat it as an entry point.
 - The `PROJECT_BLUEPRINT` doc listed `main.js` as "the entry point"; that doc
   is stale for its directory listing.
 
 **Boot sequence (`boot()`, async):**
 
-1. `Config.load()` — read `OPERATOR_CONFIG_V3` into `State.CONFIG`
-2. `await loadData()` — hydrate `State.TASKS/NOTES/BOARDS/HISTORY` from storage
-3. `ModalManager.init()` — set up modal close from `Esc` / overlay click
-4. `TabManager.init()` — restore editor tabs from `VINLAND_TABS` localStorage
-5. `MetadataCache.init()` — build tag/link/backlink indexes from `State.NOTES`
-6. `CanvasManager.init()` — bind canvas event listeners
-7. `HoverPreview.init()` — attach wiki-link hover handlers
+1. `Config.load()` - read `OPERATOR_CONFIG_V3` into `State.CONFIG`
+2. `await loadData()` - hydrate `State.TASKS/NOTES/BOARDS/HISTORY` from storage
+3. `ModalManager.init()` - set up modal close from `Esc` / overlay click
+4. `TabManager.init()` - restore editor tabs from `VINLAND_TABS` localStorage
+5. `MetadataCache.init()` - build tag/link/backlink indexes from `State.NOTES`
+6. `CanvasManager.init()` - bind canvas event listeners
+7. `HoverPreview.init()` - attach wiki-link hover handlers
 8. `Notes.init()` + `renderNotes()` + `renderSidebar()`
 9. `KanbanManager.init()`
-10. `SettingsUI.init()` — bind config modal events + background init
-11. `SystemCommands.register()` — populate `CommandRegistry` with all 17 commands
+10. `SettingsUI.init()` - bind config modal events + background init
+11. `SystemCommands.register()` - populate `CommandRegistry` with all 17 commands
 12. Feature `init()` calls: `CommandLine`, `Pomodoro`, `Bookmarks`,
     `PageActions`, `SlashMenu`, `Clock`, `CalloutModal`
-13. `initKeyboardShortcuts()` — global keybinds (Cmd+S, Cmd+E, tab nav)
+13. `initKeyboardShortcuts()` - global keybinds (Cmd+S, Cmd+E, tab nav)
 14. Renders: `renderMissions()`, `checkStreakReset()`, `renderDock()`
 15. `Config.applyTheme()` + `fetchWeather()` (if location set)
-16. `bindGlobals()` — wire static HTML buttons (gear, help, config-save, etc.)
+16. `bindGlobals()` - wire static HTML buttons (gear, help, config-save, etc.)
     to `window.*` functions
 17. First-run: if `State.CONFIG.first_run`, `ModalManager.open('welcome-modal')`
 18. `beforeunload` → `saveData()`
 
 ## 3. Module inventory (every `.js` file)
 
-### `js/core/` — Foundation layer
+### `js/core/` - Foundation layer
 
 | File | Exports | Purpose |
 |---|---|---|
 | `store.js` | `State` | Global singleton: `CONFIG`, `NOTES`, `TASKS`, `BOARDS`, `CANVASES`, `COMMAND_HISTORY`, `FLAT_BOOKMARKS`, `WEATHER_CACHE` |
-| `storage.js` | `DB`, `VinlandDB`, `loadData`, `saveData`, `saveAllNotes`, `clearAllNotes` | IndexedDB for media; localStorage via `VinlandDB` (5 collections + per-note sharding). `saveData()` writes TASKS/BOARDS/CANVASES/HISTORY in full; NOTES diff-writes per-note shards (`OPERATOR_NOTE_<id>`) + `OPERATOR_NOTES_INDEX`. |
-| `config.js` | `Config`, `THEME_PRESETS`, `loadConfig`, `saveConfig` | `Config.load()`/`save()` reads/writes `OPERATOR_CONFIG_V3`. `applyTheme()` sets CSS vars, filter, icon. 11 theme presets. |
+| `storage.js` | `DB`, `VinlandDB`, `loadData`, `saveData`, `saveAllNotes`, `clearAllNotes` | IndexedDB for media + canvas; localStorage via `VinlandDB` (5 collections + per-note sharding). `saveData()` writes TASKS/BOARDS/CANVASES/HISTORY in full; NOTES diff-writes per-note shards (`OPERATOR_NOTE_<id>`) + `OPERATOR_NOTES_INDEX`. Canvas notes offload `note.canvasData` to IndexedDB (`vinland_canvas_<id>`), leaving only a `{_external:true}` marker in the shard; `loadData()` rehydrates it fire-and-forget. |
+| `config.js` | `Config`, `THEME_PRESETS`, `loadConfig`, `saveConfig` | `Config.load()`/`save()` reads/writes `OPERATOR_CONFIG_V3`. `applyTheme()` sets CSS vars, filter, icon, surface tokens (`--bg-color`, `--danger-color`, `--warning-color`, `--board-color`, `--dim-color`, `--graph-col-*`), and manages retroma body class. 14 theme presets (including `retroma` with full token set). |
 | `commandregistry.js` | `CommandRegistry` | Command bus: `register({id,trigger,title,action,hint})`, `search(query)` (exact-trigger or fuzzy), `execute(id, args)`. |
 | `audio.js` | `Audio`, `playTypingSound`, `play8BitSound`, `playClickSound`, `playModalSound`, `playNotificationSound` | Web Audio API sound effects. Respects `State.CONFIG.typing_sounds` and `ui_sounds`. |
 | `metadatacache.js` | `MetadataCache` | Indexes tags, wiki links (`[[Page]]`), backlinks, YAML frontmatter. Persists to `VINLAND_METADATA_CACHE`. |
 | `queryengine.js` | `QueryEngine` | Dataview-lite: `LIST/TABLE/TASK/COUNT FROM #tag WHERE ...` parsed and run against `MetadataCache`. |
 | `safecalc.js` | `SafeCalc` | CSP-compliant math expression evaluator, recursive-descent parser. |
 
-### `js/modules/` — PKM business logic
+### `js/modules/` - PKM business logic
 
 | File | Exports | Purpose |
 |---|---|---|
@@ -67,7 +67,7 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 | `canvasmanager.js` | `CanvasManager` | Infinite spatial canvas: nodes (text/file/embed/group), edges (Shift+drag), zoom/pan, lasso marquee, multi-select, undo/redo (50 states), clipboard (`Cmd+C/V/D`), minimap, context menus. Canvas data lives in `note.canvasData`. 91KB. |
 | `graphmanager.js` | `GraphManager` | D3 force-directed knowledge graph: nodes = notes + boards; edges = `[[wiki links]]` derived from note content. GLOBAL + LOCAL (1-degree) mode. Hover highlights full chain; click opens note/board. Layout resets each open (not persisted). |
 
-### `js/features/` — Productivity widgets (HUD peripherals)
+### `js/features/` - Productivity widgets (HUD peripherals)
 
 | File | Exports | Purpose |
 |---|---|---|
@@ -80,7 +80,7 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 | `dock.js` | `Dock` | Quick-launch link bar below HUD. Default links: GMAIL, CAL, GPT. Right-click to delete. `+` opens Settings → dock tab. |
 | `taskaggregator.js` | `TaskAggregator` | Aggregates all `task`-type blocks from all notes into a single "Task Manager" view, grouped by page, with inline checkboxes. |
 
-### `js/ui/` — Views and overlays
+### `js/ui/` - Views and overlays
 
 | File | Exports | Purpose |
 |---|---|---|
@@ -94,14 +94,14 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 | `tabmanager.js` | `TabManager` | Multi-tab note editing inside the editor modal. Tabs persist to `VINLAND_TABS` (localStorage). Back/forward history. |
 | `background.js` | `Background` | Video/image wallpaper player. Handles `backgrounds[]` list from config, random selection, retry on error, color fallback, filter overlay. |
 
-### `js/editor/` — The note editor engine
+### `js/editor/` - The note editor engine
 
 | File | Exports | Purpose |
 |---|---|---|
 | `blockeditor.js` | `BlockEditor`, `HistoryManager` | Notion-style block editor: block types (text/h1/h2/h3/task/bullet/code/divider/quote/canvas/kanban/query/callout/image/table/dataview), drag handles, slash command, multi-select, clipboard, indent. 120KB. |
 | `pagemanager.js` | `PageManager`, `parseContentToBlocks`, `sanitizePath` | Data model syncing between block format ↔ markdown content. Schema migrations (`migrateNotesToPathSchema`, `migrateNotesToBlockSchema`). |
 
-### `js/config/` — Command population
+### `js/config/` - Command population
 
 | File | Exports | Purpose |
 |---|---|---|
@@ -111,13 +111,13 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 
 `boot.js` and various module files assign functions/objects to `window.*` (e.g.,
 `window.Notes`, `window.saveData`, `window.ModalManager`). This is a
-**deliberate** pattern, not a mistake — it exists because `index.html` has
+**deliberate** pattern, not a mistake - it exists because `index.html` has
 inline `onclick=""` handlers that require globals, and it avoids import-ordering
 issues in a non-bundled ES-module setup.
 
 Reference count: ~270 cross-module references across ~22 files.
 **Do NOT "clean this up"** by switching to direct imports everywhere without
-introducing a bundler — the `window.*` pattern is load-bearing. New code may
+introducing a bundler - the `window.*` pattern is load-bearing. New code may
 use module imports internally but should expose public API on `window` if HTML
 handlers or other modules depend on it.
 
@@ -128,25 +128,25 @@ Registered in `js/config/SystemCommands.js` (lines 9–242).
 | trigger | id | hint | action target |
 |---|---|---|---|
 | `note` | `notes:create` | `[content]` | `window.Notes.create(args)` |
-| `notes` | `notes:toggle` | — | `window.Notes.toggleSidebar()` |
-| `canvas` | `canvas:open` | — | Creates canvas note + opens editor |
-| `daily` | `nav:daily` | — | Opens/creates `Daily Log YYYY-MM-DD` in /Journal |
-| `random` | `nav:random` | — | Opens random non-canvas note |
+| `notes` | `notes:toggle` | - | `window.Notes.toggleSidebar()` |
+| `canvas` | `canvas:open` | - | Creates canvas note + opens editor |
+| `daily` | `nav:daily` | - | Opens/creates `Daily Log YYYY-MM-DD` in /Journal |
+| `random` | `nav:random` | - | Opens random non-canvas note |
 | `task` | `task:add` | `[text]` | `window.addTask(args)` |
-| `clear done` | `task:clear-done` | — | `window.clearCompletedTasks()` |
-| `reload` | `sys:reload` | — | `location.reload()` |
+| `clear done` | `task:clear-done` | - | `window.clearCompletedTasks()` |
+| `reload` | `sys:reload` | - | `location.reload()` |
 | `theme` | `sys:theme` | `[name]` | `SettingsUI.applyThemePreset(args)` |
-| `zen` | `ui:zen` | — | Toggles `zen-mode` body class |
-| `kill` | `ui:kill` | — | `ModalManager.closeAll()` |
-| `board` | `kanban:open` | — | `KanbanManager.open()` |
+| `zen` | `ui:zen` | - | Toggles `zen-mode` body class |
+| `kill` | `ui:kill` | - | `ModalManager.closeAll()` |
+| `board` | `kanban:open` | - | `KanbanManager.open()` |
 | `b` | `bm:search` | `[query]` | Navigates to first matching bookmark URL |
 | `pomo` | `pomo:start` | `[time]` 25m, 90s, 50:00 | `Pomodoro.start(args)` |
 | `weather` | `info:weather` | `[location]` | Sets location + `fetchWeather()` |
-| `help` | `info:help` | — | Opens help modal (SettingsUI.toggleHelp) |
-| `man` | `info:man` | — | Same as help |
+| `help` | `info:help` | - | Opens help modal (SettingsUI.toggleHelp) |
+| `man` | `info:man` | - | Same as help |
 
 **17 commands total.** No `focus` command exists in the registry. Any help text
-or onboarding copy listing `focus` is stale — the timer command is `pomo`.
+or onboarding copy listing `focus` is stale - the timer command is `pomo`.
 
 Fallback (when no trigger matches): custom commands from
 `State.CONFIG.custom_commands` (defaults: `gh`→github.com, `reddit`→reddit.com),
@@ -162,9 +162,9 @@ chatgpt/youtube).
 | `OPERATOR_CONFIG_V3` | `State.CONFIG` (merged with defaults) | `Config.save()` |
 | `OPERATOR_TASKS_V2` | `State.TASKS` (full-write) | `saveData()` |
 | `OPERATOR_NOTE_<id>` | One note object per key (shard) | `saveData()` (diff-write only if changed) |
-| `OPERATOR_NOTES_INDEX` | `[id1, id2, ...]` — ordered note id list | `saveData()` (always rewritten) |
+| `OPERATOR_NOTES_INDEX` | `[id1, id2, ...]` - ordered note id list | `saveData()` (always rewritten) |
 | `OPERATOR_BOARDS_V1` | `State.BOARDS` (full-write) | `saveData()` |
-| `OPERATOR_CANVASES_V1` | Vestigial — writes `[]` (never populated) | `saveData()` |
+| `OPERATOR_CANVASES_V1` | Vestigial - writes `[]` (never populated) | `saveData()` |
 | `OPERATOR_HISTORY_V2` | `State.COMMAND_HISTORY` (last 50) | `saveData()` |
 | `OPERATOR_SESSIONS` | Session counter (incremented each load) | `loadData()` |
 | `OPERATOR_WEATHER_CACHE` | Weather.fetch() cache (30-min TTL) | `Weather.fetch()` |
@@ -173,7 +173,7 @@ chatgpt/youtube).
 | `VINLAND_SIDEBAR_COLLAPSED` | Sidebar toggle state | `Notes.toggleSidebar()` |
 | `OPERATOR_EXPANDED_FOLDERS` | Sidebar tree expand states | `Notes.renderSidebar()` |
 | `VINLAND_EXPLICIT_FOLDERS` | Persist empty folders | `Notes` |
-| `VINLAND_GRAPH_LAYOUT` | Graph node positions (loaded but NOT consumed by `render()`) | `GraphManager` (bypass) |
+| `VINLAND_GRAPH_LAYOUT` | Graph node positions, keyed by note/board id (`{id:{x,y}}`) | `GraphManager` (applied + pinned in `render()`) |
 
 **State.CANVASES** is vestigial: canvas data lives inside `note.canvasData`.
 **note.links[]** is vestigial: the graph recomputes `[[wiki links]]` from
@@ -181,8 +181,10 @@ chatgpt/youtube).
 
 ### IndexedDB
 
-- `OPERATOR_VAULT` (`media_assets` store) — binary media (images/audio) that
-  exceeds localStorage quota. Not used in the hot persistence path.
+- `OPERATOR_VAULT` (`media_assets` store) - binary media (images/audio) that
+  exceeds localStorage quota. Also the durability layer for canvas data:
+  `note.canvasData` is mirrored here under `vinland_canvas_<noteId>` (see §11),
+  keeping large canvases out of the localStorage budget.
 
 ### Migration history
 
@@ -254,6 +256,8 @@ z-index stacking for context menus (10000+), nodes and edges (0–10).
 
 ## 10. Recent changes
 
+- **V19.39** (2026-07-18): Codebase cleanup - em dashes replaced with hyphens across all source files; version markers (`V\d+`, `P\d+`), dev notes (`[FIX]`, `[NEW]`), and redundant comments removed from all JS/CSS/HTML files. Settings audit found duplicate `openThemeModal`, `closeThemeModal`, and `initBackground` declarations in `SettingsUI.js` (second copies overwrite first, pre-existing, no functional impact).
+- **V19.38** (2026-07-17): Full-surface theming - `--bg-color` CSS var added to `:root`, wired to all major surface areas (body bg, modals, inputs, dock, canvas, suggestions). `Config.applyTheme()` writes all surface tokens from config. `retroma` preset added with full token set + body-class integration. `THEME_PRESETS` expanded from 13 to 14 (retroma). Hardcoded `#000` backgrounds replaced with `var(--bg-color, #000)`.
 - **V19.37** (2026-07-16): `Notes.open()` now opens the editor modal BEFORE
   `BlockEditor.render()` and wraps the render call in try/catch. This prevents
   a render error from silently blocking the editor from appearing. A static
@@ -261,14 +265,21 @@ z-index stacking for context menus (10000+), nodes and edges (0–10).
 
 ## 11. Known limitations / future
 
-- Graph layout is recomputed fresh every open; `VINLAND_GRAPH_LAYOUT` is loaded
-  but never consumed by `GraphManager.render()`.
+- Graph layout positions are persisted to `VINLAND_GRAPH_LAYOUT` and reapplied
+  on every open, with saved nodes **pinned** (`fx`/`fy`) so the force simulation
+  does not re-arrange them. New nodes (no saved position) are still free and
+  arranged by the simulation until the user drags them.
 - Wiki-link auto-routing from text nodes → canvas edges (Phase 0 roadmap
-  item 1) is not implemented.
-- `js/core/storage.js` has an unused `DB` (IndexedDB) module for media assets
-  but `CanvasManager` stores everything in `note.canvasData` (localStorage).
-  Large canvas data may hit quota.
+  item 1) IS implemented: `CanvasManager._routeWikiLinks` parses `[[Note Title]]`
+  from a text node's body, resolves the target note by title, and auto-creates a
+  `file` node + `isWikiLink` edge on edit (and wires to existing file nodes on
+  load). Guarded by `tests/wikilink-routing.playwright.spec.mjs`.
+- `js/core/storage.js` `DB` (IndexedDB) module was previously only for media
+  assets; it now also holds canvas data so `CanvasManager`'s `note.canvasData`
+  no longer risks the localStorage quota (see §11).
 - No CI; tests run manually via `npm test`.
-- The `KanbanManager` operates on `State.BOARDS` and syncs blocks into notes
-  via `syncPage()` — a two-storage concern that occasionally loses consistency
-  when `saveData()` breaks the chain.
+- The `KanbanManager` operates on `State.BOARDS` and links notes via a
+  `kanban_ref` block (`block.boardId`). The note's link is now persisted
+  synchronously at link time (`slashmenu.js` + `blockeditor.js` call
+  `saveData()` after linking) so a board is never orphaned if the tab closes
+  before the debounced autosave fires.

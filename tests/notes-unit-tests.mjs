@@ -1,5 +1,5 @@
 /**
- * Vinland Notes System — Unit Tests
+ * Vinland Notes System - Unit Tests
  * 
  * Tests pure-logic functions extracted from the notes system.
  * Run with: node tests/notes-unit-tests.mjs

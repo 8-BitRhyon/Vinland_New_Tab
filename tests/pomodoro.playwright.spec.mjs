@@ -1,5 +1,5 @@
 /**
- * Vinland Pomodoro Timer — Playwright Integration Tests
+ * Vinland Pomodoro Timer - Playwright Integration Tests
  *
  * Tests the complete Pomodoro timer workflow: start, pause, resume,
  * stop, completion HUD, and dismissal.
@@ -27,7 +27,7 @@ async function runCLI(page, command) {
 
 /**
  * Start a pomodoro timer programmatically with a given duration string.
- * Returns immediately — the timer runs in the browser.
+ * Returns immediately - the timer runs in the browser.
  */
 async function startPomodoro(page, duration = '30s') {
   await page.evaluate((d) => {
@@ -218,7 +218,7 @@ test('8. Starting pomodoro while one is already running resets it', async ({ pag
   // Wait 2 seconds, then start a new 1m timer (should reset)
   await page.waitForTimeout(2000);
 
-  // Start a different duration — this should reset the timer
+  // Start a different duration - this should reset the timer
   await startPomodoro(page, '1m');
 
   // Should now show 1 minute, not the remaining ~28s

@@ -17,10 +17,10 @@ export const Weather = {
         var el = document.getElementById('weather-widget');
         if (!el) return;
         
-        // V102: Logic Fix check 'location' (Store.js default) instead of 'weather_location'
+        // Logic Fix check 'location' (Store.js default) instead of 'weather_location'
         if (!State.CONFIG.location || State.CONFIG.location === '') {
             el.innerHTML = '<div class="weather-condition" style="margin:0">SET_LOCATION //</div>';
-            el.classList.add('active'); // V102: Ensure visibility
+            el.classList.add('active'); // Ensure visibility
             el.onclick = function() { SettingsUI.open('weather'); };
             return;
         }
@@ -42,13 +42,13 @@ export const Weather = {
             return;
         }
 
-        // V102: Preserving structure if possible, or showing loading text
+        // Preserving structure if possible, or showing loading text
         if (el.querySelector('.weather-condition')) {
             el.querySelector('.weather-condition').textContent = 'SYNCING...';
         } else {
              el.textContent = 'LOADING //';
         }
-        el.classList.add('active'); // V102: Ensure visibility
+        el.classList.add('active'); // Ensure visibility
 
         var geoUrl = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(location) + '&count=1';
 
@@ -132,7 +132,7 @@ export const Weather = {
         var cond = current.weatherDesc[0].value;
         var loc = State.CONFIG.location || 'Unknown';
         
-        // V102: Legacy Structure (Toggle at BOTTOM)
+        // Legacy Structure (Toggle at BOTTOM)
         var html = `
             <div class="weather-main">
                 <span class="weather-temp">${tempVal}°</span>

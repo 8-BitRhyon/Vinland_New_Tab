@@ -1,5 +1,5 @@
 /**
- * Vinland Canvas & Graph Manager — Playwright Integration Tests
+ * Vinland Canvas & Graph Manager - Playwright Integration Tests
  *
  * Tests the Canvas (infinite whiteboard with nodes/edges) and Graph
  * Manager (D3 knowledge graph) views.

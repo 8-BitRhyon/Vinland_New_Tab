@@ -1,5 +1,5 @@
 /**
- * Vinland Kanban Board — Playwright Integration Tests
+ * Vinland Kanban Board - Playwright Integration Tests
  *
  * Tests the complete Kanban board workflow: create a board, open it,
  * add cards, edit card content, delete cards, manage columns, and
@@ -59,7 +59,7 @@ async function openBoard(page, boardId) {
  */
 async function addCard(page, colIndex, content, boardId) {
   if (boardId) {
-    // Direct State manipulation — works before the board is opened
+    // Direct State manipulation - works before the board is opened
     await page.evaluate(({ idx, text, bId }) => {
       const board = (window.State?.BOARDS ?? []).find(b => b.id === bId);
       if (!board) return;
@@ -360,7 +360,7 @@ test('8. Delete a column from the board', async ({ page }) => {
   await openBoard(page, boardId);
   await waitForBoardModal(page);
 
-  // Delete the third column (RESOLVED) — it has no cards, so no confirm modal
+  // Delete the third column (RESOLVED) - it has no cards, so no confirm modal
   await page.evaluate(() => {
     const km = window.KanbanManager;
     if (!km || !km.activeBoard) return;

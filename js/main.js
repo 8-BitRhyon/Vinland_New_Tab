@@ -15,8 +15,8 @@ import { SlashMenu } from './ui/SlashMenu.js';
 import { renderMissions, checkStreakReset } from './features/Missions.js';
 import { Audio } from './core/Audio.js'; 
 import { Background } from './ui/Background.js';
-import { Weather } from './features/Weather.js'; // V101: Modularized
-import { Dock } from './features/Dock.js';       // V101: Modularized
+import { Weather } from './features/Weather.js'; // Modularized
+import { Dock } from './features/Dock.js';       // Modularized
 
 // Phase 3: Second Brain Modules
 import { MetadataCache } from './core/MetadataCache.js';
@@ -24,7 +24,7 @@ import { QueryEngine } from './core/QueryEngine.js';
 import { CanvasManager } from './modules/CanvasManager.js';
 import { HoverPreview } from './ui/HoverPreview.js';
 import { CalloutModal } from './ui/CalloutModal.js';
-import * as Sidebar from './ui/Sidebar.js'; // V88: Voltron Pattern for Trash View
+import * as Sidebar from './ui/Sidebar.js'; // Voltron Pattern for Trash View
 
 // --- MAIN ENTRY POINT ---
 document.addEventListener('DOMContentLoaded', init);
@@ -137,7 +137,7 @@ window.ModalManager = ModalManager;
 window.Notes = Notes;
 window.GraphManager = GraphManager;
 window.renderMissions = renderMissions;
-window.PageActions = PageActions; // V74: Voltron Pattern
+window.PageActions = PageActions; // Voltron Pattern
 window.saveConfigFromUI = SettingsUI.saveConfigFromUI.bind(SettingsUI);
 
 // Phase 3: Second Brain Globals (Voltron Pattern)
@@ -146,7 +146,7 @@ window.QueryEngine = QueryEngine;
 window.CanvasManager = CanvasManager;
 window.HoverPreview = HoverPreview;
 window.CalloutModal = CalloutModal;
-window.Sidebar = Sidebar; // V88: Voltron Pattern
+window.Sidebar = Sidebar; // Voltron Pattern
 
 // CLI Globals (V101: Restoration)
 // These are required for CommandLine.js 'eval' or direct function calls

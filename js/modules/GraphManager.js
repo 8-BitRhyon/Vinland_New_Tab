@@ -9,9 +9,9 @@ export const GraphManager = {
     width: 0,
     height: 0,
     containerId: 'graph-container',
-    isLocalMode: false, // V87: Local Focus Mode state
+    isLocalMode: false, // Local Focus Mode state
 
-    // V19.38: Persist graph node positions to localStorage
+    // .38: Persist graph node positions to localStorage
     saveLayout: function() {
         if (!this.simulation) return;
         var nodes = this.simulation.nodes();
@@ -52,7 +52,7 @@ export const GraphManager = {
         }, 300);
     },
 
-    // V87: Toggle between Global and Local (1-degree neighbor) view
+    // Toggle between Global and Local (1-degree neighbor) view
     toggleLocalMode: function() {
         this.isLocalMode = !this.isLocalMode;
         var btn = document.getElementById('graph-mode-toggle');
@@ -63,7 +63,7 @@ export const GraphManager = {
         this.render();
     },
 
-    // V87: Helper — calculate node radius from degree
+    // Helper - calculate node radius from degree
     getNodeRadius: function(node) {
         var base = node.type === 'board' ? 8 : 5;
         return base + (Math.sqrt(node.degree || 0) * 3);
@@ -74,7 +74,7 @@ export const GraphManager = {
         var container = document.getElementById(this.containerId);
         if (!container) return;
         
-        // V19.38: Save the current layout before clearing the container
+        // .38: Save the current layout before clearing the container
         this.saveLayout();
         
         if (typeof d3 === 'undefined') {
@@ -84,7 +84,7 @@ export const GraphManager = {
         }
 
         container.innerHTML = '';
-        // V61: Fallback dimensions if container is not layouted yet
+        // Fallback dimensions if container is not layouted yet
         this.width = container.clientWidth || 1200;
         this.height = container.clientHeight || 800;
         console.log('[Graph] Dimensions:', this.width, 'x', this.height);
@@ -190,12 +190,19 @@ export const GraphManager = {
         console.log('[Graph] Nodes:', nodes.length, '| Links:', links.length, '| Mode:', this.isLocalMode ? 'LOCAL' : 'GLOBAL');
 
         // ─── V19.38: APPLY SAVED POSITIONS ──────────────────────
+        // Pin nodes that have a saved position (fx/fy) so the force
+        // simulation does NOT re-arrange them on every open. Without the
+        // pin, saved x/y are only used as an initial seed and the charge/
+        // center/link forces immediately move nodes, so the layout "resets"
+        // each open. Pinned nodes stay exactly where the user left them.
         if (Notes.graphLayout && Object.keys(Notes.graphLayout).length > 0) {
             nodes.forEach(function(n) {
                 var saved = Notes.graphLayout[n.id];
                 if (saved && saved.x != null && saved.y != null) {
                     n.x = saved.x;
                     n.y = saved.y;
+                    n.fx = saved.x;
+                    n.fy = saved.y;
                 }
             });
         }
@@ -251,10 +258,10 @@ export const GraphManager = {
 
         this.simulation = d3.forceSimulation(nodes)
             .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-            .force("charge", d3.forceManyBody().strength(-300)) // V87: Stronger repulsion for larger nodes
+            .force("charge", d3.forceManyBody().strength(-300)) // Stronger repulsion for larger nodes
             .force("center", d3.forceCenter(this.width / 2, this.height / 2))
             .force('collision', d3.forceCollide().radius(function(d) {
-                return self.getNodeRadius(d) + 5; // V87: Dynamic collision + padding
+                return self.getNodeRadius(d) + 5; // Dynamic collision + padding
             }));
 
         var link = g.append("g")
@@ -279,7 +286,7 @@ export const GraphManager = {
                 .on("drag", dragged)
                 .on("end", dragended));
 
-        // V87: Dynamic radius + cluster color
+        // Dynamic radius + cluster color
         node.append("circle")
             .attr("r", function(d) { return self.getNodeRadius(d); })
             .attr("fill", function(d) { return getColor(d.group); })
@@ -287,7 +294,7 @@ export const GraphManager = {
             .attr("stroke", "#000")
             .attr("stroke-width", "1.5px");
 
-        // V87: Scale text size slightly for high-degree nodes
+        // Scale text size slightly for high-degree nodes
         node.append("text")
             .text(d => d.name)
             .attr('x', function(d) { return self.getNodeRadius(d) + 6; })
@@ -354,7 +361,7 @@ export const GraphManager = {
             node.select('text').classed('highlighted', false);
             link.classed('highlighted', false).classed('dimmed', false);
         }).on('click', function(event, d) {
-            // V19.38: Save layout before navigating away
+            // .38: Save layout before navigating away
             self.saveLayout();
             if (d.type === 'board') {
                  if (window.KanbanManager) {
@@ -393,9 +400,11 @@ export const GraphManager = {
 
         function dragended(event) {
             if (!event.active) self.simulation.alphaTarget(0);
-            event.subject.fx = null;
-            event.subject.fy = null;
-            // V19.38: Save dragged node's position
+            // .38: Keep the node pinned at its dropped position (fx/fy) so
+            // the layout persists instead of drifting once forces cool down.
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+            // .38: Save dragged node's position
             if (event.subject && event.subject.x != null && event.subject.y != null) {
                 Notes.graphLayout[event.subject.id] = { x: event.subject.x, y: event.subject.y };
                 self.saveLayout();

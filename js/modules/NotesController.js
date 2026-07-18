@@ -21,17 +21,17 @@ export const Notes = {
     selectedNotes: [], // Multi-select for batch delete
     isSelectionMode: false,
     expandedFolders: [], // Track open folders
-    explicitFolders: [], // V87: Persist empty folders
+    explicitFolders: [], // Persist empty folders
     graphLayout: {}, // Store node positions {id: {x, y}}
     
-    // V3.5: Markdown Preview
+    // .5: Markdown Preview
     isPreviewMode: false,
     
     // Legacy flag for auto-created empty notes cleanup
     autoCreatedNoteId: null,
     isCleaningUpAutoNote: false,
 
-    // V67: Deep Link Support
+    // Deep Link Support
     openByTitle: function(title) {
         if (!title) return false;
         var note = State.NOTES.find(function(n) { return (n.title || 'Untitled').toLowerCase() === title.toLowerCase(); });
@@ -44,7 +44,7 @@ export const Notes = {
 
     toggleSidebar: function() {
         console.log('[Notes] toggleSidebar called');
-        // V84: Updated to target the ACTUAL sidebar (.notes-sidebar) instead of just the panel
+        // Updated to target the ACTUAL sidebar (.notes-sidebar) instead of just the panel
         // This fixes CMD+\ behavior to match user expectation.
         var sidebar = document.querySelector('.notes-sidebar');
         if (sidebar) {
@@ -62,7 +62,7 @@ export const Notes = {
         // So just toggling sidebar class is sufficient.
     },
 
-    // V86: Plain-text preview extractor for Quick Notes teaser
+    // Plain-text preview extractor for Quick Notes teaser
     getPlainTextPreview: function(text) {
         if (!text) return '';
         var t = text;
@@ -135,7 +135,7 @@ export const Notes = {
             return !n.path || n.path.indexOf('/.trash') !== 0;
         });
 
-        // V18.13: Sort by modified date first, then created
+        // .13: Sort by modified date first, then created
         var notesToShow = activeNotes.map(function (n, i) { return { note: n, id: i + 1, index: i }; })
             .sort(function (a, b) {
                 var aTime = a.note.modified || a.note.created;
@@ -150,18 +150,18 @@ export const Notes = {
             div.className = 'note-item';
             div.style.cursor = 'pointer';
 
-            // V18.13: Use modified date if available
+            // .13: Use modified date if available
             var displayTime = item.note.modified || item.note.created;
             var noteDate = new Date(displayTime);
             var today = new Date();
             var isToday = noteDate.toDateString() === today.toDateString();
 
-            // V18.3: Show date if not today, V18.13: Show "Edited" prefix if modified
+            // .3: Show date if not today, V18.13: Show "Edited" prefix if modified
             var prefix = item.note.modified ? 'Edited ' : '';
             var dateStr = isToday ? '' : noteDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ';
             var time = noteDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-            // V19.34: Apple Note Style
+            // .34: Apple Note Style
             var contentDisplay = item.note.content || item.note.text || '';
 
             // Header (Title + Time)
@@ -172,15 +172,15 @@ export const Notes = {
                 '<span class="note-item-meta">' + dateStr + time + '</span>' +
                 '</div>';
 
-            // V86: Plain-text teaser preview
+            // Plain-text teaser preview
             var teaserHtml = '<div class="note-item-teaser">' + safeText(Notes.getPlainTextPreview(contentDisplay)) + '</div>';
 
             div.innerHTML = headerHtml + teaserHtml;
 
-            // V18.3: Click to edit
+            // .3: Click to edit
             div.setAttribute('data-note-index', item.index);
             div.addEventListener('click', function () {
-                // V15.0: Use Notes.open exclusively
+                // .0: Use Notes.open exclusively
                 if (item.note.id) {
                     Notes.open(item.note.id);
                 } else {
@@ -202,7 +202,7 @@ export const Notes = {
             var layout = localStorage.getItem('VINLAND_GRAPH_LAYOUT');
             if (layout) this.graphLayout = JSON.parse(layout);
 
-            // V87: Load explicit (empty-safe) folders
+            // Load explicit (empty-safe) folders
             var folders = localStorage.getItem('VINLAND_EXPLICIT_FOLDERS');
             if (folders) this.explicitFolders = JSON.parse(folders);
 
@@ -210,11 +210,10 @@ export const Notes = {
             console.warn('[Notes] Error loading State:', e);
         }
         
-        // V88: Legacy Schema Migration
+        // Legacy Schema Migration
         if (PageManager.migrateNotesToPathSchema) PageManager.migrateNotesToPathSchema();
         if (PageManager.migrateNotesToBlockSchema) PageManager.migrateNotesToBlockSchema();
-        if (PageManager.migrateLegacyTasks) PageManager.migrateLegacyTasks(); // V101
-
+        if (PageManager.migrateLegacyTasks) PageManager.migrateLegacyTasks(); // 
         this.renderSidebar();
 
 
@@ -224,7 +223,7 @@ export const Notes = {
         if (typeof SlashMenu !== 'undefined' && SlashMenu.init) SlashMenu.init();
 
         this.bindEvents();
-        this.bindPreviewListeners(); // V72: Preview Interactivity
+        this.bindPreviewListeners(); // Preview Interactivity
         
         // Restore sidebar state (persistence)
         try {
@@ -234,7 +233,7 @@ export const Notes = {
             console.warn('[Notes] Failed to render quick panel', e);
         }
 
-        // V85: Restore Maximized State (User Request: Absolute Throughput)
+        // Restore Maximized State (User Request: Absolute Throughput)
         try {
             var isMaximized = localStorage.getItem('VINLAND_NOTES_MAXIMIZED') === 'true';
             var editorModal = document.getElementById('note-editor-modal');
@@ -314,7 +313,7 @@ export const Notes = {
              };
         }
 
-        // V87: Path input change listener — persist path when user edits it
+        // Path input change listener - persist path when user edits it
         var pathInput = document.getElementById('note-current-path');
         if (pathInput) {
             pathInput.addEventListener('change', function() {
@@ -325,7 +324,7 @@ export const Notes = {
                 if (!newPath.startsWith('/')) newPath = '/' + newPath;
                 // Strip trailing slash (unless root)
                 if (newPath.length > 1 && newPath.endsWith('/')) newPath = newPath.slice(0, -1);
-                // V87: /root is the display name for actual root path /
+                // /root is the display name for actual root path /
                 if (newPath === '/root') newPath = '/';
                 self.moveNote(self.activeNoteId, newPath);
             });
@@ -348,7 +347,7 @@ export const Notes = {
                     // Icon toggled via CSS on #note-editor-modal.maximized
                     if (self.updateGlobalIconsVisibility) self.updateGlobalIconsVisibility(!isMax);
                     
-                    // V85: Persist Maximized State
+                    // Persist Maximized State
                     localStorage.setItem('VINLAND_NOTES_MAXIMIZED', isMax ? 'true' : 'false');
                 }
             };
@@ -379,7 +378,7 @@ export const Notes = {
         var addFolderBtn = document.getElementById('add-folder-btn-sidebar');
         if(addFolderBtn) {
             addFolderBtn.onclick = function() {
-                // V87: Use existing folder-create-modal from index.html
+                // Use existing folder-create-modal from index.html
                 var modal = document.getElementById('folder-create-modal');
                 var input = document.getElementById('folder-name-input');
                 var confirmBtn = document.getElementById('folder-modal-confirm');
@@ -395,7 +394,7 @@ export const Notes = {
                         var name = input.value.trim();
                         if (name) {
                             var folderPath = '/' + sanitizePath(name);
-                            self.registerFolder(folderPath); // V87: Persist empty folder
+                            self.registerFolder(folderPath); // Persist empty folder
                             self.create('README', folderPath);
                             ModalManager.close('folder-create-modal');
                         }
@@ -567,7 +566,7 @@ export const Notes = {
         if (this.activeNoteId && this.activeNoteId !== noteId) {
             var current = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
             if (current) {
-                // Canvas notes use canvasData, not content/blocks — never garbage collect them
+                // Canvas notes use canvasData, not content/blocks - never garbage collect them
                 if (current.type === 'canvas') {
                     // Just save any pending changes
                     if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
@@ -601,7 +600,7 @@ export const Notes = {
             TabManager.openTab(note.id, note.title || 'Untitled');
         }
 
-        // V2 Migration: Ensure blocks exist
+        // Migration: Ensure blocks exist
         if (!note.blocks || note.blocks.length === 0) {
             note.blocks = parseContentToBlocks(note.content);
             if (note.blocks.length === 0) PageManager.addBlock(note, 'p', '');
@@ -614,11 +613,11 @@ export const Notes = {
         var blockEditorEl = document.getElementById('block-editor');
         var preview = document.getElementById('note-preview');
         var toggleBtn = document.getElementById('preview-toggle');
-        var canvasContainer = document.getElementById('canvas-container'); // V105: Canvas Integration
+        var canvasContainer = document.getElementById('canvas-container'); // Canvas Integration
         
         // Phase 1: Canvas Routing Override
         if (note.type === 'canvas') {
-            console.log('[Notes] Canvas routing — noteId:', note.id, '| container found:', !!canvasContainer);
+            console.log('[Notes] Canvas routing - noteId:', note.id, '| container found:', !!canvasContainer);
             if (textarea) textarea.style.display = 'none';
             if (preview) {
                 preview.classList.remove('active');
@@ -640,7 +639,7 @@ export const Notes = {
         if (canvasContainer) canvasContainer.style.display = 'none';
         if (toggleBtn) toggleBtn.style.display = 'inline-block';
 
-        // V19.37: Open modal BEFORE rendering so a render error can't prevent the editor from showing.
+        // .37: Open modal BEFORE rendering so a render error can't prevent the editor from showing.
         if (window.ModalManager) window.ModalManager.open('note-editor-modal');
 
         this.isPreviewMode = (note.viewMode === 'preview');
@@ -679,7 +678,7 @@ export const Notes = {
             pathDisplay.value = displayPath;
         }
 
-        // V88: TRASH BANNER & READ-ONLY MODE
+        // TRASH BANNER & READ-ONLY MODE
         var isTrash = note.path && note.path.indexOf('/.trash') === 0;
         var editorModal = document.getElementById('note-editor-modal');
         var bannerContainer = document.getElementById('trash-banner-container');
@@ -738,7 +737,7 @@ export const Notes = {
                 var deleteBtn = document.getElementById('btn-delete-forever');
                 if (deleteBtn) {
                     deleteBtn.onclick = function() {
-                        // V88: Use PageActions global if available
+                        // Use PageActions global if available
                         if (typeof PageActions !== 'undefined' && PageActions.deleteNotePermanently) {
                             PageActions.deleteNotePermanently(note.id);
                         } else if (window.PageActions && window.PageActions.deleteNotePermanently) {
@@ -800,7 +799,7 @@ export const Notes = {
     },
 
     create: function (initialTitle, initialPath) {
-        // V87: Enforce Untitled Note Guard for ALL creation entry points
+        // Enforce Untitled Note Guard for ALL creation entry points
         // Catches both empty titles AND the default 'Untitled' title
         if (this.activeNoteId) {
             var currentNote = State.NOTES.find(function(n) { return n.id === Notes.activeNoteId; });
@@ -923,12 +922,12 @@ export const Notes = {
         this.updateWordCount();
     },
 
-    // V87: Persist folder expand/collapse state (called by Sidebar.js)
+    // Persist folder expand/collapse state (called by Sidebar.js)
     saveExpandedState: function() {
         localStorage.setItem('OPERATOR_EXPANDED_FOLDERS', JSON.stringify(this.expandedFolders));
     },
 
-    // V87: Register an explicit folder so it persists even when empty
+    // Register an explicit folder so it persists even when empty
     registerFolder: function(path) {
         if (!path || path === '/') return;
         if (this.explicitFolders.indexOf(path) === -1) {
@@ -937,7 +936,7 @@ export const Notes = {
         }
     },
 
-    // V87: Unregister an explicit folder
+    // Unregister an explicit folder
     unregisterFolder: function(path) {
         var idx = this.explicitFolders.indexOf(path);
         if (idx !== -1) {
@@ -950,7 +949,7 @@ export const Notes = {
         }
     },
 
-    // V87: Move note to a new path
+    // Move note to a new path
     moveNote: function(noteId, newPath) {
         var note = State.NOTES.find(function(n) { return n.id === noteId; });
         if (!note) return;
@@ -972,7 +971,7 @@ export const Notes = {
         }
     },
 
-    // V87: Move an entire folder (and all notes under it) to a new parent path
+    // Move an entire folder (and all notes under it) to a new parent path
     moveFolder: function(oldPath, newParentPath) {
         if (!oldPath || oldPath === '/') return;
 
@@ -1004,7 +1003,7 @@ export const Notes = {
         }
     },
 
-    // V87: Delete a folder and all notes within it
+    // Delete a folder and all notes within it
     deleteFolder: function(path) {
         if (!path || path === '/') return;
 
@@ -1020,7 +1019,7 @@ export const Notes = {
             'DELETE_FOLDER',
             'Permanently delete "' + path + '"?' + (noteCount > 0 ? ' (' + noteCount + ' note' + (noteCount !== 1 ? 's' : '') + ' will be removed)' : ''),
             function() {
-                // V87: Always unregister from explicit folders
+                // Always unregister from explicit folders
                 self.unregisterFolder(path);
 
                 if (noteCount > 0) {
@@ -1129,7 +1128,7 @@ export const Notes = {
         }
     },
 
-    // V72: Rich Kanban Preview HTML Generator (Synced with BlockEditor.js)
+    // Rich Kanban Preview HTML Generator (Synced with BlockEditor.js)
     getKanbanPreviewHtml: function(boardId) {
         var BOARDS = State.BOARDS || [];
         var board = BOARDS.find(function(b) { return b.id === boardId; });
@@ -1173,7 +1172,7 @@ export const Notes = {
         '</div>';
     },
 
-    // V72: Toggle Checkbox in Preview
+    // Toggle Checkbox in Preview
     togglePreviewTask: function(taskIndex, isChecked) {
         var note = State.NOTES.find(n => n.id === this.activeNoteId);
         if (!note || !note.blocks) return;
@@ -1272,7 +1271,7 @@ export const Notes = {
                     return isTeaser ? '<span class="teaser-tag">[CALC]</span> ' : '%%CODE_BLOCK_' + idx + '%%';
                 }
 
-                // V78: Use BlockEditor.highlightSyntax if available for same look
+                // Use BlockEditor.highlightSyntax if available for same look
                 if (typeof BlockEditor !== 'undefined' && BlockEditor.highlightSyntax) {
                     var highlighted = BlockEditor.highlightSyntax(code, lang);
                     codeBlocks.push('<pre class="block-code"><code class="code-inner language-' + (lang || 'plain') + '">' + highlighted + '</code><span class="code-lang-label">' + (lang || 'plain').toUpperCase() + '</span></pre>');
@@ -1289,7 +1288,7 @@ export const Notes = {
             html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, url) {
                 var idx = imageBlocks.length;
                 
-                // V110: Apply markdown styling to alt text for WYSIWYG
+                // Apply markdown styling to alt text for WYSIWYG
                 var styledAlt = alt;
                 // 2. Bold (**text**)
                 styledAlt = styledAlt.replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>');
@@ -1307,7 +1306,7 @@ export const Notes = {
             
             // Extract Kanban blocks BEFORE HTML escape
             var kanbanBlocks = [];
-            // V72: Use getKanbanPreviewHtml for updated telemetry
+            // Use getKanbanPreviewHtml for updated telemetry
             html = html.replace(/%%KANBAN:([^:]+):([^:]+):([^:]+):(\d+):(\d+)%%/g, function(match, id, blockId, title, cols, cards) {
                 var idx = kanbanBlocks.length;
                 var hudHtml = self.getKanbanPreviewHtml(id);
@@ -1335,7 +1334,7 @@ export const Notes = {
             };
             
             // Parse Callout safely by strictly matching lines that start with `>`
-            // V111: Capture preceding space/newline to prevent fusing with adjacent blocks like Dividers
+            // Capture preceding space/newline to prevent fusing with adjacent blocks like Dividers
             html = html.replace(/(^|\n)> \[!(\w+)\]\s*([^\n]*)((?:\n>.*)*)/g, function(match, prefix, type, title, body) {
                 var idx = calloutBlocks.length;
                 var typeUpper = type.toUpperCase();
@@ -1403,7 +1402,7 @@ export const Notes = {
             });
 
             // Task Lists
-            // V72: Enabled Checkboxes
+            // Enabled Checkboxes
             var taskIndex = 0;
             html = html.replace(/^(\s*)- \[( |x)\] (.*)$/gm, function (match, indent, state, content) {
                 var isChecked = (state === 'x');

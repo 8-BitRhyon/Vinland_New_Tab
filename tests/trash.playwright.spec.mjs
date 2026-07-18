@@ -1,5 +1,5 @@
 /**
- * Vinland Trash & Restore Workflow — Playwright Integration Tests
+ * Vinland Trash & Restore Workflow - Playwright Integration Tests
  *
  * Tests the complete trash lifecycle: move note to trash, verify it's hidden
  * from Quick Notes, restore it, and verify it reappears with content intact.

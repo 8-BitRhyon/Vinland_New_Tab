@@ -22,6 +22,8 @@ export const CanvasManager = {
     redoStack: [],
     clipboard: null,
     lastMouseCoords: null,
+    _backlinksPanel: null,
+    _backlinksFileNodeId: null,
 
     // === SELECTION HELPERS ===
     selectNode: function(nodeId, isMultiSelect) {
@@ -34,6 +36,8 @@ export const CanvasManager = {
         if (card) {
             card.classList.add('selected-node');
         }
+        // Show backlinks panel for file nodes
+        this._updateBacklinks();
     },
 
     deselectNode: function(nodeId) {
@@ -53,6 +57,7 @@ export const CanvasManager = {
         document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(el => {
             el.classList.remove('selected-node');
         });
+        this._closeBacklinks();
     },
 
     deleteSelectedNodes: function() {
@@ -82,6 +87,15 @@ export const CanvasManager = {
         this._refreshEdges();
         if (window.saveData) window.saveData();
         this.updateUI();
+        // Update backlinks badges
+        var self = this;
+        if (note && note.canvasData && note.canvasData.nodes) {
+            note.canvasData.nodes.forEach(function(n) {
+                if (n.type === 'file') {
+                    self._updateBacklinksBadge(n.id);
+                }
+            });
+        }
     },
 
     copySelectedNodes: function() {
@@ -301,7 +315,7 @@ export const CanvasManager = {
 
     init: function() {
         this.container = document.getElementById('canvas-container');
-        console.log('[CanvasManager] init() — container found:', !!this.container);
+        console.log('[CanvasManager] init() - container found:', !!this.container);
         if (!this.container) return;
         this.container.innerHTML = '';
 
@@ -372,6 +386,128 @@ export const CanvasManager = {
         `;
         this.container.appendChild(this.hintOverlay);
 
+        // Inject backlinks panel styles
+        if (!document.getElementById('canvas-backlinks-styles')) {
+            var blStyle = document.createElement('style');
+            blStyle.id = 'canvas-backlinks-styles';
+            blStyle.textContent = `
+                .canvas-backlinks-panel {
+                    position: fixed;
+                    z-index: 35000;
+                    background: rgba(0, 0, 0, 0.92);
+                    border: 1px solid var(--main-color, #00ff41);
+                    border-radius: 6px;
+                    padding: 0;
+                    min-width: 220px;
+                    max-width: 320px;
+                    max-height: 400px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 20px rgba(0, 255, 65, 0.25);
+                    font-family: inherit;
+                    font-size: 0.8rem;
+                }
+                .canvas-backlinks-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 10px 12px 6px 12px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .canvas-backlinks-title {
+                    color: var(--main-color, #00ff41);
+                    font-weight: bold;
+                    font-size: 0.7rem;
+                    letter-spacing: 1px;
+                }
+                .canvas-backlinks-close {
+                    color: #888;
+                    cursor: pointer;
+                    font-size: 1.1rem;
+                    line-height: 1;
+                    transition: color 0.15s ease;
+                }
+                .canvas-backlinks-close:hover {
+                    color: #ff3333;
+                }
+                .canvas-backlinks-count {
+                    padding: 4px 12px 8px 12px;
+                    color: #666;
+                    font-size: 0.65rem;
+                }
+                .canvas-backlinks-list {
+                    padding: 0 0 6px 0;
+                }
+                .canvas-backlinks-item {
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    transition: background 0.15s ease;
+                    border-left: 2px solid transparent;
+                }
+                .canvas-backlinks-item:hover {
+                    background: rgba(0, 255, 65, 0.08);
+                    border-left-color: var(--main-color, #00ff41);
+                }
+                .canvas-backlinks-item-title {
+                    color: #eee;
+                    font-weight: 500;
+                    margin-bottom: 2px;
+                }
+                .canvas-backlinks-item-snippet {
+                    color: #666;
+                    font-size: 0.7rem;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .canvas-backlinks-panel::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .canvas-backlinks-panel::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .canvas-backlinks-panel::-webkit-scrollbar-thumb {
+                    background: var(--main-color, #00ff41);
+                    border-radius: 2px;
+                }
+                .canvas-backlinks-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 16px;
+                    height: 16px;
+                    padding: 0 4px;
+                    border-radius: 8px;
+                    background: var(--main-color, #00ff41);
+                    color: #000;
+                    font-size: 0.6rem;
+                    font-weight: bold;
+                    line-height: 1;
+                    margin-left: 6px;
+                    cursor: default;
+                    vertical-align: middle;
+                }
+                .canvas-card-create-note {
+                    font-size: 0.65rem;
+                    padding: 2px 6px;
+                    height: 20px;
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    color: #aaa;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    margin: 0 4px;
+                    transition: all 0.15s ease;
+                    flex-shrink: 0;
+                }
+                .canvas-card-create-note:hover {
+                    background: rgba(0, 255, 65, 0.15);
+                    border-color: var(--main-color, #00ff41);
+                    color: var(--main-color, #00ff41);
+                }
+            `;
+            document.head.appendChild(blStyle);
+        }
+
         // Zoom label reference
         this.zoomLabel = this.toolbar.querySelector('#canvas-zoom-label');
 
@@ -380,7 +516,7 @@ export const CanvasManager = {
     },
 
     load: function(noteId) {
-        console.log('[CanvasManager] load() — noteId:', noteId, '| board:', !!this.board, '| container:', !!this.container);
+        console.log('[CanvasManager] load() - noteId:', noteId, '| board:', !!this.board, '| container:', !!this.container);
         
         // Anti-Race Condition: Self-initialize if not ready
         if (!this.container || !this.board) {
@@ -422,6 +558,27 @@ export const CanvasManager = {
             });
         }
         setTimeout(() => this.updateUI(), 50);
+
+        // Update backlinks badges for all file nodes
+        setTimeout(() => {
+            if (note && note.canvasData && note.canvasData.nodes) {
+                note.canvasData.nodes.forEach(node => {
+                    if (node.type === 'file') {
+                        this._updateBacklinksBadge(node.id);
+                    }
+                });
+            }
+        }, 10);
+
+        // Route existing wiki-links in text nodes to existing file nodes
+        setTimeout(() => {
+            if (note && note.canvasData && note.canvasData.nodes) {
+                note.canvasData.nodes.forEach(node => {
+                    if (node.type && (node.type === 'file' || node.type === 'embed' || node.type === 'group')) return;
+                    this._routeWikiLinks(node.id, false);
+                });
+            }
+        }, 150);
 
         // Feature 6: Minimap
         this._initMinimap();
@@ -1320,8 +1477,9 @@ export const CanvasManager = {
             card.innerHTML = `
                 <div class="canvas-card-header">
                     <div class="canvas-card-title">📎 ${noteTitle}</div>
+                    <span class="canvas-backlinks-badge" id="backlinks-badge-${nodeData.id}" style="display:none;" title="Backlinks">0</span>
                     <button class="canvas-card-file-open" title="Open in Editor">OPEN</button>
-                    <span class="canvas-card-delete" title="Delete node">&times;</span>
+                    <span class="canvas-card-delete" role="button" aria-label="Delete node" title="Delete node">&times;</span>
                 </div>
                 <div class="canvas-card-file-body">${renderedHtml}</div>
             `;
@@ -1333,6 +1491,11 @@ export const CanvasManager = {
                     window.Notes.open(linkedNote.id);
                 }
             });
+
+            // Show backlinks badge after a short delay (to allow edges to be rendered)
+            setTimeout(() => {
+                this._updateBacklinksBadge(nodeData.id);
+            }, 10);
 
         } else if (nodeData.type === 'embed') {
             card.classList.add('embed-node');
@@ -1386,7 +1549,7 @@ export const CanvasManager = {
                 card.innerHTML = `
                     <div class="canvas-card-header">
                         <div class="canvas-card-title" contenteditable="true">🌐 ${nodeData.title || 'YouTube Video'}</div>
-                        <span class="canvas-card-delete" title="Delete node">&times;</span>
+                        <span class="canvas-card-delete" role="button" aria-label="Delete node" title="Delete node">&times;</span>
                     </div>
                     <div class="canvas-card-smart-body youtube-body" style="padding: 10px; gap: 8px; display: flex; flex-direction: column; justify-content: center; height: calc(100% - 35px); box-sizing: border-box;">
                         <a href="${displayUrl}" target="_blank" class="youtube-link-wrapper" style="position: relative; width: 100%; aspect-ratio: 16/9; display: block; border-radius: 6px; overflow: hidden; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
@@ -1444,7 +1607,7 @@ export const CanvasManager = {
                 card.innerHTML = `
                     <div class="canvas-card-header">
                         <div class="canvas-card-title" contenteditable="true">🌐 ${displayTitle}</div>
-                        <span class="canvas-card-delete" title="Delete node">&times;</span>
+                        <span class="canvas-card-delete" role="button" aria-label="Delete node" title="Delete node">&times;</span>
                     </div>
                     <div class="canvas-card-smart-body">
                         <img src="${faviconUrl}" alt="${hostname}" class="smart-card-favicon" />
@@ -1465,7 +1628,7 @@ export const CanvasManager = {
                         <div class="canvas-card-title" contenteditable="true">🌐 ${title}</div>
                         <div class="canvas-card-actions">
                             <button class="canvas-card-interact-btn" title="Toggle Interaction (Obsidian Style)">🖱️ Interact</button>
-                            <span class="canvas-card-delete" title="Delete node">&times;</span>
+                            <span class="canvas-card-delete" role="button" aria-label="Delete node" title="Delete node">&times;</span>
                         </div>
                     </div>
                     <div class="canvas-card-embed-body" style="position: relative;">
@@ -1534,7 +1697,7 @@ export const CanvasManager = {
             card.innerHTML = `
                 <div class="canvas-group-header">
                     <input type="text" class="canvas-group-label" value="${nodeData.label || 'Group'}">
-                    <span class="canvas-group-delete canvas-card-delete" title="Delete group">&times;</span>
+                    <span class="canvas-group-delete canvas-card-delete" role="button" aria-label="Delete group" title="Delete group">&times;</span>
                 </div>
                 <div class="canvas-resizer" title="Resize group"></div>
             `;
@@ -1602,12 +1765,18 @@ export const CanvasManager = {
             // Standard text node
             const titleText = nodeData.title || '';
             const bodyText = nodeData.preview || '';
+            // Transform wiki-links into clickable spans (preserves innerText for correct save)
+            var styledBody = bodyText.replace(
+                /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g,
+                '<span class="wiki-link" data-note-title="$1">[[$1]]</span>'
+            );
             card.innerHTML = `
                 <div class="canvas-card-header">
                     <div class="canvas-card-title" contenteditable="true" data-placeholder="Title...">${titleText}</div>
-                    <span class="canvas-card-delete" title="Delete node">&times;</span>
+                    <button class="canvas-card-create-note" title="Create a proper note from this text node">+ NOTE</button>
+                    <span class="canvas-card-delete" role="button" aria-label="Delete node" title="Delete node">&times;</span>
                 </div>
-                <div class="canvas-card-body" contenteditable="true" data-placeholder="Write something...">${bodyText}</div>
+                <div class="canvas-card-body" contenteditable="true" data-placeholder="Write something...">${styledBody}</div>
             `;
         }
 
@@ -1622,6 +1791,7 @@ export const CanvasManager = {
                     nodeData.title = newTitle;
                     nodeData.preview = newPreview;
                     if (window.saveData) window.saveData();
+                    this._routeWikiLinks(nodeData.id);
                 }
             });
             el.addEventListener('keydown', e => e.stopPropagation());
@@ -1639,6 +1809,43 @@ export const CanvasManager = {
                     this.clearSelection();
                     this.selectNode(nodeData.id, false);
                     this.deleteSelectedNodes();
+                }
+            });
+        }
+
+        // === CREATE NOTE BUTTON (text nodes only) ===
+        const createNoteBtn = card.querySelector('.canvas-card-create-note');
+        if (createNoteBtn) {
+            createNoteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Blur any active editing to save current content
+                if (document.activeElement && document.activeElement.blur) {
+                    document.activeElement.blur();
+                }
+                this._convertTextNodeToFile(nodeData);
+            });
+        }
+
+        // === WIKI-LINK CLICK HANDLING ===
+        var bodyEl = card.querySelector('.canvas-card-body');
+        if (bodyEl) {
+            bodyEl.addEventListener('mousedown', function(e) {
+                var wikiLink = e.target.closest('.wiki-link');
+                if (!wikiLink) return;
+                e.preventDefault();
+                var noteTitle = wikiLink.getAttribute('data-note-title');
+                if (!noteTitle) return;
+                // Find matching note by title (case-insensitive)
+                var targetNote = window.State.NOTES.find(function(n) {
+                    return (n.title || '').toLowerCase() === noteTitle.trim().toLowerCase();
+                });
+                if (targetNote && window.Notes) {
+                    // Blur contenteditable to save any pending edits
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
+                    window.Notes.open(targetNote.id);
                 }
             });
         }
@@ -1775,6 +1982,11 @@ export const CanvasManager = {
 
                 // Re-route connected edges in real-time
                 this._refreshEdges();
+
+                // Update backlinks panel position if a file node is being dragged
+                if (this._backlinksPanel && this._backlinksFileNodeId) {
+                    this._updateBacklinksPosition();
+                }
 
                 startX = moveEvent.clientX;
                 startY = moveEvent.clientY;
@@ -1988,10 +2200,19 @@ export const CanvasManager = {
             path.id = `edge-${edge.id}`;
             path.classList.add('canvas-edge');
             path.setAttribute('stroke', edge.color || 'var(--main-color, #00ff41)');
-            path.setAttribute('stroke-width', '2');
             path.setAttribute('fill', 'none');
-            path.setAttribute('opacity', '0.7');
-            path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
+
+            if (edge.isWikiLink) {
+                // Wiki-link routed edges: dashed and dimmer to distinguish from manual edges
+                path.setAttribute('stroke-width', '1.5');
+                path.setAttribute('opacity', '0.5');
+                path.setAttribute('stroke-dasharray', '5,3');
+                path.setAttribute('marker-end', 'url(#canvas-arrowhead-dim)');
+            } else {
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('opacity', '0.7');
+                path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
+            }
             path.style.pointerEvents = 'stroke';
             path.style.cursor = 'pointer';
             this.svgLayer.appendChild(path);
@@ -2114,6 +2335,100 @@ export const CanvasManager = {
         if (window.saveData) window.saveData();
     },
 
+    // ==========================================
+    // WIKI-LINK AUTO-ROUTING
+    // ==========================================
+
+    _routeWikiLinks: function(textNodeId, createFileNodes) {
+        // createFileNodes defaults to true if not specified
+        if (createFileNodes === undefined) createFileNodes = true;
+
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData || !note.canvasData.nodes) return;
+
+        const textNode = note.canvasData.nodes.find(n => n.id === textNodeId);
+        if (!textNode) return;
+
+        // Parse [[Note Title]] or [[Note Title|Display Label]]
+        var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+        var match;
+        var changed = false;
+
+        while ((match = wikiLinkRegex.exec(textNode.preview || '')) !== null) {
+            var linkTarget = match[1].trim();
+            if (!linkTarget) continue;
+
+            // Find matching note by title (case-insensitive)
+            var targetNote = window.State.NOTES.find(function(n) {
+                return n.id !== this.activeNoteId && (n.title || '').toLowerCase() === linkTarget.toLowerCase();
+            }.bind(this));
+            if (!targetNote) continue;
+
+            // Check if a file node already exists for this note
+            var existingFileNode = note.canvasData.nodes.find(function(n) {
+                return n.type === 'file' && n.linkedNoteId === targetNote.id;
+            });
+
+            var fileNode = existingFileNode;
+
+            // Create a file node if allowed and none exists
+            if (!fileNode && createFileNodes) {
+                var textNodeRight = (textNode.x || 0) + (textNode.width || 200) + 60;
+                var textNodeCenterY = (textNode.y || 0) + Math.max(((textNode.height || 80) / 2) - 40, 0);
+
+                fileNode = {
+                    id: 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    type: 'file',
+                    linkedNoteId: targetNote.id,
+                    title: targetNote.title || 'Untitled',
+                    preview: '',
+                    x: textNodeRight,
+                    y: textNodeCenterY,
+                    width: 240,
+                    height: 160
+                };
+
+                note.canvasData.nodes.push(fileNode);
+                this.addCard(fileNode);
+                changed = true;
+            }
+
+            if (!fileNode) continue;
+
+            // Check if an edge already exists between text node and file node
+            var existingEdge = (note.canvasData.edges || []).find(function(e) {
+                return e.fromNode === textNode.id && e.toNode === fileNode.id;
+            });
+
+            if (!existingEdge) {
+                if (!note.canvasData.edges) note.canvasData.edges = [];
+                var newEdge = {
+                    id: 'edge_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    fromNode: textNode.id,
+                    toNode: fileNode.id,
+                    label: '',
+                    color: 'var(--main-color, #00ff41)',
+                    isWikiLink: true
+                };
+                note.canvasData.edges.push(newEdge);
+                this.renderEdge(newEdge);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            // Update backlinks badges for any file nodes affected
+            var self = this;
+            (note.canvasData.nodes || []).forEach(function(n) {
+                if (n.type === 'file') {
+                    self._updateBacklinksBadge(n.id);
+                }
+            });
+            this.updateUI();
+            if (window.saveData) window.saveData();
+        }
+    },
+
     _refreshEdges: function() {
         const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
         if (!note || !note.canvasData || !note.canvasData.edges) return;
@@ -2131,23 +2446,33 @@ export const CanvasManager = {
         menu.className = 'canvas-context-menu';
         menu.id = 'canvas-context-menu';
         menu.style.left = `${x}px`;
-        menu.style.top = `${y}px`;
-
-        menu.innerHTML = `
-            <div class="canvas-context-item" id="ctx-delete">Delete Node</div>
-            <div class="canvas-color-picker">
-                <div class="canvas-color-swatch" style="background:var(--main-color);" data-color="default"></div>
-                <div class="canvas-color-swatch" style="background:#ff3366;" data-color="red"></div>
-                <div class="canvas-color-swatch" style="background:#ffcc00;" data-color="yellow"></div>
-                <div class="canvas-color-swatch" style="background:#00ff41;" data-color="green"></div>
-                <div class="canvas-color-swatch" style="background:#00e5ff;" data-color="blue"></div>
-                <div class="canvas-color-swatch" style="background:#b82bf2;" data-color="purple"></div>
-            </div>
-        `;
+        menu.style.top = `${y}px`;            // Only show Create Note option for text nodes (no type, or not file/embed/group)
+            var isTextNode = !nodeData.type || (nodeData.type !== 'file' && nodeData.type !== 'embed' && nodeData.type !== 'group');
+            menu.innerHTML = `
+                <div class="canvas-context-item" id="ctx-create-note" style="display:${isTextNode ? 'block' : 'none'};">Create Note</div>
+                <div class="canvas-context-item" id="ctx-delete">Delete Node</div>
+                <div class="canvas-color-picker">
+                    <div class="canvas-color-swatch" style="background:var(--main-color);" data-color="default"></div>
+                    <div class="canvas-color-swatch" style="background:#ff3366;" data-color="red"></div>
+                    <div class="canvas-color-swatch" style="background:#ffcc00;" data-color="yellow"></div>
+                    <div class="canvas-color-swatch" style="background:#00ff41;" data-color="green"></div>
+                    <div class="canvas-color-swatch" style="background:#00e5ff;" data-color="blue"></div>
+                    <div class="canvas-color-swatch" style="background:#b82bf2;" data-color="purple"></div>
+                </div>
+            `;
         menu.style.zIndex = '35000'; // Ensure above everything
         document.body.appendChild(menu);
 
         // Events
+        if (isTextNode) {
+            menu.querySelector('#ctx-create-note').onclick = () => {
+                if (document.activeElement && document.activeElement.blur) {
+                    document.activeElement.blur();
+                }
+                this._convertTextNodeToFile(nodeData);
+                menu.remove();
+            };
+        }
         menu.querySelector('#ctx-delete').onclick = () => {
             const cardDeleteBtn = document.querySelector(`#canvas-node-${nodeData.id} .canvas-card-delete`);
             if (cardDeleteBtn) cardDeleteBtn.click();
@@ -2179,5 +2504,230 @@ export const CanvasManager = {
             };
             document.addEventListener('mousedown', closeHandler);
         }, 50);
+    },
+
+    // ==========================================
+    // BACKLINKS PANEL
+    // ==========================================
+
+    _updateBacklinks: function() {
+        this._closeBacklinks();
+
+        if (this.selectedNodeIds.size !== 1) return;
+
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData) return;
+
+        const selectedNodeData = note.canvasData.nodes.find(n => n.id === this.selectedNodeId);
+        if (!selectedNodeData || selectedNodeData.type !== 'file') return;
+
+        this._showBacklinks(this.selectedNodeId);
+    },
+
+    _showBacklinks: function(fileNodeId) {
+        // Local escape for safe HTML
+        function esc(str) {
+            return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        if (!note || !note.canvasData || !note.canvasData.edges) return;
+
+        const fileNode = note.canvasData.nodes.find(n => n.id === fileNodeId);
+        if (!fileNode) return;
+
+        // Find all edges pointing to this file node
+        var backlinkEdges = note.canvasData.edges.filter(function(e) {
+            return e.toNode === fileNodeId;
+        });
+
+        if (backlinkEdges.length === 0) return;
+
+        // Create backlinks panel
+        var panel = document.createElement('div');
+        panel.id = 'canvas-backlinks-panel';
+        panel.className = 'canvas-backlinks-panel';
+        this._backlinksPanel = panel;
+        this._backlinksFileNodeId = fileNodeId;
+
+        // Position to the right of the file node
+        var fileCard = document.getElementById('canvas-node-' + fileNodeId);
+        var fileRect = fileCard ? fileCard.getBoundingClientRect() : null;
+
+        var html = '<div class="canvas-backlinks-header">' +
+            '<span class="canvas-backlinks-title">BACKLINKS</span>' +
+            '<span class="canvas-backlinks-close" id="canvas-backlinks-close">&times;</span>' +
+            '</div>' +
+            '<div class="canvas-backlinks-count">' + backlinkEdges.length + ' connection' +
+            (backlinkEdges.length !== 1 ? 's' : '') + '</div>' +
+            '<div class="canvas-backlinks-list">';
+
+        var self = this;
+        backlinkEdges.forEach(function(edge) {
+            var sourceNode = note.canvasData.nodes.find(function(n) {
+                return n.id === edge.fromNode;
+            });
+            if (!sourceNode) return;
+
+            var sourceTitle = sourceNode.title || 'Untitled';
+            // Find the wiki-link text in the source node preview
+            var linkText = '';
+            var bodyText = sourceNode.preview || '';
+            var linkMatch = bodyText.match(/\[\[([^\]]+)\]\]/);
+            if (linkMatch) {
+                linkText = linkMatch[0];
+            }
+            var snippet = linkText ? '... ' + linkText + ' ...' : '';
+
+            html += '<div class="canvas-backlinks-item" data-source-id="' + esc(sourceNode.id) + '">' +
+                '<div class="canvas-backlinks-item-title">' + esc(sourceTitle) + '</div>' +
+                (snippet ? '<div class="canvas-backlinks-item-snippet">' + esc(snippet) + '</div>' : '') +
+                '</div>';
+        });
+
+        html += '</div>';
+        panel.innerHTML = html;
+
+        // Position panel
+        document.body.appendChild(panel);
+
+        // Set position based on file node location
+        if (fileRect) {
+            panel.style.left = (fileRect.right + 10) + 'px';
+            panel.style.top = fileRect.top + 'px';
+        } else {
+            panel.style.left = '100px';
+            panel.style.top = '100px';
+        }
+
+        // Adjust if off-screen
+        setTimeout(function() {
+            var panelRect = panel.getBoundingClientRect();
+            if (panelRect.right > window.innerWidth) {
+                panel.style.left = (window.innerWidth - panelRect.width - 10) + 'px';
+            }
+            if (panelRect.bottom > window.innerHeight) {
+                panel.style.top = (window.innerHeight - panelRect.height - 10) + 'px';
+            }
+        }, 10);
+
+        // Close button
+        document.getElementById('canvas-backlinks-close').addEventListener('click', function(e) {
+            e.stopPropagation();
+            self._closeBacklinks();
+        });
+
+        // Click on backlink item → select that text node and scroll to it
+        panel.querySelectorAll('.canvas-backlinks-item').forEach(function(item) {
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var sourceId = item.getAttribute('data-source-id');
+                if (sourceId) {
+                    self.clearSelection();
+                    self.selectNode(sourceId, false);
+                    // Scroll the source node into view
+                    var sourceCard = document.getElementById('canvas-node-' + sourceId);
+                    if (sourceCard) {
+                        sourceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+        });
+
+        // Close when clicking outside
+        setTimeout(function() {
+            var closeHandler = function(e) {
+                if (!panel.contains(e.target)) {
+                    self._closeBacklinks();
+                    document.removeEventListener('mousedown', closeHandler);
+                }
+            };
+            document.addEventListener('mousedown', closeHandler);
+        }, 50);
+    },
+
+    _closeBacklinks: function() {
+        if (this._backlinksPanel) {
+            this._backlinksPanel.remove();
+            this._backlinksPanel = null;
+            this._backlinksFileNodeId = null;
+        }
+    },
+
+    _updateBacklinksPosition: function() {
+        if (!this._backlinksPanel || !this._backlinksFileNodeId) return;
+        var fileCard = document.getElementById('canvas-node-' + this._backlinksFileNodeId);
+        if (!fileCard) return;
+        var rect = fileCard.getBoundingClientRect();
+        this._backlinksPanel.style.left = (rect.right + 10) + 'px';
+        this._backlinksPanel.style.top = rect.top + 'px';
+        // Re-check offscreen bounds
+        var panelRect = this._backlinksPanel.getBoundingClientRect();
+        if (panelRect.right > window.innerWidth) {
+            this._backlinksPanel.style.left = (window.innerWidth - panelRect.width - 10) + 'px';
+        }
+        if (panelRect.bottom > window.innerHeight) {
+            this._backlinksPanel.style.top = (window.innerHeight - panelRect.height - 10) + 'px';
+        }
+    },
+
+    _convertTextNodeToFile: function(nodeData) {
+        const note = window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
+        if (!note || !note.canvasData) return;
+
+        this._saveHistoryState();
+
+        // Create a new note in State.NOTES
+        var title = nodeData.title || 'Untitled';
+        var content = nodeData.preview || '';
+
+        var newNote = {
+            id: 'note_' + Date.now(),
+            title: title,
+            content: content,
+            created: Date.now(),
+            modified: Date.now()
+        };
+
+        if (!window.State.NOTES) window.State.NOTES = [];
+        window.State.NOTES.push(newNote);
+
+        // Convert the canvas node from text to file node
+        nodeData.type = 'file';
+        nodeData.linkedNoteId = newNote.id;
+        nodeData.title = title;
+        nodeData.preview = '';
+
+        // Remove old card and re-render with the same ID
+        var oldCard = document.getElementById('canvas-node-' + nodeData.id);
+        if (oldCard) oldCard.remove();
+
+        this.addCard(nodeData);
+        this.selectNode(nodeData.id, false);
+
+        // Save and update
+        if (window.saveData) window.saveData();
+        this._refreshEdges();
+        this.updateUI();
+
+        // Update backlinks badges
+        this._updateBacklinksBadge(nodeData.id);
+    },
+
+    _updateBacklinksBadge: function(fileNodeId) {
+        var note = window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
+        if (!note || !note.canvasData) return;
+        var count = (note.canvasData.edges || []).filter(function(e) {
+            return e.toNode === fileNodeId;
+        }).length;
+        var badge = document.getElementById('backlinks-badge-' + fileNodeId);
+        if (!badge) return;
+        if (count > 0) {
+            badge.textContent = count + '';
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.style.display = 'none';
+        }
     }
 };
