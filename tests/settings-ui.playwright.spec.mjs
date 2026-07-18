@@ -317,3 +317,51 @@ test('16. Uploaded background shows a rendered thumbnail (not blank)', async ({ 
   const border = await cards.first().evaluate((el) => el.style.borderColor);
   expect(border).not.toContain('255, 68, 68');
 });
+
+// Regression: an uploaded db: background must persist and apply after a tab reload
+// (i.e. reopening the new tab), with no extension restart.
+test('17. Uploaded background persists and applies after reload', async ({ page }) => {
+  const pngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQAY3Y2wAAAAAElFTkSuQmCC';
+  const buffer = Buffer.from(pngBase64, 'base64');
+
+  // Open settings and upload a PNG.
+  await page.evaluate(() => { if (window.SettingsUI) window.SettingsUI.toggleConfig(); });
+  await page.waitForTimeout(400);
+
+  const fileInput = page.locator('#bg-file-input');
+  await expect(fileInput).toBeAttached({ timeout: 5000 });
+  await fileInput.setInputFiles({
+    name: 'persist-bg.png',
+    mimeType: 'image/png',
+    buffer: buffer,
+  });
+
+  // Thumbnail should render a blob image immediately (live, in-session).
+  const thumbImg = page.locator('#bg-thumbnails .bg-thumb-card img').first();
+  await expect(thumbImg).toBeAttached({ timeout: 5000 });
+  const thumbSrc = await thumbImg.getAttribute('src');
+  expect(thumbSrc || '').toContain('blob:');
+
+  // Save the configuration.
+  await page.locator('#header-save-btn').click();
+  await page.waitForTimeout(600);
+
+  // CONFIG should now include the db: asset.
+  const savedBg = await page.evaluate(() => (window.State && window.State.CONFIG.backgrounds) || []);
+  expect(savedBg.some((b) => b.startsWith('db:'))).toBeTruthy();
+
+  // Reload the new tab (simulates reopening a tab, not restarting the extension).
+  await page.reload();
+  await page.waitForTimeout(600);
+
+  // The background image element must be applied with a blob URL, no restart needed.
+  await page.waitForFunction(() => {
+    const el = document.getElementById('bg-image');
+    return !!el && /blob:/.test(el.style.backgroundImage) && el.style.opacity === '1';
+  }, null, { timeout: 8000 });
+
+  // And CONFIG still references the db: asset after reload.
+  const reloadedBg = await page.evaluate(() => (window.State && window.State.CONFIG.backgrounds) || []);
+  expect(reloadedBg.some((b) => b.startsWith('db:'))).toBeTruthy();
+});
