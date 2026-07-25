@@ -2,7 +2,7 @@
 
 > Single source of truth for the Vinland Chrome new-tab extension.
 > All facts verified against source code (`js/*` and `index.html`).
-> Last verified: 2026-07-16.
+> Last verified: 2026-07-25.
 
 ## 1. What Vinland is
 
@@ -33,10 +33,14 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 8. `Notes.init()` + `renderNotes()` + `renderSidebar()`
 9. `KanbanManager.init()`
 10. `SettingsUI.init()` - bind config modal events + background init
-11. `SystemCommands.register()` - populate `CommandRegistry` with all 17 commands
-12. Feature `init()` calls: `CommandLine`, `Pomodoro`, `Bookmarks`,
+11. `SystemCommands.register()` - populate `CommandRegistry` with all 26 commands
+12. Feature `init()` calls: `QuickOpen`, `Calendar`, `DailyAgenda`,
+    `TagBrowser`, `TemplateBrowser`, `QuickCapture`, `BackupManager`,
+    `PropertiesPanel`, `CommandLine`, `Pomodoro`, `Bookmarks`,
     `PageActions`, `SlashMenu`, `Clock`, `CalloutModal`
-13. `initKeyboardShortcuts()` - global keybinds (Cmd+S, Cmd+E, tab nav)
+13. `initKeyboardShortcuts()` - global keybinds (Cmd+S, Cmd+E, Cmd+P,
+    Cmd+Shift+C, Cmd+Shift+F, Cmd+Shift+I, Cmd+Shift+N, Cmd+Shift+T,
+    Cmd+Shift+A, tab nav)
 14. Renders: `renderMissions()`, `checkStreakReset()`, `renderDock()`
 15. `Config.applyTheme()` + `fetchWeather()` (if location set)
 16. `bindGlobals()` - wire static HTML buttons (gear, help, config-save, etc.)
@@ -79,13 +83,20 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 | `weather.js` | `Weather`, `fetchWeather` | Open-Meteo API (geocoding + forecast). 30-min cache in `OPERATOR_WEATHER_CACHE`. `SET_LOCATION` empty-state CTA. C/F toggle. |
 | `dock.js` | `Dock` | Quick-launch link bar below HUD. Default links: GMAIL, CAL, GPT. Right-click to delete. `+` opens Settings → dock tab. |
 | `taskaggregator.js` | `TaskAggregator` | Aggregates all `task`-type blocks from all notes into a single "Task Manager" view, grouped by page, with inline checkboxes. |
+| `quickopen.js` | `QuickOpen` | VS Code-inspired quick-open palette (Cmd+P / Cmd+Shift+F): full-text search across note titles, content, tags, and CLI commands. Debounced at 150ms. Results grouped into Notes/Tags/Commands sections with keyboard navigation. |
+| `calendar.js` | `Calendar` | Monthly calendar view (Cmd+Shift+C / `calendar` CLI). Shows date-grid with note dot indicators. Click a day to open/create daily note. Prev/next month navigation, "Today" jump button. |
+| `dailyagenda.js` | `DailyAgenda` | Daily notes aggregation view (Cmd+Shift+A / `agenda` CLI). Shows week/month layout of daily note titles with content previews. Navigate between periods, click cards to open notes. |
+| `tagbrowser.js` | `TagBrowser` | Tag browser modal (Cmd+Shift+T / `tags` CLI): lists all tags with counts, real-time search/filter, click-to-filter notes in sidebar. |
+| `templatebrowser.js` | `TemplateBrowser` | Template browser (Cmd+Shift+N / `template` CLI): opens modal showing all notes in `/Templates` folder, creates new notes pre-populated from selected template. Supports YAML frontmatter in templates. |
+| `quickcapture.js` | `QuickCapture` | Quick Capture overlay (Cmd+Shift+I): minimal input for instantly capturing thoughts into `/Inbox` folder. Inbox preview for triaging captures. Chrome context menu "Send to Vinland Inbox". |
+| `backupmanager.js` | `BackupManager` | Auto-backup and Google Drive sync. Configurable interval, "Backup Now" button, backup status display, Drive integration buttons. Persists backup config to `OPERATOR_CONFIG_V3`. |
 
 ### `js/ui/` - Views and overlays
 
 | File | Exports | Purpose |
 |---|---|---|
 | `modalmanager.js` | `ModalManager` | Centered modal stacking: `open(modalId)`, `close(modalId)`, `closeAll()`, `openInput()`, `initConfirmModal()`. Z-index: `21000 + stack.length`. One-modal policy for config/help/graph/history. |
-| `settingsui.js` | `SettingsUI` | SYSTEM_CONFIG dashboard (7 tabs: INTERFACE/NOTES/SYSTEM/MODULES/MAINTENANCE), theme presets, export/import backup, clear-data, background upload. Also: `toggleHelp()`, `showNotification()` (3s toast). |
+| `settingsui.js` | `SettingsUI` | SYSTEM_CONFIG dashboard (7 tabs: INTERFACE/NOTES/SYSTEM/MODULES/MAINTENANCE), theme presets (14), export/import backup, cloud sync config, clear-data, background upload. Also: `toggleHelp()`, `showNotification()` (3s toast). |
 | `sidebar.js` | `buildDirectoryStructure`, `filterTreeStructure`, `renderSidebar`, `renderTrashView` | Notes tree view (folder hierarchy, trash excluded). Search filtering. Drag-and-drop folder move. |
 | `slashmenu.js` | `SlashMenu` | `/` command palette inside BlockEditor: 20+ commands (h1/h2/h3, bullet, numbered, task, quote, code, kanban, table, image, canvas, query, callout, /time, /weather, /calc). |
 | `hoverpreview.js` | `HoverPreview` | Wiki-link hover preview cards (10×5rem CSS-positioned panel with note content). |
@@ -93,6 +104,7 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 | `calloutmodal.js` | `CalloutModal` | Dynamically-created callout editor modal (type/title/content) for Obsidian-style callout blocks. DOM is injected on init. |
 | `tabmanager.js` | `TabManager` | Multi-tab note editing inside the editor modal. Tabs persist to `VINLAND_TABS` (localStorage). Back/forward history. |
 | `background.js` | `Background` | Video/image wallpaper player. Handles `backgrounds[]` list from config, random selection, retry on error, color fallback, filter overlay. |
+| `propertiespanel.js` | `PropertiesPanel` | YAML frontmatter editor panel in the note editor sidebar. Parses `---\nkey: value\n---` frontmatter and renders editable fields: tags (autocomplete), aliases, date, status (preset dropdown), booleans, and custom key:value pairs. `syncToNote()` serializes changes back into `note.content` on save. |
 
 ### `js/editor/` - The note editor engine
 
@@ -105,7 +117,7 @@ canvas, D3 knowledge graph, metadata cache, Dataview-lite query engine).
 
 | File | Exports | Purpose |
 |---|---|---|
-| `systemcommands.js` | `SystemCommands` | Registers all 17 CLI commands into `CommandRegistry`. |
+| `systemcommands.js` | `SystemCommands` | Registers all 27 CLI commands into `CommandRegistry`. |
 
 ## 4. The `window.*` service-locator pattern (INTENTIONAL)
 
@@ -123,11 +135,11 @@ handlers or other modules depend on it.
 
 ## 5. Command system (AUTHORITATIVE list)
 
-Registered in `js/config/SystemCommands.js` (lines 9–242).
+Registered in `js/config/SystemCommands.js` (lines 9–320).
 
 | trigger | id | hint | action target |
 |---|---|---|---|
-| `note` | `notes:create` | `[content]` | `window.Notes.create(args)` |
+| `note` | `notes:create` | `[content]` | `window.Notes.create(args[, path, template])` |
 | `notes` | `notes:toggle` | - | `window.Notes.toggleSidebar()` |
 | `canvas` | `canvas:open` | - | Creates canvas note + opens editor |
 | `daily` | `nav:daily` | - | Opens/creates `Daily Log YYYY-MM-DD` in /Journal |
@@ -135,18 +147,31 @@ Registered in `js/config/SystemCommands.js` (lines 9–242).
 | `task` | `task:add` | `[text]` | `window.addTask(args)` |
 | `clear done` | `task:clear-done` | - | `window.clearCompletedTasks()` |
 | `reload` | `sys:reload` | - | `location.reload()` |
-| `theme` | `sys:theme` | `[name]` | `SettingsUI.applyThemePreset(args)` |
+| `theme` | `sys:theme` | `[name]` | `SettingsUI.loadThemePreset(args)` |
 | `zen` | `ui:zen` | - | Toggles `zen-mode` body class |
 | `kill` | `ui:kill` | - | `ModalManager.closeAll()` |
 | `board` | `kanban:open` | - | `KanbanManager.open()` |
+| `kanban` | `kanban:quick` | - | `KanbanManager.open()` |
 | `b` | `bm:search` | `[query]` | Navigates to first matching bookmark URL |
 | `pomo` | `pomo:start` | `[time]` 25m, 90s, 50:00 | `Pomodoro.start(args)` |
 | `weather` | `info:weather` | `[location]` | Sets location + `fetchWeather()` |
 | `help` | `info:help` | - | Opens help modal (SettingsUI.toggleHelp) |
 | `man` | `info:man` | - | Same as help |
+| `find` | `info:find` | `[query]` | `QuickOpen.searchFromCLI(args)` |
+| `search` | `info:search` | `[query]` | `QuickOpen.searchFromCLI(args)` (alias) |
+| `calendar` | `nav:calendar` | - | `Calendar.open()` |
+| `agenda` | `nav:agenda` | - | `DailyAgenda.open()` |
+| `template` | `nav:templates` | `[name]` | `TemplateBrowser.open()` or direct creation |
+| `tags` | `nav:tags` | `[query]` | `TagBrowser.open()` or filter from CLI query |
+| `export` | `data:export` | - | Downloads all data as JSON backup |
+| `import` | `data:import` | - | Opens file picker to restore from `.json` backup |
 
-**17 commands total.** No `focus` command exists in the registry. Any help text
-or onboarding copy listing `focus` is stale - the timer command is `pomo`.
+**26 commands total.**
+
+Fallback (when no trigger matches): custom commands from
+`State.CONFIG.custom_commands` (defaults: `gh`→github.com, `reddit`→reddit.com),
+raw `http` URLs, or web search (switchable: google/ddg/bing/brave/perplexity/
+chatgpt/youtube).
 
 Fallback (when no trigger matches): custom commands from
 `State.CONFIG.custom_commands` (defaults: `gh`→github.com, `reddit`→reddit.com),
@@ -256,6 +281,13 @@ z-index stacking for context menus (10000+), nodes and edges (0–10).
 
 ## 10. Recent changes
 
+- **V19.46** (2026-07-25): Properties Panel - YAML frontmatter editor in note editor sidebar. Inline editing for tags, aliases, date, status, booleans, and custom key:value pairs. Tag autocomplete from MetadataCache. Critical save-order bugs fixed (syncToNote before saveData, stale body reference).
+- **V19.45** (2026-07-24): Quick Capture feature (Cmd+Shift+I) - minimal overlay for instantly capturing thoughts into /Inbox. Chrome context menu "Send to Vinland Inbox". Template Browser (Cmd+Shift+N) - browse templates from /Templates folder, create notes from templates with YAML frontmatter. `--template` flag on `note` CLI command. Backup Manager with configurable auto-backup intervals and Google Drive sync integration.
+- **V19.44** (2026-07-23): Tag Browser (Cmd+Shift+T) - modal listing all tags with counts, real-time search/filter, click-to-filter notes in sidebar. `tags` CLI command. Daily Agenda (Cmd+Shift+A) - week/month aggregation view of daily notes with content previews. Calendar (Cmd+Shift+C) - monthly calendar grid with note dot indicators, day-click navigation.
+- **V19.43** (2026-07-22): Quick Open palette (Cmd+P) - VS Code-inspired search across note titles, content, tags, and CLI commands. Cmd+Shift+F for content-only search mode. `find`/`search` CLI commands. Full export/import system - `export`/`import` CLI commands, Settings UI integration, Blob+createObjectURL downloads, JSON schema validation.
+- **V19.42** (2026-07-21): Tag sidebar section in NotesController - displays tags with counts from MetadataCache.getAllTags(), click-to-filter by tag. Sidebar tag search input.
+- **V19.41** (2026-07-20): Backlinks Panel in note editor - shows all notes linking to the current note via [[wiki links]], click-to-navigate. Powered by MetadataCache's backlink index.
+- **V19.40** (2026-07-19): MetadataCache.removeNote() bug fix - now cleans up orphaned backlink entries when a note is deleted. QuickOpen._escapeHtml() refactored to use string replacement for Node.js test compatibility. Config.loadFromSync() duplicate removed.
 - **V19.39** (2026-07-18): Codebase cleanup - em dashes replaced with hyphens across all source files; version markers (`V\d+`, `P\d+`), dev notes (`[FIX]`, `[NEW]`), and redundant comments removed from all JS/CSS/HTML files. Settings audit found duplicate `openThemeModal`, `closeThemeModal`, and `initBackground` declarations in `SettingsUI.js` (second copies overwrite first, pre-existing, no functional impact).
 - **V19.38** (2026-07-17): Full-surface theming - `--bg-color` CSS var added to `:root`, wired to all major surface areas (body bg, modals, inputs, dock, canvas, suggestions). `Config.applyTheme()` writes all surface tokens from config. `retroma` preset added with full token set + body-class integration. `THEME_PRESETS` expanded from 13 to 14 (retroma). Hardcoded `#000` backgrounds replaced with `var(--bg-color, #000)`.
 - **V19.37** (2026-07-16): `Notes.open()` now opens the editor modal BEFORE
@@ -283,3 +315,11 @@ z-index stacking for context menus (10000+), nodes and edges (0–10).
   synchronously at link time (`slashmenu.js` + `blockeditor.js` call
   `saveData()` after linking) so a board is never orphaned if the tab closes
   before the debounced autosave fires.
+- Properties Panel `syncToNote()` has a critical save-ordering invariant:
+  it must be called BEFORE `saveData()` in `Notes.save()`, and it derives
+  the body from the current `note.content` (not a cached copy), so block
+  edits made between render and save are not silently discarded.
+- Quick Capture notes are stored in the `/Inbox` folder. The Chrome context
+  menu item requires the `contextMenus` permission which is declared in
+  `manifest.json`. The service worker (`background/service-worker.js`)
+  handles the context menu click event.
