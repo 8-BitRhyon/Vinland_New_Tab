@@ -16,7 +16,9 @@
     "storage",
     "unlimitedStorage",
     "notifications",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "identity",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",

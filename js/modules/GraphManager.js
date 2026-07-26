@@ -30,6 +30,108 @@ export const GraphManager = {
         }
     },
 
+    // ─── Layout Persistence Controls ─────────────────────────
+
+    /**
+     * Pin all current nodes at their current positions (set fx/fy).
+     * Freezes the entire layout so it stays exactly as arranged.
+     */
+    pinAllNodes: function() {
+        if (!this.simulation) return;
+        var nodes = this.simulation.nodes();
+        if (!nodes || nodes.length === 0) return;
+
+        nodes.forEach(function(n) {
+            if (n.x != null && n.y != null) {
+                n.fx = n.x;
+                n.fy = n.y;
+                Notes.graphLayout[n.id] = { x: n.x, y: n.y };
+            }
+        });
+
+        try {
+            localStorage.setItem('VINLAND_GRAPH_LAYOUT', JSON.stringify(Notes.graphLayout));
+        } catch (e) {
+            console.warn('[Graph] Failed to persist layout', e);
+        }
+
+        // Restart simulation so pinned nodes stop drifting
+        this.simulation.alphaTarget(0).restart();
+
+        console.log('[Graph] All nodes pinned');
+        if (window.showNotification) {
+            window.showNotification('GRAPH: All nodes pinned');
+        }
+    },
+
+    /**
+     * Reset layout entirely: clear all saved positions and unpin all nodes.
+     * Force simulation will auto-layout from scratch on next render.
+     */
+    resetLayout: function() {
+        // Re-render first (saveLayout at top of render saves the old layout,
+        // then we clear it below to prevent saveLayout from undoing the reset)
+        this.render();
+
+        // NOW clear saved positions — after render's saveLayout has run
+        Notes.graphLayout = {};
+        try {
+            localStorage.removeItem('VINLAND_GRAPH_LAYOUT');
+        } catch (e) {
+            console.warn('[Graph] Failed to clear layout', e);
+        }
+
+        // Unpin all current nodes so the fresh simulation is free
+        if (this.simulation) {
+            var nodes = this.simulation.nodes();
+            if (nodes) {
+                nodes.forEach(function(n) {
+                    n.fx = null;
+                    n.fy = null;
+                });
+                // Restart simulation with energy so nodes auto-arrange
+                this.simulation.alphaTarget(0.3).restart();
+            }
+        }
+
+        console.log('[Graph] Layout reset');
+        if (window.showNotification) {
+            window.showNotification('GRAPH: Layout reset');
+        }
+    },
+
+    /**
+     * Unpin all nodes AND clear saved positions so nodes stay free
+     * across renders (mode toggles, reopen, etc.)
+     */
+    unpinAllNodes: function() {
+        if (!this.simulation) return;
+        var nodes = this.simulation.nodes();
+        if (!nodes || nodes.length === 0) return;
+
+        // Clear fx/fy on all current nodes
+        nodes.forEach(function(n) {
+            n.fx = null;
+            n.fy = null;
+        });
+
+        // Also clear saved positions so they don't re-pin on next render
+        Notes.graphLayout = {};
+        try {
+            localStorage.removeItem('VINLAND_GRAPH_LAYOUT');
+        } catch (e) {
+            console.warn('[Graph] Failed to clear layout', e);
+        }
+
+        // Restart the simulation so nodes re-arrange
+        this.simulation.alphaTarget(0.3).restart();
+
+        console.log('[Graph] All nodes unpinned (layout freed)');
+        if (window.showNotification) {
+            window.showNotification('GRAPH: Layout freed');
+        }
+    },
+
     init: function() {
         // Initial setup if needed
     },
@@ -46,6 +148,21 @@ export const GraphManager = {
             toggleBtn.onclick = function() { self.toggleLocalMode(); };
         }
         
+        // Wire layout control buttons
+        var self = this;
+        var pinBtn = document.getElementById('graph-pin-btn');
+        if (pinBtn) {
+            pinBtn.onclick = function() { self.pinAllNodes(); };
+        }
+        var unpinBtn = document.getElementById('graph-unpin-btn');
+        if (unpinBtn) {
+            unpinBtn.onclick = function() { self.unpinAllNodes(); };
+        }
+        var resetBtn = document.getElementById('graph-reset-btn');
+        if (resetBtn) {
+            resetBtn.onclick = function() { self.resetLayout(); };
+        }
+
         // Render after modal animation
         setTimeout(() => {
             this.render();

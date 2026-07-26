@@ -1,0 +1,45 @@
+{
+  "_comment": "CodeLens Graph MCP config",
+  "vscode": {
+    "servers": {
+      "codelens": {
+        "command": "node",
+        "args": [
+          "/Users/rhyon/.antigravity-ide/extensions/pranaydas.codelens-graph-0.2.1-universal/dist/mcp.js",
+          "/Users/rhyon/Downloads/Self Curated CS Curriculum/Projects/Vinland_New_Tab"
+        ]
+      }
+    }
+  },
+  "cursor": {
+    "_add_to": "~/.cursor/mcp.json",
+    "codelens": {
+      "command": "node",
+      "args": [
+        "/Users/rhyon/.antigravity-ide/extensions/pranaydas.codelens-graph-0.2.1-universal/dist/mcp.js",
+        "/Users/rhyon/Downloads/Self Curated CS Curriculum/Projects/Vinland_New_Tab"
+      ]
+    }
+  },
+  "Claude": {
+    "_add_to": "~/.claude.json",
+    "codelens": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/rhyon/.antigravity-ide/extensions/pranaydas.codelens-graph-0.2.1-universal/dist/mcp.js",
+        "/Users/rhyon/Downloads/Self Curated CS Curriculum/Projects/Vinland_New_Tab"
+      ]
+    }
+  },
+  "Winsurf": {
+    "_add_to": "~/.codeium/windsurf/mcp_config.json",
+    "codelens": {
+      "command": "node",
+      "args": [
+        "/Users/rhyon/.antigravity-ide/extensions/pranaydas.codelens-graph-0.2.1-universal/dist/mcp.js",
+        "/Users/rhyon/Downloads/Self Curated CS Curriculum/Projects/Vinland_New_Tab"
+      ]
+    }
+  }
+}

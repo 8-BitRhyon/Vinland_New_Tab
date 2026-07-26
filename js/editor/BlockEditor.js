@@ -249,6 +249,8 @@ export const BlockEditor = {
             tokens.forEach(function(token) {
                 safeCode = safeCode.replace(token.key, token.value);
             });
+        } else if (window.CodeBlockTools && ['python', 'html', 'css', 'bash'].includes(lang)) {
+            safeCode = window.CodeBlockTools._extendedHighlight(code, lang);
         }
         
         // Wiki Link Highlighting (Global)
@@ -655,6 +657,7 @@ export const BlockEditor = {
         if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-image'); // Fallback
         if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .kanban-hud-wrapper');
         if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-table');
+        if (!el) el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-embed');
         if (el) {
             el.focus();
             var range = document.createRange();
@@ -955,6 +958,13 @@ export const BlockEditor = {
                 langLabel.textContent = lang;
                 content.appendChild(langLabel);
                 content.appendChild(inner);
+                
+                // Enhance code block with line numbers, copy button, Tab support
+                requestAnimationFrame(function() {
+                    if (window.CodeBlockTools) {
+                        window.CodeBlockTools.enhanceBlock(wrapper, block);
+                    }
+                });
                 break;
             case 'bullet': case 'numbered':
                 content = document.createElement('div');
@@ -1653,6 +1663,101 @@ export const BlockEditor = {
                     executeQuery();
                 });
                 break;
+            case 'embed':
+                content = document.createElement('div');
+                content.className = 'block-embed';
+                content.contentEditable = false;
+                content.tabIndex = 0;
+
+                // Find the target note by title
+                var embedTitle = (block.content || '').trim();
+                var targetNote = null;
+                if (embedTitle && State && State.NOTES) {
+                    targetNote = State.NOTES.find(function(n) {
+                        return (n.title || '').toLowerCase() === embedTitle.toLowerCase();
+                    });
+                }
+
+                if (targetNote) {
+                    // Render embed header with title and open button
+                    var embedHeader = document.createElement('div');
+                    embedHeader.className = 'embed-header';
+
+                    var embedLabel = document.createElement('span');
+                    embedLabel.className = 'embed-label';
+                    embedLabel.textContent = 'EMBED: ' + (targetNote.title || 'Untitled');
+
+                    var openBtn = document.createElement('button');
+                    openBtn.className = 'embed-open-btn block-action-btn';
+                    openBtn.textContent = 'OPEN';
+                    openBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        if (window.Notes) window.Notes.open(targetNote.id);
+                    };
+
+                    embedHeader.appendChild(embedLabel);
+                    embedHeader.appendChild(openBtn);
+                    content.appendChild(embedHeader);
+
+                    // Render the target note's content as read-only preview
+                    var embedBody = document.createElement('div');
+                    embedBody.className = 'embed-body';
+
+                    var targetContent = targetNote.content || '';
+                    if (targetContent) {
+                        // Use renderMarkdown for preview if available, else plain text
+                        if (window.Notes && window.Notes.renderMarkdown) {
+                            embedBody.innerHTML = window.Notes.renderMarkdown(targetContent, true);
+                        } else {
+                            var safe = targetContent.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            embedBody.innerHTML = safe.replace(/\n/g, '<br>');
+                        }
+                    } else {
+                        // Check blocks
+                        var blocks = targetNote.blocks || [];
+                        if (blocks.length > 0) {
+                            var text = blocks.map(function(b) { return b.content || ''; }).join(' ');
+                            if (window.Notes && window.Notes.renderMarkdown) {
+                                embedBody.innerHTML = window.Notes.renderMarkdown(text, true);
+                            } else {
+                                var safe = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                embedBody.innerHTML = safe.replace(/\n/g, '<br>');
+                            }
+                        } else {
+                            embedBody.innerHTML = '<span class="embed-empty">(empty note)</span>';
+                        }
+                    }
+
+                    // Refresh-on-reopen marker
+                    var embedMeta = document.createElement('div');
+                    embedMeta.className = 'embed-meta';
+                    embedMeta.textContent = '\u21BB Refreshes on reopen';
+
+                    content.appendChild(embedBody);
+                    content.appendChild(embedMeta);
+                } else {
+                    // Note not found - show placeholder
+                    var embedPlaceholder = document.createElement('div');
+                    embedPlaceholder.className = 'embed-placeholder';
+
+                    if (embedTitle) {
+                        var createBtn = document.createElement('button');
+                        createBtn.className = 'embed-create-btn block-action-btn';
+                        createBtn.textContent = 'CREATE: "' + embedTitle + '"';
+                        createBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            if (window.Notes) window.Notes.create(embedTitle, '/');
+                        };
+                        embedPlaceholder.innerHTML = '<span class="embed-missing">Note not found: <strong>!' + embedTitle + ']</strong></span>';
+                        embedPlaceholder.appendChild(createBtn);
+                    } else {
+                        embedPlaceholder.innerHTML = '<span class="embed-missing">Empty embed (no note title)</span>';
+                    }
+
+                    content.appendChild(embedPlaceholder);
+                }
+                break;
+
             case 'divider':
                 content = document.createElement('div');
                 content.classList.add('block-divider-wrapper');
@@ -1698,6 +1803,11 @@ export const BlockEditor = {
 
         // Phase 3: Skip if SlashMenu is handling keyboard input
         if (window.SlashMenu && window.SlashMenu.visible) return;
+
+        // WikiLink autocomplete handling (ArrowUp/Down/Enter/Escape)
+        if (window.WikiLinkAutocomplete && window.WikiLinkAutocomplete.visible) {
+            if (window.WikiLinkAutocomplete.handleKey(e)) return;
+        }
         
         // 🛡️ FIX 1: The "External Input" Guard
         // Prevents the editor from deleting blocks when you Backspace in the Note Title
@@ -1719,6 +1829,13 @@ export const BlockEditor = {
             e.stopImmediatePropagation();
             this.clearSelection();
             return;
+        }
+
+        // Tab/Shift+Tab indent/unindent in code blocks
+        if (window.CodeBlockTools && e.target.classList.contains('code-inner')) {
+            if (e.key === 'Tab') {
+                if (window.CodeBlockTools.handleKeydown(e)) return;
+            }
         }
 
         // Ported Tab Shortcuts (Fix for missing functionality)
@@ -2278,7 +2395,16 @@ export const BlockEditor = {
                 if(Notes.updateTags) Notes.updateTags();
             }
             if (typeof saveData === 'function') saveData();
+            // Update MetadataCache so backlinks/wiki links are indexed
+            if (window.MetadataCache && window.MetadataCache.updateNote) {
+                window.MetadataCache.updateNote(self.activePageId);
+            }
         }, 500);
+
+        // WikiLink autocomplete: check for [[ pattern on input
+        if (window.WikiLinkAutocomplete) {
+            window.WikiLinkAutocomplete.checkInput(e);
+        }
     },
     
     handleClick: function (e) {

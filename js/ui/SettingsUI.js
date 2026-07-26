@@ -147,6 +147,37 @@ export const SettingsUI = {
 
         this.bindBackupButtons();
 
+        // Bind sync tab buttons
+        this.bindSyncButtons();
+
+        // Bind graph layout buttons in Settings
+        // Note: GraphManager.pinAllNodes/unpinAllNodes/resetLayout already call
+        // showNotification internally, so we don't duplicate notifications here.
+        var graphPinBtn = document.getElementById('settings-graph-pin-btn');
+        if (graphPinBtn) {
+            graphPinBtn.onclick = function() {
+                if (window.GraphManager && window.GraphManager.pinAllNodes) {
+                    window.GraphManager.pinAllNodes();
+                }
+            };
+        }
+        var graphUnpinBtn = document.getElementById('settings-graph-unpin-btn');
+        if (graphUnpinBtn) {
+            graphUnpinBtn.onclick = function() {
+                if (window.GraphManager && window.GraphManager.unpinAllNodes) {
+                    window.GraphManager.unpinAllNodes();
+                }
+            };
+        }
+        var graphResetBtn = document.getElementById('settings-graph-reset-btn');
+        if (graphResetBtn) {
+            graphResetBtn.onclick = function() {
+                if (window.GraphManager && window.GraphManager.resetLayout) {
+                    window.GraphManager.resetLayout();
+                }
+            };
+        }
+
         var self = this;
         var btnSaveTheme = document.getElementById('btn-save-theme');
         if(btnSaveTheme) btnSaveTheme.onclick = function() { self.openThemeModal('save'); };
@@ -380,6 +411,9 @@ export const SettingsUI = {
         this.renderThemePresets();
         this.renderBgThumbnails();
         this.updateBackgroundPreview();
+
+        // Sync tab
+        this.loadSyncTab();
 
         // Raw
         var rawInput = document.getElementById('cfg-json-dump');
@@ -1384,15 +1418,19 @@ export const SettingsUI = {
             config: State.CONFIG, 
             tasks: State.TASKS, 
             notes: State.NOTES, 
+            boards: State.BOARDS, 
+            canvases: State.CANVASES, 
             history: State.COMMAND_HISTORY 
         };
-        var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
         var dlNode = document.createElement('a');
-        dlNode.setAttribute('href', dataStr);
-        dlNode.setAttribute('download', 'operator_backup_' + new Date().toISOString().slice(0,10) + '.json');
+        dlNode.href = url;
+        dlNode.download = 'operator_backup_' + new Date().toISOString().slice(0,10) + '.json';
         document.body.appendChild(dlNode);
         dlNode.click();
-        dlNode.remove();
+        document.body.removeChild(dlNode);
+        URL.revokeObjectURL(url);
         showNotification('BACKUP EXPORTED SUCCESSFULLY');
     },
 
@@ -1421,6 +1459,8 @@ export const SettingsUI = {
                 }
                 if (imported.tasks) State.TASKS = imported.tasks;
                 if (imported.notes) State.NOTES = imported.notes;
+                if (imported.boards) State.BOARDS = imported.boards;
+                if (imported.canvases) State.CANVASES = imported.canvases;
                 if (imported.history) State.COMMAND_HISTORY = imported.history;
                 
                 // Save Everything
@@ -1443,6 +1483,173 @@ export const SettingsUI = {
         reader.readAsText(file);
     },
     
+    /* =========================================
+       SYNC / BACKUP CONTROLS
+       ========================================= */
+
+    bindSyncButtons: function() {
+        var self = this;
+
+        // Backup now button
+        var backupBtn = document.getElementById('sync-backup-now-btn');
+        if (backupBtn) {
+            backupBtn.onclick = function() {
+                if (window.BackupManager) {
+                    window.BackupManager.triggerBackup('auto');
+                    window.showNotification('BACKUP TRIGGERED');
+                    self.loadSyncTab();
+                }
+            };
+        }
+
+        // Auto-backup interval change
+        var intervalSelect = document.getElementById('cfg-auto-backup');
+        if (intervalSelect) {
+            intervalSelect.onchange = function() {
+                State.CONFIG.auto_backup_interval = parseInt(this.value) || 0;
+                saveConfig();
+                if (window.BackupManager) {
+                    window.BackupManager.scheduleAutoBackup();
+                }
+                window.showNotification('BACKUP INTERVAL UPDATED');
+            };
+        }
+
+        // Drive connect
+        var connectBtn = document.getElementById('drive-connect-btn');
+        if (connectBtn) {
+            connectBtn.onclick = function() {
+                if (window.BackupManager) {
+                    window.BackupManager.connectDrive(function(success) {
+                        self.loadSyncTab();
+                    });
+                }
+            };
+        }
+
+        // Drive disconnect
+        var disconnectBtn = document.getElementById('drive-disconnect-btn');
+        if (disconnectBtn) {
+            disconnectBtn.onclick = function() {
+                if (window.BackupManager) {
+                    window.BackupManager.disconnectDrive(function() {
+                        self.loadSyncTab();
+                    });
+                }
+            };
+        }
+
+        // Drive sync push
+        var pushBtn = document.getElementById('drive-sync-push-btn');
+        if (pushBtn) {
+            pushBtn.onclick = function() {
+                if (window.BackupManager) {
+                    window.BackupManager.syncToDrive(function(success) {
+                        if (success) {
+                            window.showNotification('SYNCED TO DRIVE');
+                        }
+                        self.loadSyncTab();
+                    });
+                }
+            };
+        }
+
+        // Drive sync pull
+        var pullBtn = document.getElementById('drive-sync-pull-btn');
+        if (pullBtn) {
+            pullBtn.onclick = function() {
+                if (window.BackupManager) {
+                    window.BackupManager.syncFromDrive(function(success) {
+                        if (success) {
+                            window.showNotification('RESTORED FROM DRIVE');
+                        }
+                        self.loadSyncTab();
+                    });
+                }
+            };
+        }
+    },
+
+    loadSyncTab: function() {
+        // Update backup interval selector
+        var interval = State.CONFIG.auto_backup_interval || 0;
+        var intervalSelect = document.getElementById('cfg-auto-backup');
+        if (intervalSelect) intervalSelect.value = interval.toString();
+
+        // Update last backup info
+        var lastBackupEl = document.getElementById('sync-last-backup');
+        if (lastBackupEl) {
+            var lastTime = State.CONFIG.last_backup_time;
+            if (lastTime) {
+                var d = new Date(lastTime);
+                lastBackupEl.textContent = 'LAST BACKUP: ' + d.toLocaleString();
+            } else {
+                lastBackupEl.textContent = 'LAST BACKUP: never';
+            }
+        }
+
+        // Update drive sync info
+        var lastDriveEl = document.getElementById('sync-last-drive');
+        if (lastDriveEl) {
+            var lastSync = State.CONFIG.drive_last_sync;
+            if (lastSync) {
+                var d = new Date(lastSync);
+                lastDriveEl.textContent = 'LAST DRIVE SYNC: ' + d.toLocaleString();
+            } else {
+                lastDriveEl.textContent = 'LAST DRIVE SYNC: never';
+            }
+        }
+
+        // Update Drive connection status
+        var statusEl = document.getElementById('drive-status');
+        var connectBtn = document.getElementById('drive-connect-btn');
+        var disconnectBtn = document.getElementById('drive-disconnect-btn');
+        var pushBtn = document.getElementById('drive-sync-push-btn');
+        var pullBtn = document.getElementById('drive-sync-pull-btn');
+
+        var isConnected = window.BackupManager && window.BackupManager.driveConnected;
+
+        if (statusEl) {
+            statusEl.textContent = 'Status: ' + (isConnected ? 'Connected' : 'Not connected');
+            statusEl.style.color = isConnected ? 'var(--main-color)' : 'var(--secondary-color)';
+        }
+        if (connectBtn) connectBtn.style.display = isConnected ? 'none' : 'inline-block';
+        if (disconnectBtn) disconnectBtn.style.display = isConnected ? 'inline-block' : 'none';
+        if (pushBtn) pushBtn.style.display = isConnected ? 'inline-block' : 'none';
+        if (pullBtn) pullBtn.style.display = isConnected ? 'inline-block' : 'none';
+    },
+
+    // Import data from Drive sync (called by BackupManager.syncFromDrive)
+    importFromSync: function(data) {
+        if (!data) return;
+
+        if (data.config) {
+            Object.assign(State.CONFIG, data.config);
+        }
+        if (data.tasks && Array.isArray(data.tasks)) {
+            State.TASKS = data.tasks;
+        }
+        if (data.notes && Array.isArray(data.notes)) {
+            State.NOTES = data.notes;
+        }
+        if (data.boards && Array.isArray(data.boards)) {
+            State.BOARDS = data.boards;
+        }
+
+        // Persist and re-render
+        saveConfig();
+        if (window.saveData) window.saveData();
+        if (Config.applyTheme) Config.applyTheme();
+        if (window.renderMissions) window.renderMissions();
+        if (window.MetadataCache) window.MetadataCache.init();
+        if (window.Notes) {
+            window.Notes.renderNotes();
+            window.Notes.renderSidebar();
+        }
+
+        console.log('[SettingsUI] Data imported from Drive sync');
+    },
+
     // Bind Backup Buttons
     bindBackupButtons: function() {
         var exportBtn = document.getElementById('export-config');

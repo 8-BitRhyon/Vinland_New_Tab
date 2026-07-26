@@ -39,6 +39,22 @@ import { CalloutModal } from "./ui/CalloutModal.js";
 import { CanvasManager } from "./modules/CanvasManager.js";
 import { HoverPreview } from "./ui/HoverPreview.js";
 import { MetadataCache } from "./core/MetadataCache.js";
+import { QuickOpen } from "./features/QuickOpen.js";
+import { Calendar } from "./features/Calendar.js";
+import { DailyAgenda } from "./features/DailyAgenda.js";
+import { TagBrowser } from "./features/TagBrowser.js";
+import { TemplateBrowser } from "./features/TemplateBrowser.js";
+import { QuickCapture } from "./features/QuickCapture.js";
+import { DataviewQuery } from "./features/DataviewQuery.js";
+import { BackupManager } from "./features/BackupManager.js";
+import { WorkspaceManager } from "./features/WorkspaceManager.js";
+import { PropertiesPanel } from "./ui/PropertiesPanel.js";
+import { WikiLinkAutocomplete } from "./ui/WikiLinkAutocomplete.js";
+import { ObsidianImporter } from "./features/ObsidianImporter.js";
+import { VersionHistoryManager } from "./features/VersionHistoryManager.js";
+import { FlashcardManager } from "./features/FlashcardManager.js";
+import { CodeBlockTools } from "./features/CodeBlockTools.js";
+import { CanvasSearch } from "./features/CanvasSearch.js";
 
 // 2. EXPORT TO WINDOW (Fixes HTML onclick="" errors)
 window.State = State;
@@ -66,6 +82,22 @@ window.CalloutModal = CalloutModal;
 window.CanvasManager = CanvasManager;
 window.HoverPreview = HoverPreview;
 window.MetadataCache = MetadataCache;
+window.QuickOpen = QuickOpen;
+window.Calendar = Calendar;
+window.DailyAgenda = DailyAgenda;
+window.TagBrowser = TagBrowser;
+window.TemplateBrowser = TemplateBrowser;
+window.QuickCapture = QuickCapture;
+window.DataviewQuery = DataviewQuery;
+window.BackupManager = BackupManager;
+window.WorkspaceManager = WorkspaceManager;
+window.PropertiesPanel = PropertiesPanel;
+window.WikiLinkAutocomplete = WikiLinkAutocomplete;
+window.ObsidianImporter = ObsidianImporter;
+window.VersionHistoryManager = VersionHistoryManager;
+window.FlashcardManager = FlashcardManager;
+window.CodeBlockTools = CodeBlockTools;
+window.CanvasSearch = CanvasSearch;
 window.Audio = Audio;
 window.SlashMenu = SlashMenu;
 window.PageActions = PageActions;
@@ -78,7 +110,7 @@ window.toggleConfig = SettingsUI.toggleConfig.bind(SettingsUI);
 window.saveConfigFromUI = SettingsUI.saveConfigFromUI.bind(SettingsUI);
 window.toggleHelp = () => ModalManager.open("help-modal");
 window.renderMissions = renderMissions;
-// Re-implementing renderDock from main.js
+// Removed: renderDock was reimplemented inline
 window.renderDock = function () {
   var dock = document.getElementById("dock");
   if (!dock) return;
@@ -419,6 +451,19 @@ async function boot() {
   // 2.5 Register Commands (New Registry System)
   // 2.5 Register Commands (New Registry System)
   SystemCommands.register();
+  if (QuickOpen) QuickOpen.init();
+  if (Calendar) Calendar.init();
+  if (DailyAgenda) DailyAgenda.init();
+  if (TagBrowser) TagBrowser.init();
+  if (TemplateBrowser) TemplateBrowser.init();
+  if (QuickCapture) QuickCapture.init();
+  if (DataviewQuery) DataviewQuery.init();
+  if (BackupManager) BackupManager.init();
+  if (WorkspaceManager) WorkspaceManager.init();
+  if (PropertiesPanel) PropertiesPanel.init();
+  if (WikiLinkAutocomplete) WikiLinkAutocomplete.init();
+  if (VersionHistoryManager) VersionHistoryManager.init();
+  if (FlashcardManager) FlashcardManager.init();
   if (CommandLine) CommandLine.init();
   if (Pomodoro) Pomodoro.init();
   if (Bookmarks) Bookmarks.init();
@@ -445,12 +490,17 @@ async function boot() {
 
   bindGlobals(); // Bind static HTML buttons
 
-  // F. First-run onboarding: show the welcome modal once
+  // E. First-run onboarding: show the welcome modal once
   if (State.CONFIG.first_run) {
     if (window.ModalManager) window.ModalManager.open('welcome-modal');
   }
 
-  // E. Data Safety Net
+  // F. Load Chrome Sync config (merges from other Chrome instances)
+  if (Config && Config.loadFromSync) {
+    Config.loadFromSync();
+  }
+
+  // G. Data Safety Net
   window.addEventListener('beforeunload', function() {
     saveData();
   });

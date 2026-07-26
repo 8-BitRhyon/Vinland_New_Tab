@@ -27,12 +27,30 @@ chrome.runtime.onInstalled.addListener((details) => {
       pomodoroAcknowledged: false,
     });
     console.log('[SW] Vinland SW installed - storage initialized.');
+
+    // Create context menu for Quick Capture
+    chrome.contextMenus.create({
+      id: 'vinland-quick-capture',
+      title: 'Send to Vinland Inbox',
+      contexts: ['selection', 'link', 'page']
+    });
+    console.log('[SW] Context menu created');
   }
 
   if (details.reason === 'update') {
     // Clear any stale alarms from previous versions
     chrome.alarms.clearAll(() => {
       console.log('[SW] Previous version alarms cleared.');
+    });
+
+    // Recreate context menu (IDs may be lost on update)
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: 'vinland-quick-capture',
+        title: 'Send to Vinland Inbox',
+        contexts: ['selection', 'link', 'page']
+      });
+      console.log('[SW] Context menu recreated on update');
     });
   }
 });
@@ -182,7 +200,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 chrome.notifications.onClicked.addListener((notificationId) => {
   if (notificationId === 'pomo-complete') {
     // Activate existing Vinland tab if one exists, otherwise create a new one
-    // Query both extension page URL and chrome://newtab (for new tab override)
     chrome.tabs.query(
       {
         url: [
@@ -200,6 +217,28 @@ chrome.notifications.onClicked.addListener((notificationId) => {
       }
     );
     chrome.notifications.clear(notificationId);
+  }
+});
+
+// ──────────────────────────────────────────
+// Context menu: Send to Vinland Inbox
+// ──────────────────────────────────────────
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'vinland-quick-capture') {
+    // Collect text: selection > link text > page title
+    let text = info.selectionText || info.linkText || info.pageUrl || '';
+    if (!text) return;
+
+    // Send the capture to the Vinland new tab page
+    // Use runtime.sendMessage to reach the extension page (not content script)
+    chrome.runtime.sendMessage({
+      type: 'QUICK_CAPTURE',
+      text: text
+    }).catch(() => {
+      // No extension page listening - store for pickup on next open
+      chrome.storage.local.set({ vinland_pending_capture: text });
+    });
   }
 });
 

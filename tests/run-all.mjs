@@ -6,9 +6,14 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const suites = [
+  'metadata-cache-unit-tests.mjs',
+  'quickopen-unit-tests.mjs',
   'notes-unit-tests.mjs',
+  'import-unit-tests.mjs',
   'notes-editor-open.test.mjs',
   'storage-shard.test.mjs',
+  'dataview-unit-tests.mjs',
+  'canvas-unit-tests.mjs',
 ];
 
 let exitCode = 0;

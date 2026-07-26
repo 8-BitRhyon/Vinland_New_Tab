@@ -367,6 +367,8 @@ export const CanvasManager = {
             <span class="canvas-tb-info" id="canvas-node-count">0 nodes</span>
             <span class="canvas-tb-divider">|</span>
             <span class="canvas-tb-info" id="canvas-zoom-label">100%</span>
+            <span class="canvas-tb-divider">|</span>
+            <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
         `;
         this.container.appendChild(this.toolbar);
 
@@ -385,6 +387,140 @@ export const CanvasManager = {
             </div>
         `;
         this.container.appendChild(this.hintOverlay);
+
+        // Inject shortcuts panel styles
+        if (!document.getElementById('canvas-shortcuts-styles')) {
+            var scStyle = document.createElement('style');
+            scStyle.id = 'canvas-shortcuts-styles';
+            scStyle.textContent = `
+                .canvas-shortcuts-panel {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 40000;
+                    background: rgba(0, 0, 0, 0.95);
+                    border: 1px solid var(--main-color, #00ff41);
+                    border-radius: 8px;
+                    padding: 0;
+                    min-width: 380px;
+                    max-width: 480px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: 0 0 40px rgba(0, 255, 65, 0.2), 0 4px 20px rgba(0, 0, 0, 0.6);
+                    font-family: inherit;
+                    font-size: 0.8rem;
+                    animation: shortcutFadeIn 0.2s ease;
+                }
+                @keyframes shortcutFadeIn {
+                    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+                    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                }
+                .canvas-shortcuts-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 14px 16px 10px 16px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                }
+                .canvas-shortcuts-title {
+                    color: var(--main-color, #00ff41);
+                    font-weight: bold;
+                    font-size: 0.75rem;
+                    letter-spacing: 2px;
+                    text-transform: uppercase;
+                }
+                .canvas-shortcuts-close {
+                    color: #666;
+                    cursor: pointer;
+                    font-size: 1.2rem;
+                    line-height: 1;
+                    transition: color 0.15s ease;
+                    background: none;
+                    border: none;
+                    padding: 0 2px;
+                }
+                .canvas-shortcuts-close:hover {
+                    color: #ff3333;
+                }
+                .canvas-shortcuts-section {
+                    padding: 8px 0;
+                }
+                .canvas-shortcuts-section-title {
+                    color: rgba(255, 255, 255, 0.35);
+                    font-size: 0.6rem;
+                    letter-spacing: 1.5px;
+                    text-transform: uppercase;
+                    padding: 6px 16px 4px 16px;
+                }
+                .canvas-shortcuts-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 5px 16px;
+                    transition: background 0.1s ease;
+                }
+                .canvas-shortcuts-item:hover {
+                    background: rgba(0, 255, 65, 0.06);
+                }
+                .canvas-shortcuts-key {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 3px;
+                }
+                .canvas-shortcuts-key kbd {
+                    display: inline-block;
+                    padding: 2px 6px;
+                    font-size: 0.65rem;
+                    font-family: inherit;
+                    background: rgba(255, 255, 255, 0.08);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 3px;
+                    color: #ddd;
+                    line-height: 1.4;
+                    min-width: 20px;
+                    text-align: center;
+                }
+                .canvas-shortcuts-key kbd.mod {
+                    color: var(--main-color, #00ff41);
+                    border-color: rgba(0, 255, 65, 0.3);
+                    background: rgba(0, 255, 65, 0.08);
+                }
+                .canvas-shortcuts-label {
+                    color: #aaa;
+                    font-size: 0.72rem;
+                }
+                .canvas-shortcuts-footer {
+                    padding: 10px 16px 12px 16px;
+                    border-top: 1px solid rgba(255, 255, 255, 0.06);
+                    color: #555;
+                    font-size: 0.6rem;
+                    text-align: center;
+                }
+                .canvas-shortcuts-overlay {
+                    position: fixed;
+                    inset: 0;
+                    z-index: 39999;
+                    background: rgba(0, 0, 0, 0.5);
+                    animation: overlayFadeIn 0.15s ease;
+                }
+                @keyframes overlayFadeIn {
+                    from { opacity: 0; }
+                    to   { opacity: 1; }
+                }
+                .canvas-shortcuts-panel::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .canvas-shortcuts-panel::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .canvas-shortcuts-panel::-webkit-scrollbar-thumb {
+                    background: var(--main-color, #00ff41);
+                    border-radius: 2px;
+                }
+            `;
+            document.head.appendChild(scStyle);
+        }
 
         // Inject backlinks panel styles
         if (!document.getElementById('canvas-backlinks-styles')) {
@@ -540,10 +676,14 @@ export const CanvasManager = {
         }
         this.updateTransform();
 
-        // Clear existing nodes
+        // Clear existing nodes (both cards and groups)
         if (this.board) {
-            this.board.querySelectorAll('.canvas-card').forEach(n => n.remove());
+            this.board.querySelectorAll('.canvas-card, .canvas-group').forEach(n => n.remove());
+            // Preserve SVG defs (arrowhead markers) by rebuilding them
             this.svgLayer.innerHTML = '';
+            var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.innerHTML = '<marker id="canvas-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" fill="var(--main-color, #00ff41)"><path d="M 0 0 L 10 5 L 0 10 z" /></marker><marker id="canvas-arrowhead-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" fill="#555"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>';
+            this.svgLayer.appendChild(defs);
         }
 
         if (note.canvasData.nodes) {
@@ -658,6 +798,11 @@ export const CanvasManager = {
         // + GROUP button
         this.toolbar.querySelector('#canvas-add-group').addEventListener('click', () => {
             this._addGroupNode();
+        });
+
+        // ? SHORTCUTS button
+        this.toolbar.querySelector('#canvas-shortcuts-btn').addEventListener('click', () => {
+            this._showShortcutsPanel();
         });
     },
 
@@ -781,6 +926,137 @@ export const CanvasManager = {
         if (existing) existing.remove();
     },
 
+    // ==========================================
+    // KEYBOARD SHORTCUTS REFERENCE PANEL
+    // ==========================================
+
+    _showShortcutsPanel: function() {
+        this._closeShortcutsPanel();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'canvas-shortcuts-overlay';
+        overlay.id = 'canvas-shortcuts-overlay';
+
+        const panel = document.createElement('div');
+        panel.className = 'canvas-shortcuts-panel';
+        panel.id = 'canvas-shortcuts-panel';
+
+        panel.innerHTML = `
+            <div class="canvas-shortcuts-header">
+                <span class="canvas-shortcuts-title">⌘ Canvas Shortcuts</span>
+                <button class="canvas-shortcuts-close" id="canvas-shortcuts-close-btn" title="Close">&times;</button>
+            </div>
+
+            <div class="canvas-shortcuts-section">
+                <div class="canvas-shortcuts-section-title">Nodes & Selection</div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Add text node (double-click)</span>
+                    <span class="canvas-shortcuts-key"><kbd>DBLCLICK</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Delete selected node(s)</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌫</kbd> <kbd>DEL</kbd></span>
+                </div>
+            </div>
+
+            <div class="canvas-shortcuts-section">
+                <div class="canvas-shortcuts-section-title">Create Connections</div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Create connected child (right)</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⇥</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Create sibling below</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⏎</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Connect nodes</span>
+                    <span class="canvas-shortcuts-key"><kbd>⇧</kbd> <kbd>DRAG</kbd></span>
+                </div>
+            </div>
+
+            <div class="canvas-shortcuts-section">
+                <div class="canvas-shortcuts-section-title">Clipboard & History</div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Copy selected node(s)</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>C</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Paste node(s)</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>V</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Duplicate selected node(s)</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>D</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Undo</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>Z</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Redo</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>⇧</kbd><kbd>Z</kbd> <kbd class="mod">⌘</kbd><kbd>Y</kbd></span>
+                </div>
+            </div>
+
+            <div class="canvas-shortcuts-section">
+                <div class="canvas-shortcuts-section-title">View & Navigation</div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Search nodes</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>F</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Zoom to fit</span>
+                    <span class="canvas-shortcuts-key"><kbd>⇧</kbd><kbd>1</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Zoom in/out</span>
+                    <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>SCROLL</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Pan canvas</span>
+                    <span class="canvas-shortcuts-key"><kbd>SPACE</kbd> <kbd>DRAG</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Open this panel</span>
+                    <span class="canvas-shortcuts-key"><kbd>⇧</kbd><kbd>?</kbd></span>
+                </div>
+            </div>
+
+            <div class="canvas-shortcuts-footer">
+                Press <kbd style="color:#ddd;border:1px solid rgba(255,255,255,0.15);padding:1px 5px;border-radius:3px;font-size:0.6rem;">ESC</kbd> or click outside to close
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(panel);
+
+        // Close button
+        document.getElementById('canvas-shortcuts-close-btn').addEventListener('click', () => this._closeShortcutsPanel());
+
+        // Click overlay to close
+        overlay.addEventListener('mousedown', () => this._closeShortcutsPanel());
+
+        // Escape to close (capture phase: must fire before modal/editor capture handlers)
+        this._shortcutsEscapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this._closeShortcutsPanel();
+            }
+        };
+        window.addEventListener('keydown', this._shortcutsEscapeHandler, { capture: true });
+    },
+
+    _closeShortcutsPanel: function() {
+        const overlay = document.getElementById('canvas-shortcuts-overlay');
+        const panel = document.getElementById('canvas-shortcuts-panel');
+        if (overlay) overlay.remove();
+        if (panel) panel.remove();
+        if (this._shortcutsEscapeHandler) {
+            window.removeEventListener('keydown', this._shortcutsEscapeHandler, { capture: true });
+            this._shortcutsEscapeHandler = null;
+        }
+    },
+
     _addFileNode: function(linkedNoteId) {
         this._saveHistoryState();
         const linkedNote = window.State.NOTES.find(n => n.id === linkedNoteId);
@@ -841,7 +1117,7 @@ export const CanvasManager = {
             id: 'node_' + Date.now(),
             type: 'embed',
             url: embedUrl,
-            title: new URL(embedUrl).hostname.replace('www.', ''),
+            title: (function(url) { try { return new URL(url).hostname.replace('www.', ''); } catch(e) { return url; } })(embedUrl),
             x: cx - 160,
             y: cy - 100,
             width: 320,
@@ -908,6 +1184,22 @@ export const CanvasManager = {
         window.addEventListener('keydown', (e) => {
             const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
             
+            // Cmd+F / Ctrl+F = Find in canvas (CanvasSearch)
+            const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+            if (isCmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'f') {
+                // Allow Cmd+F when typing in canvas, but not in other inputs
+                if (isInput && !e.target.closest('#canvas-container')) {
+                    // Let browser handle default Cmd+F behavior
+                } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (window.CanvasSearch) {
+                        window.CanvasSearch.toggle();
+                    }
+                    return;
+                }
+            }
+
             // Shift + 1 = Zoom to Fit
             if (e.shiftKey && e.key === '!' && !isInput) {
                 e.preventDefault();
@@ -922,6 +1214,13 @@ export const CanvasManager = {
                 return;
             }
 
+            // ? = Open shortcuts panel (Shift+/ dispatches key '?' on US keyboards)
+            if (e.key === '?' && !isInput) {
+                e.preventDefault();
+                this._showShortcutsPanel();
+                return;
+            }
+
             // Delete Key: Batch delete selected nodes
             if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
                 if (this.selectedNodeIds.size > 0) {
@@ -931,7 +1230,6 @@ export const CanvasManager = {
             }
 
             // Clipboard & Undo/Redo: Copy, Paste, Duplicate, Undo, Redo
-            const isCmdOrCtrl = e.metaKey || e.ctrlKey;
             if (isCmdOrCtrl && !isInput) {
                 if (e.key === 'c' || e.key === 'C') {
                     e.preventDefault();
@@ -1100,6 +1398,7 @@ export const CanvasManager = {
                 this.transform.x = e.clientX - this.dragStart.x;
                 this.transform.y = e.clientY - this.dragStart.y;
                 this.updateTransform();
+                this._updateBacklinksPosition();
                 return;
             }
 
@@ -1202,6 +1501,7 @@ export const CanvasManager = {
             
             this.updateTransform();
             this.updateUI();
+            this._updateBacklinksPosition();
             
             // Debounce save viewport to avoid localstorage spam during swipe
             clearTimeout(this._wheelSaveTimeout);

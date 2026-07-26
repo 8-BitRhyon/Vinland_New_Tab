@@ -228,19 +228,31 @@ export const MetadataCache = {
         }
         
         // Remove from link index
+        // IMPORTANT: link targets are stored lowercased in linkIndex (by updateLinkIndex)
+        // so we MUST lowercase when looking up for cleanup
         if (metadata.links) {
             metadata.links.forEach(link => {
-                if (this.linkIndex.has(link.target)) {
-                    this.linkIndex.get(link.target).delete(noteId);
-                    if (this.linkIndex.get(link.target).size === 0) {
-                        this.linkIndex.delete(link.target);
+                var target = link.target.toLowerCase();
+                if (this.linkIndex.has(target)) {
+                    this.linkIndex.get(target).delete(noteId);
+                    if (this.linkIndex.get(target).size === 0) {
+                        this.linkIndex.delete(target);
                     }
                 }
             });
         }
         
-        // Remove from backlinks
+        // Remove the note's own backlinks entry first
         this.backlinks.delete(noteId);
+        // Then remove this note's ID from all other notes' backlink sets
+        // Without this, backlinks.get('otherNoteId') would still contain the
+        // deleted note's ID as a stale reference, leaking memory.
+        this.backlinks.forEach((noteSet, targetNoteId) => {
+            noteSet.delete(noteId);
+            if (noteSet.size === 0) {
+                this.backlinks.delete(targetNoteId);
+            }
+        });
         
         // Remove from main index
         this.index.delete(noteId);
@@ -281,8 +293,13 @@ export const MetadataCache = {
             }
         });
         
-        // Rebuild backlinks
-        this.backlinks.clear();
+        // Remove only THIS note's backlinks, not all backlinks
+        this.backlinks.forEach((noteSet, targetNoteId) => {
+            noteSet.delete(noteId);
+            if (noteSet.size === 0) {
+                this.backlinks.delete(targetNoteId);
+            }
+        });
         
         // Add new links
         links.forEach(link => {

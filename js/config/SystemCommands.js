@@ -12,7 +12,23 @@ export const SystemCommands = {
       title: "Create New Note",
       hint: "[content]",
       action: (args) => {
-        if (window.Notes) window.Notes.create(args);
+        if (window.Notes) {
+          // Parse --template flag from args
+          var title = args || '';
+          var templateName = null;
+          var templateMatch = title.match(/--template "([^"]+)"/);
+          if (templateMatch) {
+            templateName = templateMatch[1];
+            title = title.replace(/--template "[^"]+"/, '').trim();
+          } else {
+            var simpleMatch = title.match(/--template ([\w\s]+)/i);
+            if (simpleMatch && !simpleMatch[1].startsWith('--')) {
+              templateName = simpleMatch[1].trim();
+              title = title.replace(/--template [\w\s]+/i, '').trim();
+            }
+          }
+          window.Notes.create(title || '', '/', templateName);
+        }
       },
     });
 
@@ -65,7 +81,12 @@ export const SystemCommands = {
         const title = `Daily Log ${today}`;
         const exists = window.Notes.openByTitle(title);
         if (!exists) {
-          window.Notes.create(title, "/Journal");
+          // Auto-apply daily note template if configured
+          var templateName = null;
+          if (window.State && window.State.CONFIG && window.State.CONFIG.daily_note_template) {
+            templateName = window.State.CONFIG.daily_note_template;
+          }
+          window.Notes.create(title, '/Journal', templateName);
         }
       },
     });
@@ -168,6 +189,15 @@ export const SystemCommands = {
       },
     });
 
+    CommandRegistry.register({
+      id: "kanban:quick",
+      trigger: "kanban",
+      title: "Open Kanban Board",
+      action: () => {
+        if (window.KanbanManager) window.KanbanManager.open();
+      },
+    });
+
     // --- BOOKMARKS ---
     CommandRegistry.register({
       id: "bm:search",
@@ -228,12 +258,212 @@ export const SystemCommands = {
     });
 
     CommandRegistry.register({
+      id: "info:find",
+      trigger: "find",
+      title: "Search Notes",
+      hint: "[query]",
+      action: (args) => {
+        if (window.QuickOpen) window.QuickOpen.searchFromCLI(args || '');
+      },
+    });
+
+    CommandRegistry.register({
+      id: "info:search",
+      trigger: "search",
+      title: "Search Notes (alias)",
+      hint: "[query]",
+      action: (args) => {
+        if (window.QuickOpen) window.QuickOpen.searchFromCLI(args || '');
+      },
+    });
+
+    CommandRegistry.register({
+      id: "nav:calendar",
+      trigger: "calendar",
+      title: "Open Calendar View",
+      action: () => {
+        if (window.Calendar) window.Calendar.open();
+      },
+    });
+
+    CommandRegistry.register({
+      id: "nav:agenda",
+      trigger: "agenda",
+      title: "Open Daily Agenda (Week/Month View)",
+      action: () => {
+        if (window.DailyAgenda) window.DailyAgenda.open();
+      },
+    });
+
+    // --- TEMPLATES ---
+    CommandRegistry.register({
+      id: "nav:templates",
+      trigger: "template",
+      title: "Browse Templates & Create Note",
+      hint: "[name]",
+      action: (args) => {
+        if (window.TemplateBrowser) {
+          if (args && args.trim()) {
+            // Direct creation from a named template
+            if (window.Notes) {
+              window.Notes.create('', '/', args.trim());
+            }
+          } else {
+            window.TemplateBrowser.open();
+          }
+        }
+      },
+    });
+
+    CommandRegistry.register({
+      id: "nav:tags",
+      trigger: "tags",
+      title: "Browse & Filter by Tag",
+      hint: "[query]",
+      action: (args) => {
+        if (window.TagBrowser) {
+          if (args && args.trim()) {
+            window.TagBrowser.openFromCLI(args);
+          } else {
+            window.TagBrowser.open();
+          }
+        }
+      },
+    });
+
+    // --- DATAVIEW QUERY ---
+    CommandRegistry.register({
+      id: "dataview:open",
+      trigger: "dv",
+      title: "Open Dataview Query Panel",
+      hint: "[query]",
+      action: (args) => {
+        if (window.DataviewQuery) {
+          if (args && args.trim()) {
+            window.DataviewQuery.openWithQuery(args);
+          } else {
+            window.DataviewQuery.open();
+          }
+        }
+      },
+    });
+
+    CommandRegistry.register({
+      id: "dataview:open-full",
+      trigger: "dataview",
+      title: "Open Dataview Query Panel",
+      hint: "[query]",
+      action: (args) => {
+        if (window.DataviewQuery) {
+          if (args && args.trim()) {
+            window.DataviewQuery.openWithQuery(args);
+          } else {
+            window.DataviewQuery.open();
+          }
+        }
+      },
+    });
+
+    CommandRegistry.register({
       id: "info:man",
       trigger: "man",
       title: "Open Operator Manual",
       action: () => {
         if (window.SettingsUI && window.SettingsUI.toggleHelp) window.SettingsUI.toggleHelp();
         else if (window.ModalManager) window.ModalManager.open('help-modal');
+      },
+    });
+
+    // --- EXPORT ---
+    CommandRegistry.register({
+      id: "data:export",
+      trigger: "export",
+      title: "Export All Data as JSON",
+      hint: "",
+      action: () => {
+        if (window.Notes && window.Notes.downloadNotes) {
+          window.Notes.downloadNotes();
+        }
+      },
+    });
+
+    // --- IMPORT ---
+    CommandRegistry.register({
+      id: "data:import",
+      trigger: "import",
+      title: "Import Data from JSON Backup",
+      hint: "",
+      action: () => {
+        if (window.SettingsUI && window.SettingsUI.triggerImport) {
+          window.SettingsUI.triggerImport();
+        }
+      },
+    });
+
+    // --- FLASHCARD REVIEW ---
+    CommandRegistry.register({
+      id: "flashcard:review",
+      trigger: "review",
+      title: "Start Flashcard Review Session",
+      hint: "",
+      action: () => {
+        if (window.FlashcardManager) {
+          window.FlashcardManager.startReviewSession();
+        }
+      },
+    });
+
+    CommandRegistry.register({
+      id: "flashcard:stats",
+      trigger: "flashcards",
+      title: "Show Flashcard Stats & Start Review",
+      hint: "",
+      action: () => {
+        if (window.FlashcardManager) {
+          window.FlashcardManager.showStats().then(function() {
+            // After showing stats, open the review session
+            window.FlashcardManager.startReviewSession();
+          });
+        }
+      },
+    });
+
+    // --- VERSION HISTORY ---
+    CommandRegistry.register({
+      id: "version:history",
+      trigger: "versions",
+      title: "View Note Version History",
+      hint: "",
+      action: () => {
+        if (window.VersionHistoryManager) {
+          window.VersionHistoryManager.openModal();
+        }
+      },
+    });
+
+    // --- OBSIDIAN IMPORT ---
+    CommandRegistry.register({
+      id: "obsidian:import",
+      trigger: "obsidian-import",
+      title: "Import .md Files from Obsidian Vault",
+      hint: "",
+      action: () => {
+        if (window.ObsidianImporter) {
+          window.ObsidianImporter.openFilePicker();
+        }
+      },
+    });
+
+    // --- WORKSPACES ---
+    CommandRegistry.register({
+      id: "workspace:manage",
+      trigger: "workspace",
+      title: "Save/Load Workspace Snapshots",
+      hint: "save|load|delete|list",
+      action: (args) => {
+        if (window.WorkspaceManager) {
+          window.WorkspaceManager.handleCLI(args || '');
+        }
       },
     });
   },

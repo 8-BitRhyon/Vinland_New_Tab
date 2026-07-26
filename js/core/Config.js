@@ -46,7 +46,12 @@ const DEFAULT_CONFIG = {
         { name: "CAL", url: "https://calendar.google.com" },
         { name: "GPT", url: "https://chat.openai.com" }
     ],
-    custom_commands: []
+    custom_commands: [],
+    auto_backup_interval: 0, // minutes (0 = off)
+    drive_sync_enabled: false,
+    drive_last_sync: null,
+    last_backup_time: null,
+    daily_note_template: ""
 };
 
 /* =========================================
@@ -240,7 +245,7 @@ export const Config = {
             State.CONFIG.version = CONFIG_VERSION;
             localStorage.setItem(CONFIG_KEY, JSON.stringify(State.CONFIG));
             
-            // Optional: Chrome Sync support if available
+            // Chrome Storage Sync: persists config across Chrome instances
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
                 chrome.storage.sync.set({ [CONFIG_KEY]: State.CONFIG });
             }
@@ -248,6 +253,38 @@ export const Config = {
         } catch (e) {
             console.error('Config save error:', e);
         }
+    },
+
+    // Load config from Chrome Storage Sync (merges into State.CONFIG)
+    loadFromSync: function(callback) {
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+            if (callback) callback(false);
+            return;
+        }
+        var self = this;
+        chrome.storage.sync.get([CONFIG_KEY], function(result) {
+            if (result && result[CONFIG_KEY]) {
+                var synced = result[CONFIG_KEY];
+                // Merge synced config over current, preserving arrays
+                Object.keys(synced).forEach(function(key) {
+                    if (Array.isArray(synced[key])) {
+                        State.CONFIG[key] = JSON.parse(JSON.stringify(synced[key]));
+                    } else if (typeof synced[key] === 'object' && synced[key] !== null) {
+                        State.CONFIG[key] = Object.assign({}, synced[key]);
+                    } else {
+                        State.CONFIG[key] = synced[key];
+                    }
+                });
+                // Persist merged config locally
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(State.CONFIG));
+                console.log('[Config] Loaded from Chrome Sync');
+                if (callback) callback(true);
+            } else {
+                // No synced config found, push local config to sync
+                chrome.storage.sync.set({ [CONFIG_KEY]: State.CONFIG });
+                if (callback) callback(false);
+            }
+        });
     },
 
     applyTheme: function() {

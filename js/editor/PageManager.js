@@ -111,6 +111,11 @@ export function parseContentToBlocks(content) {
         } else if (workingLine.trim() === '---') {
             block.type = 'divider';
             block.content = '';
+        } else if (workingLine.match(/^!\[\[([^\]]+)\]\]/)) {
+            // BLOCK TRANSCLUSION: ![[Note Title]]
+            block.type = 'embed';
+            var embedMatch = workingLine.match(/^!\[\[([^\]]+)\]\]/);
+            block.content = embedMatch ? embedMatch[1].trim() : workingLine;
         } else {
             block.type = 'p';
             block.content = workingLine;
@@ -328,6 +333,9 @@ export const PageManager = {
                     // Fix serialization to include '>' prefix for every line
                     var lines = (b.content || '[!INFO] Information').split('\n');
                     content = lines.map(l => '> ' + l).join('\n');
+                    break;
+                case 'embed':
+                    content = '![[' + (b.content || '') + ']]';
                     break;
                 case 'query':
                     content = (b.content || 'LIST FROM #');

@@ -215,7 +215,7 @@ export const Notes = {
         if (PageManager.migrateNotesToBlockSchema) PageManager.migrateNotesToBlockSchema();
         if (PageManager.migrateLegacyTasks) PageManager.migrateLegacyTasks(); // 
         this.renderSidebar();
-
+        this.updateAllTags();
 
 
         // Initialize components
@@ -256,6 +256,14 @@ export const Notes = {
         if (search) {
             search.addEventListener('input', (e) => {
                 this.renderSidebar(e.target.value);
+            });
+        }
+
+        // Tag Filter Search
+        var tagSearch = document.getElementById('tags-search-input');
+        if (tagSearch) {
+            tagSearch.addEventListener('input', function(e) {
+                self.updateAllTags(e.target.value.trim().toLowerCase());
             });
         }
         
@@ -782,6 +790,11 @@ export const Notes = {
         this.updateWordCount();
         this.updateTags();
 
+        // Render properties panel
+        if (window.PropertiesPanel && window.PropertiesPanel.render) {
+            window.PropertiesPanel.render(note.id);
+        }
+
         var pinBtn = document.getElementById('pin-note-btn');
         if (pinBtn) {
             if (note.pinned) {
@@ -796,9 +809,17 @@ export const Notes = {
         if (!document.getElementById('note-editor-modal').classList.contains('active')) {
             ModalManager.open('note-editor-modal');
         }
+
+        // Render backlinks panel
+        this.renderBacklinks();
+
+        // Render version history panel (async, fire-and-forget)
+        if (window.VersionHistoryManager && window.VersionHistoryManager.renderPanel) {
+            window.VersionHistoryManager.renderPanel(note.id);
+        }
     },
 
-    create: function (initialTitle, initialPath) {
+    create: function (initialTitle, initialPath, templateName) {
         // Enforce Untitled Note Guard for ALL creation entry points
         // Catches both empty titles AND the default 'Untitled' title
         if (this.activeNoteId) {
@@ -823,6 +844,15 @@ export const Notes = {
             created: new Date().getTime(),
             modified: new Date().getTime()
         };
+
+        // Apply template content if specified
+        if (templateName) {
+            var template = this._findTemplate(templateName);
+            if (template) {
+                this._applyTemplateToNote(newNote, template);
+            }
+        }
+
         State.NOTES.unshift(newNote);
         saveData();
         this.open(newNote.id);
@@ -833,6 +863,68 @@ export const Notes = {
         }, 100);
 
         this.renderNotes();
+    },
+
+    // Find a template note by title or name
+    _findTemplate: function(name) {
+        if (!name) return null;
+        var q = name.toLowerCase().trim();
+        return State.NOTES.find(function(n) {
+            if (n.type === 'canvas') return false;
+            if (n.path && n.path.indexOf('/.trash') === 0) return false;
+            var inTemplates = n.path && (n.path === '/Templates' || n.path.indexOf('/Templates/') === 0);
+            var hasTemplateFlag = false;
+            if (n.content && n.content.startsWith('---')) {
+                var endIdx = n.content.indexOf('---', 3);
+                if (endIdx > 0) {
+                    hasTemplateFlag = /\btemplate:\s*true\b/.test(n.content.substring(0, endIdx + 3));
+                }
+            }
+            if (!inTemplates && !hasTemplateFlag) return false;
+            var title = (n.title || '').toLowerCase();
+            return title === q || title.indexOf(q) !== -1;
+        });
+    },
+
+    // Copy template content into a new note
+    _applyTemplateToNote: function(newNote, template) {
+        // Copy content from template
+        newNote.content = template.content || '';
+
+        // Copy blocks (deep clone)
+        if (template.blocks && Array.isArray(template.blocks)) {
+            newNote.blocks = JSON.parse(JSON.stringify(template.blocks));
+        }
+
+        // Strip YAML frontmatter from content if present
+        if (newNote.content && newNote.content.startsWith('---')) {
+            var endIdx = newNote.content.indexOf('---', 3);
+            if (endIdx > 0) {
+                newNote.content = newNote.content.substring(endIdx + 3).trim();
+            }
+        }
+
+        console.log('[Notes] Applied template:', template.title);
+    },
+
+    // Create a new note from a template (called by TemplateBrowser)
+    createFromTemplate: function(template) {
+        if (!template) return;
+
+        var prompt = 'Title for new note (from "' + (template.title || 'Untitled') + '"):';
+        var title = '';
+
+        // Use ModalManager.openInput if available, else prompt
+        if (window.ModalManager && window.ModalManager.openInput) {
+            window.ModalManager.openInput(prompt, 'new_note_title', function(inputTitle) {
+                Notes.create(inputTitle || '', '/', template.title);
+            });
+        } else {
+            title = prompt(prompt);
+            if (title !== null) {
+                this.create(title || '', '/', template.title);
+            }
+        }
     },
 
     delete: function () {
@@ -899,6 +991,11 @@ export const Notes = {
 
         if (PageManager) PageManager.syncContent(this.activeNoteId);
 
+        // Sync properties panel frontmatter into note content (BEFORE saveData)
+        if (window.PropertiesPanel && window.PropertiesPanel.syncToNote) {
+            window.PropertiesPanel.syncToNote(note);
+        }
+
         if (oldTitle !== note.title) {
             saveData();
             this.renderSidebar();
@@ -908,10 +1005,23 @@ export const Notes = {
         saveData();
         this.updateAllTags();
 
-        // Phase 3: Update MetadataCache index
+        // Phase 3: Update MetadataCache index (uses updated content from syncToNote)
         if (window.MetadataCache && window.MetadataCache.updateNote) {
             window.MetadataCache.updateNote(this.activeNoteId);
         }
+
+        // Capture version snapshot (fire-and-forget, async IndexedDB write)
+        if (window.VersionHistoryManager && window.VersionHistoryManager.captureSnapshot) {
+            window.VersionHistoryManager.captureSnapshot(this.activeNoteId);
+        }
+
+        // Sync flashcard index after save (fire-and-forget)
+        if (window.FlashcardManager && window.FlashcardManager.syncFromNotes) {
+            window.FlashcardManager.syncFromNotes();
+        }
+
+        // Refresh backlinks panel after save (wiki links may have changed)
+        this.renderBacklinks();
 
         var status = document.getElementById('save-status');
         if (status) {
@@ -1128,6 +1238,129 @@ export const Notes = {
         }
     },
 
+    // Render the backlinks panel showing all notes that link to this one
+    renderBacklinks: function () {
+        var panel = document.getElementById('note-backlinks-panel');
+        if (!panel) {
+            // Create panel if it doesn't exist yet
+            panel = document.createElement('div');
+            panel.id = 'note-backlinks-panel';
+            panel.className = 'empty';
+            // Insert after the visible editor element (preview takes priority if visible)
+            var blockEditor = document.getElementById('block-editor');
+            var notePreview = document.getElementById('note-preview');
+            var previewVisible = notePreview && getComputedStyle(notePreview).display !== 'none';
+            var insertAfter = previewVisible ? notePreview : blockEditor;
+            if (insertAfter && insertAfter.parentNode) {
+                insertAfter.parentNode.insertBefore(panel, insertAfter.nextSibling);
+            }
+        }
+
+        if (!this.activeNoteId) {
+            panel.classList.remove('active');
+            panel.classList.add('empty');
+            return;
+        }
+
+        var note = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
+        if (!note || note.type === 'canvas') { // Canvas notes use their own backlinks system
+            panel.classList.remove('active');
+            panel.classList.add('empty');
+            return;
+        }
+
+        // Use MetadataCache for fast backlinks lookup
+        var backlinks = [];
+        if (window.MetadataCache && window.MetadataCache.getBacklinks) {
+            backlinks = window.MetadataCache.getBacklinks(note.id);
+        }
+
+        // Also check via title-based lookup for wiki links that reference this note by title
+        var titleLinkingNotes = [];
+        if (window.MetadataCache && window.MetadataCache.getLinkingNotes) {
+            titleLinkingNotes = window.MetadataCache.getLinkingNotes(note.title || '');
+        }
+
+        // Merge and deduplicate
+        var mergedMap = {};
+        backlinks.concat(titleLinkingNotes).forEach(function (m) {
+            if (m && m.id && !mergedMap[m.id]) {
+                mergedMap[m.id] = m;
+            }
+        });
+
+        var merged = Object.keys(mergedMap).map(function (id) { return mergedMap[id]; });
+
+        if (merged.length === 0) {
+            panel.classList.remove('active');
+            panel.classList.add('empty');
+            return;
+        }
+
+        panel.classList.add('active');
+        panel.classList.remove('empty');
+
+        var html = '<div class="note-backlinks-header">' +
+            '<span>BACKLINKS</span>' +
+            '<span class="note-backlinks-count">' + merged.length + ' reference' + (merged.length !== 1 ? 's' : '') + '</span>' +
+            '</div>';
+
+        var self = this;
+        merged.forEach(function (bl) {
+            // Get a content snippet from the linking note
+            var snippet = '';
+            var content = '';
+            if (bl.content) {
+                content = bl.content;
+            } else if (bl.blocks && bl.blocks.length > 0) {
+                content = bl.blocks.map(function (b) { return b.content || ''; }).join('\n');
+            }
+            if (content) {
+                // Get the first non-empty line around the wiki link reference
+                var escapedQuote = note.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                var titlePattern = new RegExp('\\[\\[\\s*' + escapedQuote + '\\s*(\\|.*?)?\\]\\]', 'i');
+                var lines = content.split('\n');
+                for (var i = 0; i < lines.length; i++) {
+                    if (titlePattern.test(lines[i])) {
+                        snippet = lines[i].trim();
+                        if (snippet.length > 100) {
+                            snippet = snippet.substring(0, 97) + '...';
+                        }
+                        break;
+                    }
+                }
+                if (!snippet) {
+                    snippet = content.replace(/<[^>]+>/g, '').replace(/\n/g, ' ').trim().substring(0, 100);
+                }
+            }
+
+            html += '<div class="note-backlink-item" data-note-id="' + bl.id + '">' +
+                '<span class="note-backlink-icon">' + '\u2191' + '</span>' +
+                '<div class="note-backlink-body">' +
+                '<div class="note-backlink-title">' + safeText(bl.title || 'Untitled') + '</div>' +
+                (snippet ? '<div class="note-backlink-snippet">' + safeText(snippet) + '</div>' : '') +
+                '</div>' +
+                '</div>';
+        });
+
+        panel.innerHTML = html;
+
+        // Bind click handlers (use Array.from for browser compat)
+        Array.from(panel.querySelectorAll('.note-backlink-item')).forEach(function (el) {
+            el.addEventListener('click', function () {
+                var id = el.getAttribute('data-note-id');
+                if (id && window.Notes) {
+                    window.Notes.open(id);
+                }
+            });
+        });
+    },
+
+    // Alias for safeText from Utils (keep backward compat with existing code)
+    _escapeHtml: function (str) {
+        return safeText(str);
+    },
+
     // Rich Kanban Preview HTML Generator (Synced with BlockEditor.js)
     getKanbanPreviewHtml: function(boardId) {
         var BOARDS = State.BOARDS || [];
@@ -1304,6 +1537,45 @@ export const Notes = {
                 return isTeaser ? '<span class="teaser-tag">[IMAGE]</span> ' : '%%IMAGE_BLOCK_' + idx + '%%';
             });
             
+            // Extract transclusion blocks (![[Note Title]]) BEFORE HTML escape
+            var transclusionBlocks = [];
+            html = html.replace(/!\[\[([^\]]+)\]\]/g, function(match, noteTitle) {
+                var idx = transclusionBlocks.length;
+                var title = noteTitle.trim();
+                var targetNote = State.NOTES.find(function(n) {
+                    return (n.title || '').toLowerCase() === title.toLowerCase();
+                });
+
+                if (targetNote) {
+                    var targetContent = targetNote.content || '';
+                    if (!targetContent && targetNote.blocks) {
+                        targetContent = targetNote.blocks.map(function(b) { return b.content || ''; }).join(' ');
+                    }
+                    var renderedContent = '';
+                    if (targetContent) {
+                        // Recursively render the target note's content through markdown
+                        renderedContent = self.renderMarkdown(targetContent, true);
+                    }
+                    var transHtml = '<div class="preview-embed">' +
+                        '<div class="preview-embed-header">' +
+                            '<span class="preview-embed-icon">\uD83D\uDD17</span>' +
+                            '<span class="preview-embed-title internal-link" data-link="' + title.replace(/"/g, '&quot;') + '">' + safeText(title) + '</span>' +
+                        '</div>' +
+                        '<div class="preview-embed-body">' +
+                            (renderedContent || '<span class="preview-embed-empty">(empty note)</span>') +
+                        '</div>' +
+                    '</div>';
+                    transclusionBlocks.push(transHtml);
+                } else {
+                    transclusionBlocks.push('<div class="preview-embed preview-embed-missing">' +
+                        '<span class="preview-embed-icon">\u26A0</span>' +
+                        '<span class="preview-embed-missing-title">Note not found: ' + safeText(title) + '</span>' +
+                    '</div>');
+                }
+
+                return isTeaser ? '<span class="teaser-tag">[EMBED: ' + safeText(title) + ']</span> ' : '%%TRANSCLUSION_BLOCK_' + idx + '%%';
+            });
+
             // Extract Kanban blocks BEFORE HTML escape
             var kanbanBlocks = [];
             // Use getKanbanPreviewHtml for updated telemetry
@@ -1556,6 +1828,11 @@ export const Notes = {
                 html = html.replace('%%IMAGE_BLOCK_' + idx + '%%', block);
             });
             
+            // Re-insert transclusion blocks
+            transclusionBlocks.forEach(function(block, idx) {
+                html = html.replace('%%TRANSCLUSION_BLOCK_' + idx + '%%', block);
+            });
+
             // Re-insert Kanban blocks
             kanbanBlocks.forEach(function(block, idx) {
                 html = html.replace('%%KANBAN_BLOCK_' + idx + '%%', block);
@@ -1666,62 +1943,89 @@ export const Notes = {
             if (searchInput) searchInput.value = tag;
         }
         this.renderSidebar(this.activeTagFilter);
+        // Clear tag search input when filtering by tag
+        var tagSearchInput = document.getElementById('tags-search-input');
+        if (tagSearchInput) tagSearchInput.value = '';
+        this.updateAllTags();
     },
     
-    updateAllTags: function() {
+    updateAllTags: function(filterQuery) {
         var container = document.getElementById('sidebar-all-tags');
         if (!container) return;
 
-        // Collect all unique tags from all notes (blocks + content)
+        // Use MetadataCache.getAllTags() for fast, indexed tag data
+        // Includes tags from #hashtag in content AND frontmatter tags
         var allTags = {};
-        var self = this;
-        State.NOTES.forEach(function (note) {
-            // Skip trashed notes
-            if (note.path && note.path.indexOf('/.trash') === 0) return;
-            // Scan blocks
-            if (note.blocks && note.blocks.length > 0) {
-                note.blocks.forEach(function(b) {
-                    var blockTags = self.extractTags(b.content || '');
-                    blockTags.forEach(function (tag) {
-                        allTags[tag] = (allTags[tag] || 0) + 1;
+        if (window.MetadataCache && window.MetadataCache.getAllTags) {
+            allTags = window.MetadataCache.getAllTags();
+        } else {
+            // Fallback: manual extraction if MetadataCache unavailable
+            var self = this;
+            State.NOTES.forEach(function (note) {
+                if (note.path && note.path.indexOf('/.trash') === 0) return;
+                if (note.blocks && note.blocks.length > 0) {
+                    note.blocks.forEach(function(b) {
+                        var blockTags = self.extractTags(b.content || '');
+                        blockTags.forEach(function (tag) {
+                            var clean = tag.replace('#', '');
+                            allTags[clean] = (allTags[clean] || 0) + 1;
+                        });
                     });
+                }
+                var tags = self.extractTags(note.content || '');
+                tags.forEach(function (tag) {
+                    var clean = tag.replace('#', '');
+                    allTags[clean] = (allTags[clean] || 0) + 1;
                 });
-            }
-            // Also scan legacy content
-            var tags = self.extractTags(note.content || '');
-            tags.forEach(function (tag) {
-                allTags[tag] = (allTags[tag] || 0) + 1;
             });
+        }
+
+        // Sort by count descending, then alphabetically
+        var sorted = Object.keys(allTags).sort(function (a, b) {
+            if (allTags[b] !== allTags[a]) return allTags[b] - allTags[a];
+            return a.localeCompare(b);
         });
 
-        var tagList = Object.keys(allTags).sort();
+        // Apply tag name filter if provided
+        if (filterQuery) {
+            sorted = sorted.filter(function(tag) {
+                return tag.indexOf(filterQuery) >= 0;
+            });
+        }
+
         container.innerHTML = '';
 
-        if (tagList.length === 0) {
-            container.innerHTML = '<span style="color:#555;font-size:0.6rem;">No tags yet</span>';
+        if (sorted.length === 0) {
+            container.innerHTML = '<span class="tag-empty">' +
+                (filterQuery ? 'No tags matching &quot;' + this._escapeHtml(filterQuery) + '&quot;' : 'No tags yet') +
+                '</span>';
             return;
         }
 
-        var activeNote = State.NOTES.find(function(n) { return n.id === self.activeNoteId; });
-        var activeNoteTags = activeNote ? self.extractTags(activeNote.content || '') : [];
+        var self = this;
+        sorted.forEach(function (tag) {
+            var wrapper = document.createElement('span');
+            wrapper.className = 'tag-wrapper';
 
-        tagList.forEach(function (tag) {
             var span = document.createElement('span');
             span.className = 'tag';
-            span.textContent = tag;
+            if (self.activeTagFilter === tag) span.classList.add('active-tag');
+            span.textContent = '#' + tag;
             span.style.cursor = 'pointer';
-            span.title = allTags[tag] + ' notes';
-            
-            // Highlight if active in current note
-            if (activeNoteTags.some(function(t) { return t.toLowerCase() === tag.toLowerCase(); })) {
-                span.classList.add('active-tag');
-            }
+            span.title = allTags[tag] + ' note' + (allTags[tag] !== 1 ? 's' : '');
             
             span.onclick = function() {
                 self.filterByTag(tag);
             };
+            wrapper.appendChild(span);
+
+            // Count badge
+            var badge = document.createElement('span');
+            badge.className = 'tag-badge';
+            badge.textContent = allTags[tag];
+            wrapper.appendChild(badge);
             
-            container.appendChild(span);
+            container.appendChild(wrapper);
         });
     },
     
@@ -1754,6 +2058,32 @@ export const Notes = {
 
     closeGraph: function () {
         if (typeof ModalManager !== 'undefined') ModalManager.closeTop(true);
+    },
+
+    // Export all data (notes, tasks, boards, canvases, config, history) as downloadable JSON
+    downloadNotes: function () {
+        var exportData = {
+            exportedAt: new Date().toISOString(),
+            exportVersion: 1,
+            config: State.CONFIG,
+            notes: State.NOTES,
+            tasks: State.TASKS,
+            boards: State.BOARDS,
+            canvases: State.CANVASES,
+            history: State.COMMAND_HISTORY
+        };
+        var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'vinland_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (window.showNotification) {
+            window.showNotification('VAULT EXPORTED // vinland_backup_' + new Date().toISOString().slice(0, 10) + '.json');
+        }
     }
 };
 
@@ -1805,6 +2135,10 @@ export function toggleNotesPanel() {
 export function closeNoteEditor() {
     if (PageManager && Notes.activeNoteId) {
         PageManager.syncContent(Notes.activeNoteId);
+        // Update MetadataCache before closing so backlinks are fresh
+        if (window.MetadataCache && window.MetadataCache.updateNote) {
+            window.MetadataCache.updateNote(Notes.activeNoteId);
+        }
     }
     ModalManager.closeTop(true);
 }

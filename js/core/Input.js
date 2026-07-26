@@ -37,6 +37,117 @@ export function initKeyboardShortcuts() {
     if (TabManager && TabManager.init) TabManager.init();
     // PageActions.init() removed - called in boot.js
 
+    // Capture-phase: CMD+P (Quick Open) - must be before notes-specific shortcuts
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'p') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.QuickOpen) window.QuickOpen.toggle();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+C (Calendar)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.Calendar) window.Calendar.open();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+F (Full-text search via QuickOpen in search mode)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.QuickOpen) window.QuickOpen.open(true);
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+A (Daily Agenda view)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.DailyAgenda) window.DailyAgenda.open();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+T (Tag Browser)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 't') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.TagBrowser) window.TagBrowser.open();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+N (Template Browser)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'n') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.TemplateBrowser) window.TemplateBrowser.open();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+I (Quick Capture / Inbox)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'i') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.QuickCapture) window.QuickCapture.open();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+Q (Dataview Query)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'q') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.QuickCapture) window.QuickCapture.open();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+R (Flashcard Review)
+    // Not Cmd+R to avoid overriding browser reload shortcut
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'r') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.FlashcardManager) window.FlashcardManager.startReviewSession();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+H (Version History)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.VersionHistoryManager) window.VersionHistoryManager.openModal();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+Shift+Q (Quick Capture)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'q') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.DataviewQuery) window.DataviewQuery.open();
+            return;
+        }
+    }, true);
+
     // Capture-phase: CMD+Shift+X (close tab)
     document.addEventListener('keydown', function(e) {
         var isNotesActive = ModalManager && ModalManager.stack && ModalManager.stack.includes('note-editor-modal');
