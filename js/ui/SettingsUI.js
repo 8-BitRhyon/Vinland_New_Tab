@@ -1487,23 +1487,48 @@ export const SettingsUI = {
        SYNC / BACKUP CONTROLS
        ========================================= */
 
+    _syncBtn: function(id) { return document.getElementById(id); },
+    _syncMsg: function(id, text, type) {
+        var el = this._syncBtn(id);
+        if (!el) return;
+        if (text) {
+            el.textContent = text;
+            el.className = 'sync-msg ' + type;
+            el.style.display = 'block';
+        } else {
+            el.style.display = 'none';
+        }
+    },
+    _syncLoading: function(btnId, loading) {
+        var btn = this._syncBtn(btnId);
+        if (!btn) return;
+        btn.disabled = loading;
+        btn.classList.toggle('loading', loading);
+    },
+
     bindSyncButtons: function() {
         var self = this;
 
         // Backup now button
-        var backupBtn = document.getElementById('sync-backup-now-btn');
+        var backupBtn = this._syncBtn('sync-backup-now-btn');
         if (backupBtn) {
             backupBtn.onclick = function() {
-                if (window.BackupManager) {
+                if (!window.BackupManager) return;
+                self._syncLoading('sync-backup-now-btn', true);
+                self._syncMsg('sync-backup-status', null);
+                try {
                     window.BackupManager.triggerBackup('auto');
-                    window.showNotification('BACKUP TRIGGERED');
-                    self.loadSyncTab();
+                    self._syncMsg('sync-backup-status', '✅ Backup saved', 'success');
+                } catch (e) {
+                    self._syncMsg('sync-backup-status', '❌ Backup failed', 'error');
                 }
+                self._syncLoading('sync-backup-now-btn', false);
+                self.loadSyncTab();
             };
         }
 
         // Auto-backup interval change
-        var intervalSelect = document.getElementById('cfg-auto-backup');
+        var intervalSelect = this._syncBtn('cfg-auto-backup');
         if (intervalSelect) {
             intervalSelect.onchange = function() {
                 State.CONFIG.auto_backup_interval = parseInt(this.value) || 0;
@@ -1511,61 +1536,79 @@ export const SettingsUI = {
                 if (window.BackupManager) {
                     window.BackupManager.scheduleAutoBackup();
                 }
-                window.showNotification('BACKUP INTERVAL UPDATED');
+                self._syncMsg('sync-backup-status', '⏱ Backup interval updated', 'info');
+                setTimeout(function() { self._syncMsg('sync-backup-status', null); }, 3000);
             };
         }
 
         // Drive connect
-        var connectBtn = document.getElementById('drive-connect-btn');
+        var connectBtn = this._syncBtn('drive-connect-btn');
         if (connectBtn) {
             connectBtn.onclick = function() {
-                if (window.BackupManager) {
-                    window.BackupManager.connectDrive(function(success) {
-                        self.loadSyncTab();
-                    });
-                }
+                if (!window.BackupManager) return;
+                self._syncLoading('drive-connect-btn', true);
+                self._syncMsg('drive-sync-status', null);
+                window.BackupManager.connectDrive(function(success) {
+                    self._syncLoading('drive-connect-btn', false);
+                    if (success) {
+                        self._syncMsg('drive-sync-status', '✅ Drive connected', 'success');
+                    } else {
+                        self._syncMsg('drive-sync-status', '❌ Failed to connect Drive', 'error');
+                    }
+                    self.loadSyncTab();
+                });
             };
         }
 
         // Drive disconnect
-        var disconnectBtn = document.getElementById('drive-disconnect-btn');
+        var disconnectBtn = this._syncBtn('drive-disconnect-btn');
         if (disconnectBtn) {
             disconnectBtn.onclick = function() {
-                if (window.BackupManager) {
-                    window.BackupManager.disconnectDrive(function() {
-                        self.loadSyncTab();
-                    });
-                }
+                if (!window.BackupManager) return;
+                self._syncLoading('drive-disconnect-btn', true);
+                window.BackupManager.disconnectDrive(function() {
+                    self._syncLoading('drive-disconnect-btn', false);
+                    self._syncMsg('drive-sync-status', '🔌 Drive disconnected', 'info');
+                    self.loadSyncTab();
+                });
             };
         }
 
         // Drive sync push
-        var pushBtn = document.getElementById('drive-sync-push-btn');
+        var pushBtn = this._syncBtn('drive-sync-push-btn');
         if (pushBtn) {
             pushBtn.onclick = function() {
-                if (window.BackupManager) {
-                    window.BackupManager.syncToDrive(function(success) {
-                        if (success) {
-                            window.showNotification('SYNCED TO DRIVE');
-                        }
-                        self.loadSyncTab();
-                    });
-                }
+                if (!window.BackupManager) return;
+                self._syncLoading('drive-sync-push-btn', true);
+                self._syncMsg('drive-sync-status', null);
+                window.BackupManager.syncToDrive(function(success) {
+                    self._syncLoading('drive-sync-push-btn', false);
+                    if (success) {
+                        self._syncMsg('drive-sync-status', '✅ Synced to Drive', 'success');
+                    } else {
+                        self._syncMsg('drive-sync-status', '❌ Sync failed', 'error');
+                    }
+                    self.loadSyncTab();
+                });
             };
         }
 
         // Drive sync pull
-        var pullBtn = document.getElementById('drive-sync-pull-btn');
+        var pullBtn = this._syncBtn('drive-sync-pull-btn');
         if (pullBtn) {
             pullBtn.onclick = function() {
-                if (window.BackupManager) {
-                    window.BackupManager.syncFromDrive(function(success) {
-                        if (success) {
-                            window.showNotification('RESTORED FROM DRIVE');
-                        }
-                        self.loadSyncTab();
-                    });
-                }
+                if (!window.BackupManager) return;
+                self._syncLoading('drive-sync-pull-btn', true);
+                self._syncMsg('drive-sync-status', null);
+                window.BackupManager.syncFromDrive(function(success) {
+                    self._syncLoading('drive-sync-pull-btn', false);
+                    if (success) {
+                        self._syncMsg('drive-sync-status', '✅ Restored from Drive', 'success');
+                    } else {
+                        self._syncMsg('drive-sync-status', '❌ Restore failed', 'error');
+                    }
+                    self.loadSyncTab();
+                });
             };
         }
     },
@@ -1573,50 +1616,43 @@ export const SettingsUI = {
     loadSyncTab: function() {
         // Update backup interval selector
         var interval = State.CONFIG.auto_backup_interval || 0;
-        var intervalSelect = document.getElementById('cfg-auto-backup');
+        var intervalSelect = this._syncBtn('cfg-auto-backup');
         if (intervalSelect) intervalSelect.value = interval.toString();
 
         // Update last backup info
-        var lastBackupEl = document.getElementById('sync-last-backup');
+        var lastBackupEl = this._syncBtn('sync-last-backup');
         if (lastBackupEl) {
             var lastTime = State.CONFIG.last_backup_time;
-            if (lastTime) {
-                var d = new Date(lastTime);
-                lastBackupEl.textContent = 'LAST BACKUP: ' + d.toLocaleString();
-            } else {
-                lastBackupEl.textContent = 'LAST BACKUP: never';
-            }
+            lastBackupEl.textContent = lastTime
+                ? new Date(lastTime).toLocaleString()
+                : 'never';
         }
 
         // Update drive sync info
-        var lastDriveEl = document.getElementById('sync-last-drive');
+        var lastDriveEl = this._syncBtn('sync-last-drive');
         if (lastDriveEl) {
             var lastSync = State.CONFIG.drive_last_sync;
-            if (lastSync) {
-                var d = new Date(lastSync);
-                lastDriveEl.textContent = 'LAST DRIVE SYNC: ' + d.toLocaleString();
-            } else {
-                lastDriveEl.textContent = 'LAST DRIVE SYNC: never';
-            }
+            lastDriveEl.textContent = lastSync
+                ? new Date(lastSync).toLocaleString()
+                : 'never';
         }
 
         // Update Drive connection status
-        var statusEl = document.getElementById('drive-status');
-        var connectBtn = document.getElementById('drive-connect-btn');
-        var disconnectBtn = document.getElementById('drive-disconnect-btn');
-        var pushBtn = document.getElementById('drive-sync-push-btn');
-        var pullBtn = document.getElementById('drive-sync-pull-btn');
+        var statusEl = this._syncBtn('drive-status');
+        var connectBtn = this._syncBtn('drive-connect-btn');
+        var disconnectBtn = this._syncBtn('drive-disconnect-btn');
+        var pushBtn = this._syncBtn('drive-sync-push-btn');
+        var pullBtn = this._syncBtn('drive-sync-pull-btn');
 
         var isConnected = window.BackupManager && window.BackupManager.driveConnected;
 
         if (statusEl) {
-            statusEl.textContent = 'Status: ' + (isConnected ? 'Connected' : 'Not connected');
-            statusEl.style.color = isConnected ? 'var(--main-color)' : 'var(--secondary-color)';
+            statusEl.innerHTML = '<span class="sync-status-dot' + (isConnected ? ' connected' : '') + '"></span> ' + (isConnected ? 'Connected' : 'Not connected');
         }
-        if (connectBtn) connectBtn.style.display = isConnected ? 'none' : 'inline-block';
-        if (disconnectBtn) disconnectBtn.style.display = isConnected ? 'inline-block' : 'none';
-        if (pushBtn) pushBtn.style.display = isConnected ? 'inline-block' : 'none';
-        if (pullBtn) pullBtn.style.display = isConnected ? 'inline-block' : 'none';
+        if (connectBtn) connectBtn.style.display = isConnected ? 'none' : 'inline-flex';
+        if (disconnectBtn) disconnectBtn.style.display = isConnected ? 'inline-flex' : 'none';
+        if (pushBtn) pushBtn.style.display = isConnected ? 'inline-flex' : 'none';
+        if (pullBtn) pullBtn.style.display = isConnected ? 'inline-flex' : 'none';
     },
 
     // Import data from Drive sync (called by BackupManager.syncFromDrive)

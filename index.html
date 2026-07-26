@@ -4245,6 +4245,181 @@
         display: none;
       }
 
+      /* ── Sync Panel Cards ── */
+      .sync-card {
+        background: color-mix(in srgb, var(--main-color) 4%, transparent);
+        border: 1px solid color-mix(in srgb, var(--main-color) 12%, transparent);
+        border-radius: 8px;
+        margin: 12px 0;
+        overflow: hidden;
+      }
+      .sync-card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border-bottom: 1px solid color-mix(in srgb, var(--main-color) 10%, transparent);
+        background: color-mix(in srgb, var(--main-color) 3%, transparent);
+      }
+      .sync-card-icon {
+        font-size: 1rem;
+      }
+      .sync-card-body {
+        padding: 14px;
+      }
+      .sync-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+      .sync-select {
+        width: auto;
+        min-width: 120px;
+      }
+      .sync-hint {
+        font-size: 0.65rem;
+        color: var(--dim-color);
+        line-height: 1.4;
+        margin-bottom: 10px;
+      }
+      .sync-status-row {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 10px;
+      }
+      .sync-status-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .sync-status-label {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--dim-color);
+      }
+      .sync-status-value {
+        font-size: 0.75rem;
+        color: var(--secondary-color);
+      }
+      .sync-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        font-size: 0.75rem;
+        font-family: inherit;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        transition: opacity 0.2s, transform 0.1s;
+      }
+      .sync-btn:hover {
+        opacity: 0.85;
+        transform: translateY(-1px);
+      }
+      .sync-btn:active {
+        transform: translateY(0) scale(0.97);
+      }
+      .sync-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .sync-btn-primary {
+        background: var(--main-color);
+        color: #000;
+      }
+      .sync-btn-danger {
+        background: var(--danger-color, #ff0055);
+        color: #fff;
+      }
+      .sync-btn-secondary {
+        background: transparent;
+        color: var(--main-color);
+        border: 1px solid var(--main-color);
+      }
+      .sync-btn.loading {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      .sync-btn.loading .sync-spinner {
+        display: inline-block !important;
+      }
+      .sync-btn.loading .sync-btn-text {
+        opacity: 0.6;
+      }
+      .sync-spinner {
+        display: none;
+        animation: sync-spin 0.8s linear infinite;
+      }
+      @keyframes sync-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .sync-button-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .sync-status-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.7rem;
+        padding: 6px 10px;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--main-color) 4%, transparent);
+        margin-bottom: 4px;
+      }
+      .sync-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--dim-color);
+        display: inline-block;
+      }
+      .sync-status-dot.connected {
+        background: var(--main-color);
+        box-shadow: 0 0 6px var(--main-color);
+      }
+      .sync-msg {
+        font-size: 0.65rem;
+        padding: 6px 10px;
+        border-radius: 4px;
+        margin-top: 8px;
+      }
+      .sync-msg.success {
+        background: color-mix(in srgb, var(--main-color) 15%, transparent);
+        color: var(--main-color);
+        border: 1px solid color-mix(in srgb, var(--main-color) 30%, transparent);
+      }
+      .sync-msg.error {
+        background: color-mix(in srgb, var(--danger-color, #ff0055) 15%, transparent);
+        color: var(--danger-color, #ff0055);
+        border: 1px solid color-mix(in srgb, var(--danger-color, #ff0055) 30%, transparent);
+      }
+      .sync-msg.info {
+        background: color-mix(in srgb, var(--board-color, #00e5ff) 12%, transparent);
+        color: var(--board-color, #00e5ff);
+        border: 1px solid color-mix(in srgb, var(--board-color, #00e5ff) 25%, transparent);
+      }
+      .sync-footnote {
+        font-size: 0.6rem;
+        color: var(--dim-color);
+        line-height: 1.4;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid color-mix(in srgb, var(--main-color) 8%, transparent);
+      }
+
       .config-group,
       .config-row {
         /* .15: Unified 20px padding */
@@ -10738,61 +10913,78 @@
           <div class="config-tab" id="tab-sync">
             <div class="config-tab-title">> BACKUP & SYNC</div>
 
-            <div class="config-group">
-              <div class="config-row">
-                <label for="cfg-auto-backup" class="config-label">AUTO BACKUP INTERVAL</label>
-                <select id="cfg-auto-backup" class="config-input config-select" style="width:auto; min-width:120px;">
-                  <option value="0">OFF</option>
-                  <option value="5">Every 5 min</option>
-                  <option value="15">Every 15 min</option>
-                  <option value="30">Every 30 min</option>
-                  <option value="60">Every hour</option>
-                  <option value="180">Every 3 hours</option>
-                  <option value="360">Every 6 hours</option>
-                  <option value="1440">Once daily</option>
-                </select>
+            <!-- Local Backups Card -->
+            <div class="sync-card">
+              <div class="sync-card-header">
+                <span class="sync-card-icon">💾</span>
+                <span>LOCAL BACKUPS</span>
               </div>
-              <div style="font-size:0.65rem; color:var(--dim-color); padding:4px 0;">
-                Auto-saves a backup JSON to your Downloads folder at the selected interval.
+              <div class="sync-card-body">
+                <div class="sync-row">
+                  <label for="cfg-auto-backup" class="config-label">AUTO BACKUP INTERVAL</label>
+                  <select id="cfg-auto-backup" class="config-input config-select sync-select">
+                    <option value="0">OFF</option>
+                    <option value="5">Every 5 min</option>
+                    <option value="15">Every 15 min</option>
+                    <option value="30">Every 30 min</option>
+                    <option value="60">Every hour</option>
+                    <option value="180">Every 3 hours</option>
+                    <option value="360">Every 6 hours</option>
+                    <option value="1440">Once daily</option>
+                  </select>
+                </div>
+                <div class="sync-hint">
+                  Auto-saves a backup JSON to your Downloads folder at the selected interval.
+                </div>
+                <div class="sync-status-row">
+                  <div class="sync-status-item">
+                    <span class="sync-status-label">LAST BACKUP</span>
+                    <span class="sync-status-value" id="sync-last-backup">never</span>
+                  </div>
+                  <div class="sync-status-item">
+                    <span class="sync-status-label">LAST DRIVE SYNC</span>
+                    <span class="sync-status-value" id="sync-last-drive">never</span>
+                  </div>
+                </div>
+                <button id="sync-backup-now-btn" class="sync-btn sync-btn-primary">
+                  <span class="sync-btn-text">BACKUP NOW</span>
+                  <span class="sync-spinner" style="display:none;">◌</span>
+                </button>
+                <div id="sync-backup-status" class="sync-msg" style="display:none;"></div>
               </div>
             </div>
 
-            <div class="config-group">
-              <div style="padding:8px 0; font-size:0.75rem;">
-                <div id="sync-last-backup" style="color:var(--secondary-color);">LAST BACKUP: never</div>
-                <div id="sync-last-drive" style="color:var(--secondary-color); margin-top:4px;">LAST DRIVE SYNC: never</div>
+            <!-- Cloud Sync Card -->
+            <div class="sync-card">
+              <div class="sync-card-header">
+                <span class="sync-card-icon">☁️</span>
+                <span>CLOUD SYNC</span>
               </div>
-              <button id="sync-backup-now-btn" style="margin-top:4px; background:var(--main-color); color:#000; border:none; padding:5px 15px; font-size:0.8rem; cursor:pointer; font-family:inherit; font-weight:bold;">
-                BACKUP NOW
-              </button>
-            </div>
-
-            <div class="config-group" style="margin-top:16px;">
-              <div class="config-tab-title" style="font-size:0.75rem;">> GOOGLE DRIVE SYNC</div>
-              <div style="font-size:0.65rem; color:var(--dim-color); padding:4px 0 8px;">
-                Sync your data to Google Drive for cross-device access.
-                Requires an OAuth client ID in manifest.json.
-              </div>
-              <div id="drive-status" style="font-size:0.7rem; color:var(--secondary-color); padding:4px 0;">
-                Status: Not connected
-              </div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
-                <button id="drive-connect-btn" style="background:var(--main-color); color:#000; border:none; padding:6px 14px; font-size:0.75rem; cursor:pointer; font-family:inherit; font-weight:bold;">
-                  CONNECT DRIVE
-                </button>
-                <button id="drive-disconnect-btn" style="background:var(--danger-color,#ff0055); color:#fff; border:none; padding:6px 14px; font-size:0.75rem; cursor:pointer; font-family:inherit; font-weight:bold; display:none;">
-                  DISCONNECT
-                </button>
-                <button id="drive-sync-push-btn" style="background:transparent; color:var(--main-color); border:1px solid var(--main-color); padding:6px 14px; font-size:0.75rem; cursor:pointer; font-family:inherit; font-weight:bold; display:none;">
-                  SYNC TO DRIVE
-                </button>
-                <button id="drive-sync-pull-btn" style="background:transparent; color:var(--main-color); border:1px solid var(--main-color); padding:6px 14px; font-size:0.75rem; cursor:pointer; font-family:inherit; font-weight:bold; display:none;">
-                  RESTORE FROM DRIVE
-                </button>
-              </div>
-              <div style="font-size:0.6rem; color:var(--dim-color); padding:6px 0; line-height:1.4;">
-                Note: Google Drive sync requires setup in Google Cloud Console.
-                See module comments for instructions.
+              <div class="sync-card-body">
+                <div class="sync-hint">
+                  Sync your data to Google Drive for cross-device access.
+                  Requires an OAuth client ID in manifest.json.
+                </div>
+                <div id="drive-status" class="sync-status-badge">
+                  <span class="sync-status-dot"></span>
+                  Not connected
+                </div>
+                <div class="sync-button-group">
+                  <button id="drive-connect-btn" class="sync-btn sync-btn-primary">CONNECT DRIVE</button>
+                  <button id="drive-disconnect-btn" class="sync-btn sync-btn-danger" style="display:none;">DISCONNECT</button>
+                  <button id="drive-sync-push-btn" class="sync-btn sync-btn-secondary" style="display:none;">
+                    <span class="sync-btn-text">SYNC TO DRIVE</span>
+                    <span class="sync-spinner" style="display:none;">◌</span>
+                  </button>
+                  <button id="drive-sync-pull-btn" class="sync-btn sync-btn-secondary" style="display:none;">
+                    <span class="sync-btn-text">RESTORE FROM DRIVE</span>
+                    <span class="sync-spinner" style="display:none;">◌</span>
+                  </button>
+                </div>
+                <div id="drive-sync-status" class="sync-msg" style="display:none;"></div>
+                <div class="sync-footnote">
+                  Note: Google Drive sync requires setup in Google Cloud Console.
+                </div>
               </div>
             </div>
           </div>
