@@ -1,5 +1,7 @@
 # Vinland
 
+[![CI](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml/badge.svg)](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml)
+
 > A Manifest V3 new-tab command center. Keyboard-first, local-first, no framework, no bundler.
 
 The name is from *Vinland Saga*. The idea of a place beyond all the fighting - peace on the other side of pain. That stuck with me. This is that place for my browser.
@@ -54,7 +56,7 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 - Quick Notes sidebar with folder tree and trash
 - Daily notes under `/Journal`
 
-**17 CLI commands:**
+**33 CLI commands:**
 
 | Command | What it does |
 |---|---|
@@ -90,7 +92,8 @@ git clone https://github.com/8-BitRhyon/Vinland_New_Tab
 # chrome://extensions → Load unpacked → select this folder
 ```
 
-Tests: `npm test` (70 tests across 3 suites - notes unit, editor ordering, storage sharding).
+Tests: `npm test` (436+ unit tests across 10 suites) • `npm run test:e2e` (30 Playwright E2E specs).
+CI runs both on every push via [GitHub Actions](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml).
 
 ## Design
 
