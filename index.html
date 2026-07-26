@@ -4045,6 +4045,7 @@
       }
 
       .config-search {
+        position: relative;
         padding: 10px;
         border-bottom: 1px solid #222;
       }
@@ -4054,7 +4055,7 @@
         background: #111;
         border: 1px solid #333;
         color: #ccc;
-        padding: 8px 10px;
+        padding: 8px 24px 8px 10px;
         font-family: inherit;
         font-size: 0.75rem;
         box-sizing: border-box;
@@ -4067,6 +4068,34 @@
 
       .config-search input::placeholder {
         color: #555;
+      }
+
+      .search-clear {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        color: #888;
+        font-size: 0.5rem;
+        border-radius: 50%;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        transition: all 0.15s;
+      }
+      .search-clear:hover {
+        background: var(--main-color);
+        color: #000;
+      }
+      .search-clear.visible {
+        display: flex;
       }
 
       .config-nav {
@@ -10412,6 +10441,7 @@
               id="config-search-input"
               placeholder="Search settings..."
             />
+            <button class="search-clear" id="config-search-clear" aria-label="Clear search">✕</button>
           </div>
           <!-- V19.32: Removed Quick Access, Interface is now first/default -->
           <div class="config-nav">

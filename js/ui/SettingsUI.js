@@ -1531,17 +1531,34 @@ export const SettingsUI = {
 
     bindSearchFilter: function() {
         var searchInput = document.getElementById('config-search-input');
+        var clearBtn = document.getElementById('config-search-clear');
         if (!searchInput) return;
 
         var self = this;
         var searchTimeout = null;
 
+        function updateClearButton() {
+            if (clearBtn) {
+                clearBtn.classList.toggle('visible', searchInput.value.trim().length > 0);
+            }
+        }
+
         searchInput.addEventListener('input', function() {
+            updateClearButton();
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(function() {
                 self._applySearchFilter(searchInput.value.trim());
             }, 150);
         });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                updateClearButton();
+                self._applySearchFilter('');
+                searchInput.focus();
+            });
+        }
     },
 
     _applySearchFilter: function(query) {
