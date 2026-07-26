@@ -39,7 +39,7 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 - Mission log with priority flags and streak tracking
 - Bookmark browser (Chrome bookmarks indexed into a bottom bar)
 - Dock (quick-launch links)
-- Command palette (fuzzy search, 17 built-in commands, custom ones too)
+- Command palette (fuzzy search, 33 built-in commands, custom ones too)
 - Zen mode
 - Editable themes (11 presets)
 
@@ -60,6 +60,8 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 
 | Command | What it does |
 |---|---|
+| Command | What it does |
+|---|---|
 | `note <title>` | Quick-create and open a note |
 | `notes` | Toggle the notes sidebar |
 | `canvas` | New spatial canvas |
@@ -76,6 +78,19 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 | `board` | Open kanban |
 | `reload` | Reload extension |
 | `help` / `man` | Show command reference |
+| `find <query>` | Search notes via QuickOpen |
+| `calendar` | Open calendar view |
+| `agenda` | Open daily agenda |
+| `template <name>` | Browse/create from template |
+| `tags <query>` | Browse/filter by tag |
+| `dv <query>` | Open Dataview query panel |
+| `review` | Start flashcard review |
+| `flashcards` | Show flashcard stats |
+| `versions` | View note version history |
+| `obsidian-import` | Import .md from Obsidian vault |
+| `workspace <cmd>` | Save/load/delete workspace snapshots |
+| `export` | Download all data as JSON |
+| `import` | Import from JSON backup |
 
 ## Why it works
 
@@ -92,7 +107,7 @@ git clone https://github.com/8-BitRhyon/Vinland_New_Tab
 # chrome://extensions → Load unpacked → select this folder
 ```
 
-Tests: `npm test` (436+ unit tests across 10 suites) • `npm run test:e2e` (30 Playwright E2E specs).
+Tests: `npm test` (436 unit tests across 10 suites) • `npm run test:e2e` (30 Playwright E2E specs).
 CI runs both on every push via [GitHub Actions](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml).
 
 ## Design
