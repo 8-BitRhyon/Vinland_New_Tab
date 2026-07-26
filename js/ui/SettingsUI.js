@@ -473,6 +473,18 @@ export const SettingsUI = {
         isConfigLoading = false; // UNLOCK dirty tracker
         CONFIG_DIRTY = false;
         resetSaveButtonState();
+
+        // Restore persisted search query
+        var savedQuery = sessionStorage.getItem('vinland_settings_search');
+        if (savedQuery) {
+            var searchInput = document.getElementById('config-search-input');
+            var clearBtn = document.getElementById('config-search-clear');
+            if (searchInput) {
+                searchInput.value = savedQuery;
+                if (clearBtn) clearBtn.classList.toggle('visible', savedQuery.length > 0);
+                this._applySearchFilter(savedQuery);
+            }
+        }
     },
 
     close: function(force) {
@@ -1555,6 +1567,7 @@ export const SettingsUI = {
             clearBtn.addEventListener('click', function() {
                 searchInput.value = '';
                 updateClearButton();
+                sessionStorage.removeItem('vinland_settings_search');
                 self._applySearchFilter('');
                 searchInput.focus();
             });
@@ -1562,6 +1575,7 @@ export const SettingsUI = {
     },
 
     _applySearchFilter: function(query) {
+        sessionStorage.setItem('vinland_settings_search', query);
         var tabs = document.querySelectorAll('.config-tab');
         var navItems = document.querySelectorAll('.config-nav-item');
         var searchInput = document.getElementById('config-search-input');
