@@ -40,6 +40,12 @@ function showNotification(msg) {
 }
 window.showNotification = showNotification;
 
+function setUnsavedDots(visible) {
+    document.querySelectorAll('.config-nav-dot').forEach(function(dot) {
+        dot.classList.toggle('visible', visible);
+    });
+}
+
 function resetSaveButtonState() {
     var headerSaveBtn = document.getElementById('header-save-btn');
     if (headerSaveBtn) {
@@ -50,6 +56,7 @@ function resetSaveButtonState() {
         headerSaveBtn.style.textShadow = ''; 
         headerSaveBtn.style.border = '';
     }
+    setUnsavedDots(false);
 }
 
 function markDirty() {
@@ -64,6 +71,7 @@ function markDirty() {
         headerSaveBtn.style.textShadow = 'none';
         headerSaveBtn.style.border = '1px solid var(--main-color)'; 
     }
+    setUnsavedDots(true);
 }
 
 export const SettingsUI = {
@@ -114,6 +122,9 @@ export const SettingsUI = {
                      var rawArea = document.getElementById('cfg-json-dump'); 
                      if (rawArea) rawArea.value = JSON.stringify(State.CONFIG, null, 4);
                 }
+
+                // Update tab badges when switching to a tab
+                self.updateNavBadges();
             };
         });
         
@@ -219,29 +230,54 @@ export const SettingsUI = {
         document.addEventListener('input', checkDirtyHandler);
         document.addEventListener('change', checkDirtyHandler);
         
-        // Arrow key navigation
+        // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
             // Only active if config modal is showing
             var configModal = document.getElementById('config-modal');
-            if (ModalManager.stack.includes('config-modal') || (configModal && configModal.classList.contains('active'))) {
-                // Ignore if focus is in an input field (so we don't block cursor movement)
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            var isOpen = ModalManager.stack.includes('config-modal') || (configModal && configModal.classList.contains('active'));
+            if (!isOpen) return;
 
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                    var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
-                    var activeIndex = navItems.findIndex(n => n.classList.contains('active'));
-                    
-                    if (activeIndex === -1 && navItems.length > 0) activeIndex = 0;
-                    
-                    if (e.key === 'ArrowDown') {
-                        var nextIndex = (activeIndex + 1) % navItems.length;
-                        navItems[nextIndex].click();
-                        e.preventDefault();
-                    } else if (e.key === 'ArrowUp') {
-                        var prevIndex = (activeIndex - 1 + navItems.length) % navItems.length;
-                        navItems[prevIndex].click();
-                        e.preventDefault();
+            // Ignore if focus is in an input field (so we don't block cursor movement/typing)
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Cmd/Ctrl + S: save config
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                if (CONFIG_DIRTY) {
+                    if (self.saveConfigFromUI) {
+                        self.saveConfigFromUI();
                     }
+                } else {
+                    showNotification('NO CHANGES TO SAVE');
+                }
+                return;
+            }
+
+            // Cmd/Ctrl + 1-6: switch to tab by index
+            if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '6') {
+                e.preventDefault();
+                var idx = parseInt(e.key) - 1;
+                var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
+                if (idx >= 0 && idx < navItems.length) {
+                    navItems[idx].click();
+                }
+                return;
+            }
+
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
+                var activeIndex = navItems.findIndex(n => n.classList.contains('active'));
+                
+                if (activeIndex === -1 && navItems.length > 0) activeIndex = 0;
+                
+                if (e.key === 'ArrowDown') {
+                    var nextIndex = (activeIndex + 1) % navItems.length;
+                    navItems[nextIndex].click();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowUp') {
+                    var prevIndex = (activeIndex - 1 + navItems.length) % navItems.length;
+                    navItems[prevIndex].click();
+                    e.preventDefault();
                 }
             }
         });
@@ -414,6 +450,9 @@ export const SettingsUI = {
 
         // Sync tab
         this.loadSyncTab();
+
+        // Update nav badges
+        this.updateNavBadges();
 
         // Raw
         var rawInput = document.getElementById('cfg-json-dump');
@@ -705,7 +744,7 @@ export const SettingsUI = {
         var links = State.CONFIG.dock_links || [];
         
         if (links.length === 0) {
-            container.innerHTML = '<div style="color:#666; font-style:italic; padding:10px; font-size:0.8rem;">No dock links. Add one above.</div>';
+            container.innerHTML = '<div class="config-empty-state"><span class="empty-icon">🔗</span>No dock links yet. Add your first link above.</div>';
         }
 
         links.forEach(function(link, index) {
@@ -817,7 +856,7 @@ export const SettingsUI = {
         var cmds = State.CONFIG.custom_commands || [];
         
         if (cmds.length === 0) {
-            container.innerHTML = '<div style="color:#666; font-style:italic; padding:10px; font-size:0.8rem;">No custom commands. Add one above.</div>';
+            container.innerHTML = '<div class="config-empty-state"><span class="empty-icon">⚡</span>No custom commands yet. Create your first command above.</div>';
         }
 
         cmds.forEach(function(cmd, index) {
@@ -1483,6 +1522,43 @@ export const SettingsUI = {
         reader.readAsText(file);
     },
     
+    /* =========================================
+       NAV BADGES & UPDATES
+       ========================================= */
+
+    updateNavBadges: function() {
+        // Modules badge: count dock links + custom commands
+        var moduleBadge = document.getElementById('nav-badge-modules');
+        if (moduleBadge) {
+            var dockCount = (State.CONFIG.dock_links || []).length;
+            var cmdCount = (State.CONFIG.custom_commands || []).length;
+            var total = dockCount + cmdCount;
+            if (total > 0) {
+                moduleBadge.textContent = total.toString();
+                moduleBadge.style.display = 'inline-flex';
+            } else {
+                moduleBadge.style.display = 'none';
+            }
+        }
+
+        // Sync badge: show backup status
+        var syncBadge = document.getElementById('nav-badge-sync');
+        if (syncBadge) {
+            var lastBackup = State.CONFIG.last_backup_time;
+            if (lastBackup) {
+                var hoursAgo = (Date.now() - lastBackup) / 3600000;
+                if (hoursAgo < 24) {
+                    syncBadge.textContent = Math.round(hoursAgo) + 'h';
+                    syncBadge.style.display = 'inline-flex';
+                } else {
+                    syncBadge.style.display = 'none';
+                }
+            } else {
+                syncBadge.style.display = 'none';
+            }
+        }
+    },
+
     /* =========================================
        SYNC / BACKUP CONTROLS
        ========================================= */

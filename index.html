@@ -4074,17 +4074,7 @@
         overflow-y: auto;
       }
 
-      .config-nav-item {
-        display: block;
-        padding: 12px 15px;
-        color: #888;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        cursor: pointer;
-        border-left: 3px solid transparent;
-        transition: all 0.2s;
-      }
+
 
       .config-nav-item:hover {
         background: #151515;
@@ -4138,13 +4128,86 @@
         display: block;
       }
 
-      .config-tab-title {
-        color: var(--main-color);
-        font-size: 1rem;
+.config-tab-title {
+  color: var(--main-color);
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #333;
+}
+
+      .config-tab-title-spaced {
+        margin-top: 25px;
+      }
+      .config-tab-title-spaced-sm {
+        margin-top: 20px;
+      }
+      .config-row-spaced {
+        margin-bottom: 15px;
+      }
+      .config-nav-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 8px;
+        font-size: 0.55rem;
         font-weight: bold;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #333;
+        line-height: 1;
+        background: var(--main-color);
+        color: #000;
+        margin-left: auto;
+      }
+      .config-nav-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--warning-color, #ffb800);
+        margin-left: 6px;
+        vertical-align: middle;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .config-nav-dot.visible {
+        opacity: 1;
+      }
+      .config-nav-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        color: #888;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+      }
+      .config-nav-item.active {
+        color: var(--main-color);
+        border-left-color: var(--main-color);
+        background: rgba(var(--main-color-rgb), 0.08);
+      }
+      .config-empty-state {
+        text-align: center;
+        padding: 24px 16px;
+        color: var(--dim-color);
+        font-size: 0.75rem;
+        font-style: italic;
+        line-height: 1.5;
+        border: 1px dashed color-mix(in srgb, var(--main-color) 15%, transparent);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--main-color) 3%, transparent);
+      }
+      .config-empty-state .empty-icon {
+        font-size: 1.2rem;
+        display: block;
+        margin-bottom: 6px;
+        opacity: 0.5;
       }
 
       .config-footer {
@@ -10333,6 +10396,11 @@
           <span style="color: #333; font-size: 1.2rem">|</span>
           <span class="close-modal" id="config-close-x">X</span>
         </div>
+        <div style="margin-left:auto;margin-right:12px;font-size:0.55rem;color:#444;letter-spacing:0.5px;display:flex;gap:10px;">
+          <span>⌘S SAVE</span>
+          <span>⌘1-6 TABS</span>
+          <span>↑↓ NAV</span>
+        </div>
       </div>
 
       <div class="config-body">
@@ -10350,13 +10418,25 @@
             <div class="config-nav-item active" data-tab="interface">
               INTERFACE
             </div>
-            <div class="config-nav-item" data-tab="notes">NOTES</div>
+            <div class="config-nav-item" data-tab="notes">
+              NOTES
+              <span class="config-nav-dot" id="nav-dot-notes"></span>
+            </div>
             <div class="config-nav-item" data-tab="system">SYSTEM</div>
-            <div class="config-nav-item" data-tab="modules">MODULES</div>
+            <div class="config-nav-item" data-tab="modules">
+              MODULES
+              <span class="config-nav-dot" id="nav-dot-modules"></span>
+              <span class="config-nav-badge" id="nav-badge-modules" style="display:none;"></span>
+            </div>
             <div class="config-nav-item" data-tab="maintenance">
               MAINTENANCE
+              <span class="config-nav-dot" id="nav-dot-maintenance"></span>
             </div>
-            <div class="config-nav-item" data-tab="sync">SYNC</div>
+            <div class="config-nav-item" data-tab="sync">
+              SYNC
+              <span class="config-nav-dot" id="nav-dot-sync"></span>
+              <span class="config-nav-badge" id="nav-badge-sync" style="display:none;"></span>
+            </div>
           </div>
         </div>
 
@@ -10366,7 +10446,7 @@
           <div class="config-tab active" id="tab-interface">
             <!-- THEME SECTION -->
             <div class="config-tab-title">> THEME</div>
-            <div class="config-row" style="margin-bottom: 15px">
+            <div class="config-row config-row-spaced">
               <span class="config-label">THEME PRESET</span>
               <select id="cfg-theme-preset" class="config-input">
                 <option value="">-- Select Theme --</option>
@@ -10432,9 +10512,8 @@
               [X] DELETE SELECTED
             </button>
 
-            <!-- APPEARANCE SECTION -->
-            <div class="config-tab-title" style="margin-top: 25px">
-              > APPEARANCE
+            <!-- APPEARANCE SECTION --><div class="config-tab-title config-tab-title-spaced">
+                  > APPEARANCE
             </div>
             <div class="toggle-row">
               <span class="toggle-label">HIDE COMPLETED TASKS</span>
@@ -10493,9 +10572,8 @@
               ></label>
             </div>
 
-            <!-- TYPOGRAPHY SECTION -->
-            <div class="config-tab-title" style="margin-top: 25px">
-              > TYPOGRAPHY
+            <!-- TYPOGRAPHY SECTION --><div class="config-tab-title config-tab-title-spaced">
+                  > TYPOGRAPHY
             </div>
             <div class="config-row">
               <span class="config-label">CLOCK FONT</span>
@@ -10545,9 +10623,8 @@
               </select>
             </div>
 
-            <!-- VIDEO FILTERS SECTION -->
-            <div class="config-tab-title" style="margin-top: 25px">
-              > VIDEO FILTERS
+            <!-- VIDEO FILTERS SECTION --><div class="config-tab-title config-tab-title-spaced">
+                  > VIDEO FILTERS
             </div>
             <div class="toggle-row">
               <span class="toggle-label">ENABLE VIDEO FILTER</span>
@@ -10727,7 +10804,7 @@
                 ></span
               ></label>
             </div>
-            <div class="config-tab-title" style="margin-top: 25px">
+            <div class="config-tab-title config-tab-title-spaced">
               > WEATHER
             </div>
             <div class="config-group">
@@ -10783,10 +10860,8 @@
                 <option value="biweekly">BIWEEKLY</option>
                 <option value="monthly">MONTHLY</option>
               </select>
-            </div>
-
-            <div class="config-tab-title" style="margin-top: 25px">
-              > DOCK LINKS
+            </div><div class="config-tab-title config-tab-title-spaced">
+                > DOCK LINKS
             </div>
             <div class="add-row">
               <input
@@ -10807,10 +10882,8 @@
               />
               <button id="add-dock-btn" aria-label="Add dock">+</button>
             </div>
-            <div id="dock-list"></div>
-
-            <div class="config-tab-title" style="margin-top: 25px">
-              > CUSTOM COMMANDS
+            <div id="dock-list"></div><div class="config-tab-title config-tab-title-spaced">
+                > CUSTOM COMMANDS
             </div>
             <div class="add-row">
               <input
@@ -10831,10 +10904,8 @@
               />
               <button id="add-cmd-btn" aria-label="Add command">+</button>
             </div>
-            <div id="custom-cmd-list"></div>
-
-            <div class="config-tab-title" style="margin-top: 25px">
-              > INTEGRATIONS
+            <div id="custom-cmd-list"></div><div class="config-tab-title config-tab-title-spaced">
+                > INTEGRATIONS
             </div>
             <div class="config-group">
               <span class="config-label">HABIT TRACKER SHEET ID</span>
@@ -10884,7 +10955,7 @@
           </div>
 
           <!-- GRAPH LAYOUT -->
-          <div class="config-tab-title" style="margin-top:20px;">> GRAPH LAYOUT</div>
+          <div class="config-tab-title config-tab-title-spaced-sm">> GRAPH LAYOUT</div>
           <div class="config-row">
             <span class="config-label">PIN ALL NODES</span>
             <button class="btn" id="settings-graph-pin-btn" style="background:transparent;border:1px solid var(--main-color);color:var(--main-color);padding:4px 14px;border-radius:4px;cursor:pointer;font-family:var(--font-main);font-size:0.75rem;">PIN</button>
@@ -11016,10 +11087,8 @@
                 accept=".md"
                 multiple
               />
-            </div>
-
-            <div class="config-tab-title" style="margin-top: 25px">
-              > DANGER ZONE
+            </div><div class="config-tab-title config-tab-title-spaced">
+                > DANGER ZONE
             </div>
             <div
               style="
@@ -11051,7 +11120,7 @@
               </button>
             </div>
 
-            <div class="config-tab-title" style="margin-top: 25px">
+            <div class="config-tab-title config-tab-title-spaced">
               > RAW CONFIG (JSON)
             </div>
             <p style="color: #666; font-size: 0.75rem; margin-bottom: 15px">
