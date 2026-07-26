@@ -41,7 +41,7 @@ globalThis.document = { getElementById: () => null };
 // Import REAL modules (shared cached State instance)
 // ------------------------------------------------------------
 import { State } from '../js/core/Store.js';
-const storage = await import('../js/core/storage.js');
+const storage = await import('../js/core/Storage.js');
 const { loadData, saveData, saveAllNotes, clearAllNotes } = storage;
 
 // ------------------------------------------------------------
