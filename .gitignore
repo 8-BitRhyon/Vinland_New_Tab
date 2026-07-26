@@ -1,4 +1,24 @@
+# Agent tooling
 .commandcode/
 .claude/
 .agents/
+.crush/
 skills-lock.json
+
+# Python virtual environment
+.venv-brand/
+__pycache__/
+*.pyc
+
+# CodeLens auto-generated index
+.codelens/codelens-graph.db
+
+# Tool metadata
+_metadata/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Dependencies
+node_modules/
