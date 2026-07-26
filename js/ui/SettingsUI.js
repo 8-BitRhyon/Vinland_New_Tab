@@ -1520,6 +1520,7 @@ export const SettingsUI = {
                     window.BackupManager.triggerBackup('auto');
                     self._syncMsg('sync-backup-status', '✅ Backup saved', 'success');
                 } catch (e) {
+                    console.error('[Sync] Backup failed:', e);
                     self._syncMsg('sync-backup-status', '❌ Backup failed', 'error');
                 }
                 self._syncLoading('sync-backup-now-btn', false);
