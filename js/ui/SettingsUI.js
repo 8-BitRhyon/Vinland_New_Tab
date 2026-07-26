@@ -230,6 +230,9 @@ export const SettingsUI = {
         document.addEventListener('input', checkDirtyHandler);
         document.addEventListener('change', checkDirtyHandler);
         
+        // Bind settings search filter
+        this.bindSearchFilter();
+
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
             // Only active if config modal is showing
@@ -1522,6 +1525,115 @@ export const SettingsUI = {
         reader.readAsText(file);
     },
     
+    /* =========================================
+       SETTINGS SEARCH FILTER
+       ========================================= */
+
+    bindSearchFilter: function() {
+        var searchInput = document.getElementById('config-search-input');
+        if (!searchInput) return;
+
+        var self = this;
+        var searchTimeout = null;
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                self._applySearchFilter(searchInput.value.trim());
+            }, 150);
+        });
+    },
+
+    _applySearchFilter: function(query) {
+        var tabs = document.querySelectorAll('.config-tab');
+        var navItems = document.querySelectorAll('.config-nav-item');
+        var searchInput = document.getElementById('config-search-input');
+        var noResults = document.getElementById('config-no-results');
+
+        if (!query) {
+            // Reset: restore nav, click active tab to refresh display
+            navItems.forEach(function(n) { n.style.opacity = ''; });
+            var activeNav = document.querySelector('.config-nav-item.active');
+            if (activeNav) activeNav.click();
+            if (noResults) noResults.style.display = 'none';
+            searchInput.classList.remove('has-results');
+            return;
+        }
+
+        var q = query.toLowerCase();
+        var firstMatch = null;
+        var anyMatch = false;
+
+        tabs.forEach(function(tab, index) {
+            var text = tab.textContent.toLowerCase();
+            var matches = text.indexOf(q) !== -1;
+
+            // Also search in placeholders of inputs within this tab
+            if (!matches) {
+                var inputs = tab.querySelectorAll('input, textarea');
+                inputs.forEach(function(inp) {
+                    var ph = inp.getAttribute('placeholder');
+                    if (ph && ph.toLowerCase().indexOf(q) !== -1) {
+                        matches = true;
+                    }
+                });
+            }
+
+            // Also search option text in selects
+            if (!matches) {
+                var selects = tab.querySelectorAll('select option');
+                selects.forEach(function(opt) {
+                    if (opt.textContent.toLowerCase().indexOf(q) !== -1) {
+                        matches = true;
+                    }
+                });
+            }
+
+            tab.style.display = matches ? 'block' : 'none';
+
+            if (matches) {
+                anyMatch = true;
+                if (!firstMatch) firstMatch = index;
+            }
+
+            // Dim nav items for non-matching tabs
+            if (navItems[index]) {
+                navItems[index].style.opacity = matches ? '1' : '0.25';
+            }
+        });
+
+        // Show first matching tab
+        if (firstMatch !== null) {
+            navItems[firstMatch].click();
+        }
+
+        // Show/hide no results message
+        if (!anyMatch) {
+            if (!noResults) {
+                noResults = document.createElement('div');
+                noResults.id = 'config-no-results';
+                noResults.className = 'config-empty-state';
+                var firstTab = document.querySelector('.config-tab');
+                if (firstTab && firstTab.parentNode) {
+                    firstTab.parentNode.insertBefore(noResults, firstTab);
+                }
+            }
+            if (noResults) {
+                noResults.textContent = '';
+                var icon = document.createElement('span');
+                icon.className = 'empty-icon';
+                icon.textContent = '🔍';
+                noResults.appendChild(icon);
+                noResults.appendChild(document.createTextNode('No settings match "' + query + '"'));
+                noResults.style.display = 'block';
+            }
+            searchInput.classList.remove('has-results');
+        } else {
+            if (noResults) noResults.style.display = 'none';
+            searchInput.classList.add('has-results');
+        }
+    },
+
     /* =========================================
        NAV BADGES & UPDATES
        ========================================= */
