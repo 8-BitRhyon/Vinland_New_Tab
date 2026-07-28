@@ -53,7 +53,7 @@ console.log('\n─── Notes.open() line ordering ───');
 
 test('ModalManager.open must be called BEFORE BlockEditor.render in Notes.open()', () => {
   const src = readFileSync(
-    resolve(__dirname, '../js/modules/notescontroller.js'),
+    resolve(__dirname, '../js/modules/NotesController.js'),
     'utf8'
   );
   const lines = src.split('\n');
