@@ -1595,6 +1595,8 @@ export const SettingsUI = {
             if (noResults) noResults.style.display = 'none';
             searchInput.classList.remove('has-results');
             if (matchCount) matchCount.classList.remove('visible');
+            // Hide all per-tab match counts
+            document.querySelectorAll('.config-nav-match-count').forEach(function(b) { b.classList.remove('visible'); });
             return;
         }
 
@@ -1667,6 +1669,8 @@ export const SettingsUI = {
             }
             searchInput.classList.remove('has-results');
             if (matchCount) matchCount.classList.remove('visible');
+            // Hide all per-tab match counts when no results
+            document.querySelectorAll('.config-nav-match-count').forEach(function(b) { b.classList.remove('visible'); });
         } else {
             if (noResults) noResults.style.display = 'none';
             searchInput.classList.add('has-results');
@@ -1683,14 +1687,33 @@ export const SettingsUI = {
 
             // Update match count badge (only when there are matching tabs)
             if (matchCount) {
-                var count = document.querySelectorAll('.config-hl').length;
-                if (count > 0) {
-                    matchCount.textContent = count + ' match' + (count !== 1 ? 'es' : '');
+                var totalCount = document.querySelectorAll('.config-hl').length;
+                if (totalCount > 0) {
+                    matchCount.textContent = totalCount + ' match' + (totalCount !== 1 ? 'es' : '');
                     matchCount.classList.add('visible');
                 } else {
                     matchCount.classList.remove('visible');
                 }
             }
+
+            // Update per-tab match count badges in nav items
+            tabs.forEach(function(tab, index) {
+                var navItem = navItems[index];
+                if (!navItem) return;
+                var badge = navItem.querySelector('.config-nav-match-count');
+                if (!badge) return;
+                if (tab.style.display !== 'none') {
+                    var tabCount = tab.querySelectorAll('.config-hl').length;
+                    if (tabCount > 0) {
+                        badge.textContent = tabCount.toString();
+                        badge.classList.add('visible');
+                    } else {
+                        badge.classList.remove('visible');
+                    }
+                } else {
+                    badge.classList.remove('visible');
+                }
+            });
         }
     },
 

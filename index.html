@@ -4223,6 +4223,26 @@
         color: #000;
         margin-left: auto;
       }
+
+      .config-nav-match-count {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 7px;
+        font-size: 0.5rem;
+        font-weight: bold;
+        line-height: 1;
+        background: color-mix(in srgb, var(--main-color) 20%, transparent);
+        color: var(--main-color);
+        border: 1px solid color-mix(in srgb, var(--main-color) 40%, transparent);
+        margin-left: 4px;
+      }
+      .config-nav-match-count.visible {
+        display: inline-flex;
+      }
       .config-nav-dot {
         display: inline-block;
         width: 6px;
@@ -10481,25 +10501,33 @@
           <div class="config-nav">
             <div class="config-nav-item active" data-tab="interface">
               INTERFACE
+              <span class="config-nav-match-count" id="nav-match-count-interface"></span>
             </div>
             <div class="config-nav-item" data-tab="notes">
               NOTES
               <span class="config-nav-dot" id="nav-dot-notes"></span>
+              <span class="config-nav-match-count" id="nav-match-count-notes"></span>
             </div>
-            <div class="config-nav-item" data-tab="system">SYSTEM</div>
+            <div class="config-nav-item" data-tab="system">
+              SYSTEM
+              <span class="config-nav-match-count" id="nav-match-count-system"></span>
+            </div>
             <div class="config-nav-item" data-tab="modules">
               MODULES
               <span class="config-nav-dot" id="nav-dot-modules"></span>
               <span class="config-nav-badge" id="nav-badge-modules" style="display:none;"></span>
+              <span class="config-nav-match-count" id="nav-match-count-modules"></span>
             </div>
             <div class="config-nav-item" data-tab="maintenance">
               MAINTENANCE
               <span class="config-nav-dot" id="nav-dot-maintenance"></span>
+              <span class="config-nav-match-count" id="nav-match-count-maintenance"></span>
             </div>
             <div class="config-nav-item" data-tab="sync">
               SYNC
               <span class="config-nav-dot" id="nav-dot-sync"></span>
               <span class="config-nav-badge" id="nav-badge-sync" style="display:none;"></span>
+              <span class="config-nav-match-count" id="nav-match-count-sync"></span>
             </div>
           </div>
         </div>
