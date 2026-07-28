@@ -1731,17 +1731,29 @@ export const SettingsUI = {
             var idx = lower.indexOf(q);
             if (idx === -1) return;
 
-            var before = text.slice(0, idx);
-            var match = text.slice(idx, idx + query.length);
-            var after = text.slice(idx + query.length);
-
             var frag = document.createDocumentFragment();
-            if (before) frag.appendChild(document.createTextNode(before));
-            var mark = document.createElement('mark');
-            mark.className = 'config-hl';
-            mark.textContent = match;
-            frag.appendChild(mark);
-            if (after) frag.appendChild(document.createTextNode(after));
+            var lastIndex = 0;
+
+            // Loop through all occurrences in this text node
+            while (idx !== -1) {
+                // Text before this match
+                if (idx > lastIndex) {
+                    frag.appendChild(document.createTextNode(text.slice(lastIndex, idx)));
+                }
+                // The matching portion, wrapped in <mark>
+                var mark = document.createElement('mark');
+                mark.className = 'config-hl';
+                mark.textContent = text.slice(idx, idx + query.length);
+                frag.appendChild(mark);
+
+                lastIndex = idx + query.length;
+                idx = lower.indexOf(q, lastIndex);
+            }
+
+            // Remaining text after the last match
+            if (lastIndex < text.length) {
+                frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+            }
 
             node.parentNode.replaceChild(frag, node);
         });
