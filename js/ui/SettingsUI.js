@@ -267,6 +267,17 @@ export const SettingsUI = {
                 return;
             }
 
+            // Cmd/Ctrl + F: focus search input
+            if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
+                e.preventDefault();
+                var searchInput = document.getElementById('config-search-input');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                return;
+            }
+
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                 var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
                 var activeIndex = navItems.findIndex(n => n.classList.contains('active'));
