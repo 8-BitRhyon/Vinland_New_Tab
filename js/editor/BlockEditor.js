@@ -655,6 +655,21 @@ export const BlockEditor = {
             self.container.appendChild(el);
         });
 
+        // Initialize find bar once
+        if (!this._findBarInitialized) {
+            this._findBarInitialized = true;
+            this._initFindBar();
+        }
+
+        // Apply find highlights if find mode is active
+        if (this._findState.query) {
+            var self = this;
+            setTimeout(function() {
+                self._findApplyHighlights();
+                self._findUpdateCurrentHighlight();
+            }, 10);
+        }
+
         if (this.focusedBlockId && !skipFocus) this.focusBlock(this.focusedBlockId);
     },
     
@@ -2014,6 +2029,356 @@ export const BlockEditor = {
         return wrapper;
     },
 
+    // ─── FIND / REPLACE ───
+
+    _findState: { open: false, query: '', matches: [], currentIdx: -1, replaceOpen: false },
+
+    _escapeRegExp: function(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    },
+
+    _findOpen: function() {
+        const bar = document.getElementById('editor-find-bar');
+        const input = document.getElementById('find-input');
+        if (!bar || !input) return;
+        this._findState.open = true;
+        bar.style.display = 'flex';
+        input.value = '';
+        input.focus();
+        this._findState.query = '';
+        this._findState.matches = [];
+        this._findState.currentIdx = -1;
+        this._findUpdateCount();
+    },
+
+    _findClose: function() {
+        const bar = document.getElementById('editor-find-bar');
+        if (!bar) return;
+        bar.style.display = 'none';
+        this._findState.open = false;
+        this._findState.query = '';
+        this._findState.matches = [];
+        this._findState.currentIdx = -1;
+        this._findState.replaceOpen = false;
+        document.getElementById('find-replace-row').style.display = 'none';
+        // Re-render to remove marks
+        if (this.activePageId) this.render(this.activePageId);
+        // Focus the first block
+        const firstBlock = this.container ? this.container.querySelector('.block-content') : null;
+        if (firstBlock) firstBlock.focus();
+    },
+
+    _findSearch: function(query) {
+        this._findState.query = query;
+        this._findState.matches = [];
+        this._findState.currentIdx = -1;
+
+        if (!query || !this.activePageId) {
+            this._findUpdateCount();
+            if (this.activePageId) this.render(this.activePageId);
+            return;
+        }
+
+        const page = this._getActivePage();
+        if (!page || !page.blocks) {
+            this._findUpdateCount();
+            return;
+        }
+
+        const lowerQuery = query.toLowerCase();
+        page.blocks.forEach(function(block) {
+            if (!block.content) return;
+            const content = block.content;
+            const lower = content.toLowerCase();
+            let idx = 0;
+            while ((idx = lower.indexOf(lowerQuery, idx)) !== -1) {
+                BlockEditor._findState.matches.push({
+                    blockId: block.id,
+                    start: idx,
+                    end: idx + query.length,
+                    text: content.substring(idx, idx + query.length)
+                });
+                idx += query.length;
+            }
+        });
+
+        if (this._findState.matches.length > 0) {
+            this._findState.currentIdx = 0;
+        }
+
+        this._findUpdateCount();
+        this.render(this.activePageId);
+        this._findScrollToCurrent();
+    },
+
+    _findNext: function() {
+        if (this._findState.matches.length === 0) return;
+        this._findState.currentIdx = (this._findState.currentIdx + 1) % this._findState.matches.length;
+        this._findUpdateCount();
+        this._findUpdateCurrentHighlight();
+        this._findScrollToCurrent();
+    },
+
+    _findPrev: function() {
+        if (this._findState.matches.length === 0) return;
+        this._findState.currentIdx = (this._findState.currentIdx - 1 + this._findState.matches.length) % this._findState.matches.length;
+        this._findUpdateCount();
+        this._findUpdateCurrentHighlight();
+        this._findScrollToCurrent();
+    },
+
+    _findUpdateCount: function() {
+        const el = document.getElementById('find-match-count');
+        if (!el) return;
+        const total = this._findState.matches.length;
+        const current = this._findState.currentIdx >= 0 ? this._findState.currentIdx + 1 : 0;
+        el.textContent = total > 0 ? current + '/' + total : '0/0';
+    },
+
+    _findGetBlockEl: function(blockId) {
+        return this.container ? this.container.querySelector('[data-block-id="' + blockId + '"]') : null;
+    },
+
+    _findUpdateCurrentHighlight: function() {
+        if (!this.container) return;
+        // Remove current class from all marks
+        this.container.querySelectorAll('mark.find-match.current').forEach(function(m) {
+            m.classList.remove('current');
+        });
+        // Add current to the current match
+        var idx = this._findState.currentIdx;
+        if (idx < 0 || idx >= this._findState.matches.length) return;
+        var match = this._findState.matches[idx];
+        var blockEl = this._findGetBlockEl(match.blockId);
+        if (!blockEl) return;
+        var marks = blockEl.querySelectorAll('mark.find-match');
+        var matchInBlock = 0;
+        for (var i = 0; i < this._findState.matches.length; i++) {
+            if (this._findState.matches[i].blockId === match.blockId) {
+                if (i === idx) break;
+                matchInBlock++;
+            }
+        }
+        if (matchInBlock < marks.length) {
+            marks[matchInBlock].classList.add('current');
+        }
+    },
+
+    _findScrollToCurrent: function() {
+        var idx = this._findState.currentIdx;
+        if (idx < 0 || idx >= this._findState.matches.length) return;
+        var match = this._findState.matches[idx];
+        var blockEl = this._findGetBlockEl(match.blockId);
+        if (!blockEl) return;
+        blockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Also flash the block
+        blockEl.style.transition = 'box-shadow 0.2s';
+        blockEl.style.boxShadow = 'inset 0 0 0 2px #ffcc00';
+        setTimeout(function() {
+            blockEl.style.boxShadow = '';
+        }, 800);
+    },
+
+    _findToggleReplace: function() {
+        const row = document.getElementById('find-replace-row');
+        if (!row) return;
+        this._findState.replaceOpen = !this._findState.replaceOpen;
+        row.style.display = this._findState.replaceOpen ? 'flex' : 'none';
+        if (this._findState.replaceOpen) {
+            document.getElementById('find-replace-input').focus();
+        }
+    },
+
+    _findReplace: function() {
+        if (this._findState.matches.length === 0 || this._findState.currentIdx < 0) return;
+        // Push undo state before modifying
+        if (typeof HistoryManager !== 'undefined') HistoryManager.push(this.activePageId);
+
+        var match = this._findState.matches[this._findState.currentIdx];
+        var replaceText = document.getElementById('find-replace-input').value;
+        var page = this._getActivePage();
+        if (!page || !page.blocks) return;
+        var block = page.blocks.find(function(b) { return b.id === match.blockId; });
+        if (!block) return;
+        // Replace in the data model
+        block.content = block.content.substring(0, match.start) + replaceText + block.content.substring(match.end);
+        // Shift subsequent matches in the same block
+        var diff = replaceText.length - (match.end - match.start);
+        for (var i = this._findState.currentIdx + 1; i < this._findState.matches.length; i++) {
+            if (this._findState.matches[i].blockId === match.blockId) {
+                this._findState.matches[i].start += diff;
+                this._findState.matches[i].end += diff;
+            }
+        }
+        // Remove this match and re-search from current position
+        this._findState.matches.splice(this._findState.currentIdx, 1);
+        if (this._findState.matches.length === 0) {
+            this._findState.currentIdx = -1;
+        } else if (this._findState.currentIdx >= this._findState.matches.length) {
+            this._findState.currentIdx = 0;
+        }
+        PageManager.syncContent(this.activePageId);
+        this.render(this.activePageId);
+        this._findUpdateCount();
+        // Focus next match
+        if (this._findState.matches.length > 0) {
+            this._findScrollToCurrent();
+        }
+    },
+
+    _findReplaceAll: function() {
+        if (this._findState.matches.length === 0) return;
+        // Push undo state before modifying
+        if (typeof HistoryManager !== 'undefined') HistoryManager.push(this.activePageId);
+
+        var query = this._findState.query;
+        var replaceText = document.getElementById('find-replace-input').value;
+        var escapedQuery = this._escapeRegExp(query);
+        var regex = new RegExp(escapedQuery, 'gi');
+        var page = this._getActivePage();
+        if (!page || !page.blocks) return;
+        var count = 0;
+        page.blocks.forEach(function(block) {
+            if (block.content && regex.test(block.content)) {
+                regex.lastIndex = 0;
+                block.content = block.content.replace(regex, replaceText);
+                count++;
+            }
+        });
+        // Reset find state
+        this._findState.matches = [];
+        this._findState.currentIdx = -1;
+        PageManager.syncContent(this.activePageId);
+        this.render(this.activePageId);
+        this._findUpdateCount();
+        if (window.showNotification) {
+            window.showNotification('REPLACED ' + count + ' OCCURRENCE' + (count !== 1 ? 'S' : ''));
+        }
+    },
+
+    _findApplyHighlights: function() {
+        if (!this._findState.query || !this.container) return;
+        var query = this._findState.query.toLowerCase();
+        var self = this;
+
+        // Walk each match's block element and wrap matching text in <mark>
+        this._findState.matches.forEach(function(match, idx) {
+            var blockEl = self._findGetBlockEl(match.blockId);
+            if (!blockEl) return;
+            var contentEl = blockEl.querySelector('.block-content, .task-text, .code-inner');
+            if (!contentEl) return;
+
+            // Walk text nodes and highlight matches
+            self._findHighlightTextNodes(contentEl, query, idx === self._findState.currentIdx);
+        });
+    },
+
+    _findHighlightTextNodes: function(root, query, isCurrent) {
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        var nodesToProcess = [];
+        var node;
+        while (node = walker.nextNode()) {
+            // Skip nodes inside already-highlighted marks
+            if (node.parentNode && node.parentNode.tagName === 'MARK') continue;
+            if (node.textContent.toLowerCase().includes(query)) {
+                nodesToProcess.push(node);
+            }
+        }
+
+        nodesToProcess.forEach(function(textNode) {
+            var text = textNode.textContent;
+            var fragment = document.createDocumentFragment();
+            var remaining = text;
+            var firstMatch = true;
+
+            while (remaining.length > 0) {
+                var lower = remaining.toLowerCase();
+                var idx = lower.indexOf(query);
+                if (idx === -1) {
+                    // No more matches — emit the rest
+                    fragment.appendChild(document.createTextNode(remaining));
+                    break;
+                }
+
+                // Text before this match
+                if (idx > 0) {
+                    fragment.appendChild(document.createTextNode(remaining.substring(0, idx)));
+                }
+
+                // The match wrapped in <mark>
+                var mark = document.createElement('mark');
+                mark.className = 'find-match';
+                if (isCurrent && firstMatch) mark.classList.add('current');
+                mark.textContent = remaining.substring(idx, idx + query.length);
+                fragment.appendChild(mark);
+
+                remaining = remaining.substring(idx + query.length);
+                firstMatch = false;
+            }
+
+            textNode.parentNode.replaceChild(fragment, textNode);
+        });
+    },
+
+    _initFindBar: function() {
+        var self = this;
+
+        // Find input
+        var findInput = document.getElementById('find-input');
+        if (findInput) {
+            findInput.addEventListener('input', function() {
+                self._findSearch(this.value);
+            });
+            findInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        self._findPrev();
+                    } else {
+                        self._findNext();
+                    }
+                } else if (e.key === 'Escape') {
+                    self._findClose();
+                }
+            });
+        }
+
+        // Navigation buttons
+        var nextBtn = document.getElementById('find-next-btn');
+        if (nextBtn) nextBtn.addEventListener('click', function() { self._findNext(); });
+
+        var prevBtn = document.getElementById('find-prev-btn');
+        if (prevBtn) prevBtn.addEventListener('click', function() { self._findPrev(); });
+
+        // Close button
+        var closeBtn = document.getElementById('find-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', function() { self._findClose(); });
+
+        // Replace toggle
+        var toggleBtn = document.getElementById('find-replace-toggle');
+        if (toggleBtn) toggleBtn.addEventListener('click', function() { self._findToggleReplace(); });
+
+        // Replace input
+        var replaceInput = document.getElementById('find-replace-input');
+        if (replaceInput) {
+            replaceInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    self._findReplace();
+                } else if (e.key === 'Escape') {
+                    self._findClose();
+                }
+            });
+        }
+
+        // Replace / Replace All buttons
+        var replaceBtn = document.getElementById('find-replace-btn');
+        if (replaceBtn) replaceBtn.addEventListener('click', function() { self._findReplace(); });
+
+        var replaceAllBtn = document.getElementById('find-replace-all-btn');
+        if (replaceAllBtn) replaceAllBtn.addEventListener('click', function() { self._findReplaceAll(); });
+    },
+
     handleKeydown: function (e) {
         // Guard - Only run if editor is open
         if (!this.container || this.container.offsetParent === null) return;
@@ -2067,6 +2432,32 @@ export const BlockEditor = {
             if (typeof TabManager !== 'undefined' && TabManager.tabs.length > 0) {
                 TabManager.closeTab(TabManager.activeIndex);
             }
+            return;
+        }
+
+        // CMD+F: Open Find/Replace
+        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+            e.preventDefault();
+            e.stopPropagation();
+            this._findOpen();
+            return;
+        }
+
+        // F3 / Shift+F3: Navigate Find matches
+        if (e.key === 'F3' && this._findState.open) {
+            e.preventDefault();
+            if (e.shiftKey) {
+                this._findPrev();
+            } else {
+                this._findNext();
+            }
+            return;
+        }
+
+        // Escape: Close find bar if open
+        if (e.key === 'Escape' && this._findState.open) {
+            e.preventDefault();
+            this._findClose();
             return;
         }
 

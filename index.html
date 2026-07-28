@@ -10469,6 +10469,104 @@
         outline-offset: 2px;
       }
 
+      /* ── Find/Replace Bar ── */
+      .editor-find-bar {
+        display: flex;
+        flex-direction: column;
+        padding: 6px 12px;
+        background: color-mix(in srgb, var(--main-color) 4%, var(--bg-color, #000));
+        border-bottom: 1px solid color-mix(in srgb, var(--main-color) 10%, transparent);
+        font-size: 12px;
+        font-family: var(--font-main, monospace);
+        gap: 4px;
+      }
+      .find-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .find-input {
+        background: color-mix(in srgb, var(--main-color) 6%, transparent);
+        border: 1px solid color-mix(in srgb, var(--main-color) 15%, transparent);
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-family: inherit;
+        color: var(--main-color);
+        outline: none;
+        flex: 1;
+      }
+      .find-input:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 6px color-mix(in srgb, var(--main-color) 30%, transparent);
+      }
+      .find-match-count {
+        font-size: 11px;
+        color: var(--dim-color);
+        min-width: 36px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .find-nav-btn,
+      .find-toggle-btn,
+      .find-close-btn {
+        background: none;
+        border: 1px solid color-mix(in srgb, var(--main-color) 12%, transparent);
+        border-radius: 3px;
+        color: var(--secondary-color);
+        cursor: pointer;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-family: inherit;
+        transition: background 0.15s, color 0.15s;
+      }
+      .find-nav-btn:hover,
+      .find-toggle-btn:hover,
+      .find-close-btn:hover {
+        background: color-mix(in srgb, var(--main-color) 10%, transparent);
+        color: var(--main-color);
+      }
+      .find-nav-btn:active,
+      .find-toggle-btn:active {
+        transform: scale(0.95);
+      }
+      .find-replace-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .find-action-btn {
+        background: color-mix(in srgb, var(--main-color) 10%, transparent);
+        border: 1px solid color-mix(in srgb, var(--main-color) 20%, transparent);
+        border-radius: 3px;
+        color: var(--main-color);
+        cursor: pointer;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-family: inherit;
+        font-weight: bold;
+        transition: background 0.15s;
+      }
+      .find-action-btn:hover {
+        background: color-mix(in srgb, var(--main-color) 25%, transparent);
+      }
+      .find-action-btn:active {
+        transform: scale(0.95);
+      }
+      /* highlight mark in blocks */
+      .block-editor mark.find-match {
+        background: color-mix(in srgb, #ffcc00 40%, transparent);
+        color: inherit;
+        border-radius: 2px;
+        padding: 0 1px;
+      }
+      .block-editor mark.find-match.current {
+        background: #ffcc00;
+        color: #000;
+        border-radius: 2px;
+        padding: 0 1px;
+      }
+
       /* ── Floating Format Toolbar ── */
       .format-toolbar {
         display: none;
@@ -12643,6 +12741,36 @@
                   <span id="page-action-last-edited">--</span>
                 </div>
               </div>
+            </div>
+          </div>
+          <!-- FIND/REPLACE BAR -->
+          <div id="editor-find-bar" class="editor-find-bar" style="display:none;">
+            <div class="find-bar-row">
+              <input
+                type="text"
+                id="find-input"
+                class="find-input"
+                placeholder="Find in page…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <span id="find-match-count" class="find-match-count">0/0</span>
+              <button id="find-prev-btn" class="find-nav-btn" title="Previous match (Shift+Enter)">▲</button>
+              <button id="find-next-btn" class="find-nav-btn" title="Next match (Enter)">▼</button>
+              <button id="find-replace-toggle" class="find-toggle-btn" title="Toggle replace">▼</button>
+              <button id="find-close-btn" class="find-close-btn" title="Close (Escape)">✕</button>
+            </div>
+            <div id="find-replace-row" class="find-replace-row" style="display:none;">
+              <input
+                type="text"
+                id="find-replace-input"
+                class="find-input"
+                placeholder="Replace with…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button id="find-replace-btn" class="find-action-btn">REPLACE</button>
+              <button id="find-replace-all-btn" class="find-action-btn">ALL</button>
             </div>
           </div>
           <div
