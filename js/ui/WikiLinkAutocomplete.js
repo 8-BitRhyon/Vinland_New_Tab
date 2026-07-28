@@ -361,9 +361,16 @@ export const WikiLinkAutocomplete = {
             html = '<div class="wikilink-empty">No notes match "' + this._escapeHtml(this.filterQuery) + '"</div>';
         }
 
+        // Always add "Create new note" option at the bottom
+        var query = this.filterQuery.trim();
+        if (query) {
+            var createSelected = (this.selectedIndex === results.length) ? ' selected' : '';
+            html += '<div class="wikilink-item wikilink-create' + createSelected + '" data-action="create-note">+ Create note "' + this._escapeHtml(query) + '"</div>';
+        }
+
         this.itemsContainer.innerHTML = html;
 
-        // Bind click handlers
+        // Bind click handlers for existing notes
         this.itemsContainer.querySelectorAll('.wikilink-item[data-note-id]').forEach(function(el) {
             el.addEventListener('click', function() {
                 var idx = Array.from(self.itemsContainer.querySelectorAll('.wikilink-item[data-note-id]')).indexOf(el);
@@ -373,11 +380,115 @@ export const WikiLinkAutocomplete = {
             });
         });
 
+        // Bind click handler for "Create new note"
+        var createBtn = this.itemsContainer.querySelector('.wikilink-create');
+        if (createBtn) {
+            createBtn.addEventListener('click', function() {
+                self._createNoteFromQueryAndInsert();
+            });
+        }
+
         // Scroll selected into view
         var selectedEl = this.itemsContainer.querySelector('.wikilink-item.selected');
         if (selectedEl) {
             selectedEl.scrollIntoView({ block: 'nearest' });
         }
+    },
+
+    _createNoteFromQueryAndInsert: function() {
+        var title = this.filterQuery.trim();
+        if (!title) return;
+
+        var savedBlockId = this.targetBlockId;
+        this.hide();
+
+        // Create the note silently in the background (no navigation)
+        var newNote = {
+            id: 'note_' + Date.now(),
+            title: title,
+            content: '',
+            path: '/',
+            links: [],
+            created: Date.now(),
+            modified: Date.now()
+        };
+        if (!window.State.NOTES) window.State.NOTES = [];
+        window.State.NOTES.unshift(newNote);
+        if (window.saveData) window.saveData();
+        if (window.Notes && window.Notes.renderSidebar) window.Notes.renderSidebar();
+        if (window.Notes && window.Notes.updateAllTags) window.Notes.updateAllTags();
+
+        // Insert [[Title]] link into the contenteditable (same page, block still exists)
+        var blockEl = document.querySelector('[data-block-id="' + savedBlockId + '"]');
+        if (!blockEl) return;
+        var contentEl = blockEl.querySelector('[contenteditable="true"]');
+        if (!contentEl) return;
+
+        contentEl.focus();
+        var sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            var range = sel.getRangeAt(0);
+            range.deleteContents();
+            var textNode = document.createTextNode('[[' + title + ']]');
+            range.insertNode(textNode);
+            range.setStartAfter(textNode);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    },
+
+    // ─── KEYBOARD NAVIGATION FOR "CREATE NOTE" ───
+    _getVirtualItemCount: function() {
+        var results = this._searchNotes(this.filterQuery);
+        var count = results.length;
+        if (this.filterQuery.trim()) count++; // +1 for create-note
+        return count;
+    },
+
+    handleKey: function(e) {
+        if (!this.visible) return false;
+
+        var results = this._searchNotes(this.filterQuery);
+        var totalItems = this._getVirtualItemCount();
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.selectedIndex = Math.min(this.selectedIndex + 1, totalItems - 1);
+            this.render();
+            return true;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+            this.render();
+            return true;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            if (this.selectedIndex < results.length) {
+                this._selectSuggestion(this.selectedIndex);
+            } else if (this.selectedIndex === results.length && this.filterQuery.trim()) {
+                // Create note
+                this._createNoteFromQueryAndInsert();
+            }
+            return true;
+        }
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.hide();
+            return true;
+        }
+
+        return false;
     },
 
     _escapeHtml: function(str) {
