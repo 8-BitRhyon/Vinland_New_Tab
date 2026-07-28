@@ -9319,6 +9319,102 @@
         font-size: 0.65rem;
         font-family: monospace;
       }
+
+      /* ── SlashMenu v2: search bar, category headers, empty state ── */
+      .slash-search-container {
+        padding: 8px 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        background: rgba(0,0,0,0.3);
+        border-radius: 6px 6px 0 0;
+        flex-shrink: 0;
+      }
+
+      .slash-search-input {
+        width: 100%;
+        padding: 6px 8px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 4px;
+        color: var(--main-color);
+        font-family: var(--font-main);
+        font-size: 0.8rem;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.15s var(--motion-ease);
+      }
+
+      .slash-search-input::placeholder {
+        color: #555;
+        font-style: italic;
+      }
+
+      .slash-search-input:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 0 1px rgba(var(--main-color-rgb,0,255,65),0.15);
+      }
+
+      .slash-items-container {
+        padding: 4px 0;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      .slash-category-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px 4px;
+        margin-top: 4px;
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--secondary-color);
+        opacity: 0.5;
+        pointer-events: none;
+        font-family: var(--font-secondary);
+        user-select: none;
+      }
+
+      .slash-category-header:first-child {
+        margin-top: 0;
+      }
+
+      .slash-cat-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 14px;
+        padding: 0 4px;
+        border-radius: 7px;
+        background: rgba(var(--main-color-rgb,0,255,65),0.12);
+        color: var(--main-color);
+        font-size: 0.5rem;
+        letter-spacing: 0;
+        opacity: 0.7;
+        line-height: 1;
+      }
+
+      .slash-empty {
+        padding: 24px 16px;
+        text-align: center;
+        color: #555;
+        font-size: 0.75rem;
+        font-style: italic;
+      }
+
+      .slash-empty strong {
+        color: var(--secondary-color);
+        font-style: normal;
+      }
+
+      /* Slash-menu active state shows border on menu, not on items */
+      .slash-menu.active {
+        display: flex;
+        flex-direction: column;
+        border-color: var(--main-color);
+      }
       /* CALLOUT MODAL */
       .callout-modal-content {
         max-width: 520px !important;
