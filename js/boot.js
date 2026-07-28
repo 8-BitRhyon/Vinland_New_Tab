@@ -422,6 +422,10 @@ function bindGlobals() {
 
 // 4. THE BOOT SEQUENCE
 async function boot() {
+  // Hide the boot loader spinner
+  var loader = document.getElementById('boot-loader');
+  if (loader) loader.classList.add('hidden');
+
   console.log("Vinland: Manual Boot Sequence Started...");
 
   // A. Load Core

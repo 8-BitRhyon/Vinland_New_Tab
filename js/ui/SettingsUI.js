@@ -11,19 +11,42 @@ var BG_RETRY_COUNT = 0;
 var BG_MAX_RETRIES = 3;
 var CONFIG_DIRTY = false;
 
-// Global showNotification placeholder
-function showNotification(msg) {
+// Global showNotification placeholder (improved with type-based styling)
+function showNotification(msg, type) {
     if (typeof Audio !== 'undefined' && Audio.playNotificationSound) Audio.playNotificationSound();
     
     var existing = document.getElementById('notif-toast');
     if (existing) existing.remove();
 
+    var borderColor, textColor, icon;
+    switch (type) {
+        case 'error':
+            borderColor = 'var(--danger-color, #ff0055)';
+            textColor = 'var(--danger-color, #ff0055)';
+            icon = '\u2716 ';
+            break;
+        case 'success':
+            borderColor = 'var(--callout-success, #00ff41)';
+            textColor = 'var(--callout-success, #00ff41)';
+            icon = '\u2714 ';
+            break;
+        case 'warning':
+            borderColor = 'var(--callout-warning, #ffb800)';
+            textColor = 'var(--callout-warning, #ffb800)';
+            icon = '\u26A0 ';
+            break;
+        default:
+            borderColor = 'var(--main-color, #00ff41)';
+            textColor = 'var(--main-color, #00ff41)';
+            icon = '';
+    }
+
     var toast = document.createElement('div');
     toast.id = 'notif-toast';
-    toast.textContent = msg;
+    toast.textContent = icon + msg;
     toast.setAttribute('role', 'status');
     toast.setAttribute('aria-live', 'polite');
-    toast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--bg-overlay); border:1px solid var(--main-color); color:var(--main-color); padding:15px 30px; font-family:"Space Mono", monospace; font-size:14px; z-index:30000; box-shadow:0 0 20px rgba(0,0,0,0.5); opacity:0; transition:opacity 0.3s; pointer-events:none; backdrop-filter:blur(5px);';
+    toast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--bg-overlay); border:1px solid ' + borderColor + '; color:' + textColor + '; padding:15px 30px; font-family:"Space Mono", monospace; font-size:14px; z-index:30000; box-shadow:0 0 20px rgba(0,0,0,0.5), 0 0 8px ' + borderColor + '; opacity:0; transition:opacity 0.3s; pointer-events:none; backdrop-filter:blur(5px);';
 
     document.body.appendChild(toast);
 
@@ -31,12 +54,13 @@ function showNotification(msg) {
         toast.style.opacity = '1';
     });
 
+    var duration = type === 'error' ? 4000 : 3000;
     setTimeout(function () {
         toast.style.opacity = '0';
         setTimeout(function () {
             if (toast.parentElement) toast.parentElement.removeChild(toast);
         }, 300);
-    }, 3000);
+    }, duration);
 }
 window.showNotification = showNotification;
 

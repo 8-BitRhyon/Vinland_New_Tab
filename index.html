@@ -11217,9 +11217,68 @@
   </head>
 
   
+    /* ─── Boot Loader Spinner ─── */
+    #boot-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-color, #000);
+      transition: opacity 0.4s ease;
+    }
+    #boot-loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .boot-loader-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(0,255,65,0.15);
+      border-top-color: var(--main-color, #00ff41);
+      border-radius: 50%;
+      animation: boot-spin 0.8s linear infinite;
+    }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+    .boot-loader-label {
+      margin-top: 16px;
+      font-family: var(--font-main, 'Space Mono', monospace);
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim-color, #555);
+      animation: boot-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes boot-pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+    .boot-loader-noscript {
+      margin-top: 24px;
+      font-family: var(--font-main, 'Space Mono', monospace);
+      font-size: 0.7rem;
+      color: var(--danger-color, #ff0055);
+      text-align: center;
+      line-height: 1.6;
+      display: none;
+    }
+    .boot-loader-noscript.active { display: block; }
     </style>
 
 <body>
+    <!-- BOOT LOADER -->
+    <div id="boot-loader">
+      <div class="boot-loader-spinner"></div>
+      <div class="boot-loader-label">Loading Vinland...</div>
+      <div class="boot-loader-noscript" id="boot-loader-noscript">
+        ⚠ Vinland requires JavaScript to function.<br>
+        Please enable JavaScript in your browser settings.
+      </div>
+    </div>
+    <noscript><style>#boot-loader-noscript{display:block!important}.boot-loader-spinner,.boot-loader-label{display:none!important}</style></noscript>
+
     <!-- CRT SCANLINE OVERLAY -->
     <div class="crt-overlay" id="crt-overlay"></div>
     <!-- VIGNETTE OVERLAY (V17) -->
@@ -13326,6 +13385,29 @@
     </div>
 
 
+
+    <!-- ERROR RECOVERY MODAL -->
+    <div id="error-modal" class="modal" style="z-index:99999;">
+      <div class="error-modal-content" style="background:var(--bg-overlay,#0a0a0a);border:1px solid var(--danger-color,#ff3355);border-radius:8px;max-width:480px;margin:20vh auto;padding:0;box-shadow:0 0 40px rgba(255,51,85,0.3);">
+        <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.2rem;">&#x26A0;</span>
+            <span style="color:var(--danger-color,#ff3355);font-weight:bold;font-size:0.85rem;letter-spacing:1.5px;text-transform:uppercase;">Recovery // Critical Error</span>
+          </div>
+        </div>
+        <div style="padding:16px 24px;">
+          <div id="error-modal-msg" style="color:var(--secondary-color,#888);font-size:0.8rem;line-height:1.6;margin-bottom:12px;">
+            Something went wrong. Your data is safe, but the application needs to recover.
+          </div>
+          <div id="error-modal-detail" style="display:none;background:rgba(255,51,85,0.06);border:1px solid rgba(255,51,85,0.15);border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:0.65rem;color:var(--dim-color,#555);font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto;"></div>
+        </div>
+        <div style="display:flex;gap:8px;padding:12px 24px 20px;flex-wrap:wrap;">
+          <button class="btn primary-btn" onclick="window.location.reload()" style="flex:1;">&#x21BB; Reload</button>
+          <button class="btn" id="error-modal-backup" onclick="var d=Date.now();var blob=new Blob([JSON.stringify(window.State&&window.State.NOTES||[])]);var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vinland-backup-'+d+'.json';a.click();" style="flex:1;">&#x2B07; Download Data</button>
+          <button class="btn" id="error-modal-dismiss" onclick="if(window.ModalManager)window.ModalManager.close('error-modal');" style="flex:1;">&#x2716; Dismiss</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="js/boot.js"></script>
   </body>
