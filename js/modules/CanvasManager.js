@@ -25,6 +25,25 @@ export const CanvasManager = {
     _backlinksPanel: null,
     _backlinksFileNodeId: null,
 
+    // ─── GRID SNAP ───
+    GRID_SIZE: 30,
+    gridSnapEnabled: true,
+
+    _snapToGrid: function(val) {
+        return Math.round(val / this.GRID_SIZE) * this.GRID_SIZE;
+    },
+
+    _snapNodePosition: function(node) {
+        if (!this.gridSnapEnabled) return;
+        node.x = this._snapToGrid(node.x);
+        node.y = this._snapToGrid(node.y);
+        var el = document.getElementById('canvas-node-' + node.id);
+        if (el) {
+            el.style.left = node.x + 'px';
+            el.style.top = node.y + 'px';
+        }
+    },
+
     // ─── HELPERS ───
     _getActiveNote: function() {
         return window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
@@ -384,6 +403,8 @@ export const CanvasManager = {
             <span class="canvas-tb-info" id="canvas-node-count">0 nodes</span>
             <span class="canvas-tb-divider">|</span>
             <span class="canvas-tb-info" id="canvas-zoom-label">100%</span>
+            <span class="canvas-tb-divider">|</span>
+            <button class="canvas-tb-btn" id="canvas-snap-toggle" title="Toggle Snap to Grid (nodes align to 30px grid)">⧉</button>
             <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
         `;
@@ -822,6 +843,26 @@ export const CanvasManager = {
         // ? SHORTCUTS button
         this.toolbar.querySelector('#canvas-shortcuts-btn').addEventListener('click', () => {
             this._showShortcutsPanel();
+        });
+
+        // ⧉ SNAP TOGGLE button
+        this.toolbar.querySelector('#canvas-snap-toggle').addEventListener('click', () => {
+            this.gridSnapEnabled = !this.gridSnapEnabled;
+            this.toolbar.querySelector('#canvas-snap-toggle').classList.toggle('active', this.gridSnapEnabled);
+            this.toolbar.querySelector('#canvas-snap-toggle').title = this.gridSnapEnabled
+                ? 'Toggle Snap to Grid (nodes align to 30px grid)'
+                : 'Snap to Grid disabled';
+
+            // Snap all existing nodes if enabling
+            if (this.gridSnapEnabled) {
+                var note = this._getActiveNote();
+                if (note && note.canvasData && note.canvasData.nodes) {
+                    note.canvasData.nodes.forEach(n => this._snapNodePosition(n));
+                }
+                this._refreshEdges();
+                this._updateMinimap();
+                this._saveData();
+            }
         });
     },
 
@@ -1696,6 +1737,12 @@ export const CanvasManager = {
             card.setAttribute('data-color', nodeData.color);
         }
 
+        // Snap to grid on creation
+        if (this.gridSnapEnabled) {
+            nodeData.x = this._snapToGrid(nodeData.x);
+            nodeData.y = this._snapToGrid(nodeData.y);
+        }
+
         card.style.cssText = `
             position: absolute;
             left: ${nodeData.x}px;
@@ -2256,6 +2303,12 @@ export const CanvasManager = {
                     const el = document.getElementById(`canvas-node-${n.id}`);
                     if (el) el.classList.remove('is-dragging');
                 });
+
+                // Snap to grid on release
+                if (this.gridSnapEnabled) {
+                    nodesToMove.forEach(n => this._snapNodePosition(n));
+                    childrenSet.forEach(n => this._snapNodePosition(n));
+                }
 
                 this._saveData();
                 this._updateMinimap();
