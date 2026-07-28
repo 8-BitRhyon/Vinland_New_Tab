@@ -30,5 +30,9 @@ async function runSuite(suite) {
   });
 }
 
-const results = await Promise.all(suites.map(runSuite));
+// Sequential execution keeps CI logs readable — Promise.all interleaves
+// stdout/stderr from all child processes, making failures hard to diagnose.
+for (const suite of suites) {
+  await runSuite(suite);
+}
 process.exit(exitCode);
