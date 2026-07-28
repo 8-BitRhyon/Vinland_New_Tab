@@ -684,6 +684,175 @@ export const CanvasManager = {
             document.head.appendChild(blStyle);
         }
 
+        // Inject canvas format bar styles
+        if (!document.getElementById('canvas-format-bar-styles')) {
+            var fbStyle = document.createElement('style');
+            fbStyle.id = 'canvas-format-bar-styles';
+            fbStyle.textContent = `
+                .canvas-format-bar {
+                    position: fixed;
+                    z-index: 45000;
+                    display: flex;
+                    align-items: center;
+                    gap: 2px;
+                    padding: 4px 6px;
+                    background: rgba(20, 20, 20, 0.95);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 6px;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+                    opacity: 0;
+                    transform: translateY(4px) scale(0.96);
+                    transition: opacity 0.12s ease, transform 0.12s ease;
+                    pointer-events: none;
+                }
+                .canvas-format-bar.visible {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                    pointer-events: auto;
+                }
+                .canvas-format-bar button {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 28px;
+                    height: 26px;
+                    background: transparent;
+                    border: 1px solid transparent;
+                    border-radius: 4px;
+                    color: #aaa;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: all 0.1s ease;
+                    padding: 0;
+                    line-height: 1;
+                }
+                .canvas-format-bar button:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #fff;
+                }
+                .canvas-format-bar button.active {
+                    background: rgba(0, 255, 65, 0.15);
+                    color: var(--main-color, #00ff41);
+                    border-color: rgba(0, 255, 65, 0.3);
+                }
+                .canvas-format-bar .fb-divider {
+                    width: 1px;
+                    height: 18px;
+                    background: rgba(255, 255, 255, 0.1);
+                    margin: 0 2px;
+                }
+                .comment-highlight {
+                    background: rgba(255, 200, 0, 0.25);
+                    border-bottom: 2px solid rgba(255, 200, 0, 0.6);
+                    cursor: pointer;
+                    border-radius: 2px;
+                    transition: background 0.15s ease;
+                }
+                .comment-highlight:hover {
+                    background: rgba(255, 200, 0, 0.4);
+                }
+                .comment-thread-panel {
+                    position: fixed;
+                    z-index: 46000;
+                    background: rgba(16, 16, 16, 0.97);
+                    border: 1px solid rgba(255, 200, 0, 0.4);
+                    border-radius: 8px;
+                    padding: 12px;
+                    min-width: 240px;
+                    max-width: 320px;
+                    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+                    font-family: inherit;
+                    font-size: 0.75rem;
+                    animation: threadFadeIn 0.15s ease;
+                }
+                @keyframes threadFadeIn {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                .comment-thread-header {
+                    color: #ffc800;
+                    font-weight: bold;
+                    font-size: 0.65rem;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
+                    border-bottom: 1px solid rgba(255, 200, 0, 0.15);
+                }
+                .comment-thread-text {
+                    color: #ccc;
+                    font-size: 0.8rem;
+                    line-height: 1.5;
+                    margin-bottom: 8px;
+                    padding: 6px 8px;
+                    background: rgba(255, 200, 0, 0.08);
+                    border-radius: 4px;
+                }
+                .comment-thread-meta {
+                    color: #666;
+                    font-size: 0.6rem;
+                    margin-bottom: 10px;
+                }
+                .comment-thread-replies {
+                    margin-bottom: 8px;
+                }
+                .comment-thread-reply {
+                    padding: 6px 8px;
+                    margin-bottom: 4px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border-radius: 4px;
+                    border-left: 2px solid rgba(255, 200, 0, 0.2);
+                }
+                .comment-thread-reply-text {
+                    color: #bbb;
+                    font-size: 0.72rem;
+                    line-height: 1.4;
+                }
+                .comment-thread-reply-meta {
+                    color: #555;
+                    font-size: 0.55rem;
+                    margin-top: 2px;
+                }
+                .comment-thread-input {
+                    display: flex;
+                    gap: 4px;
+                }
+                .comment-thread-input input {
+                    flex: 1;
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 4px;
+                    padding: 5px 8px;
+                    color: #ddd;
+                    font-size: 0.7rem;
+                    outline: none;
+                    font-family: inherit;
+                }
+                .comment-thread-input input::placeholder {
+                    color: #555;
+                }
+                .comment-thread-input input:focus {
+                    border-color: rgba(255, 200, 0, 0.4);
+                }
+                .comment-thread-input button {
+                    background: rgba(255, 200, 0, 0.15);
+                    border: 1px solid rgba(255, 200, 0, 0.3);
+                    border-radius: 4px;
+                    color: #ffc800;
+                    padding: 5px 10px;
+                    font-size: 0.65rem;
+                    cursor: pointer;
+                    transition: all 0.1s ease;
+                    font-family: inherit;
+                }
+                .comment-thread-input button:hover {
+                    background: rgba(255, 200, 0, 0.25);
+                }
+            `;
+            document.head.appendChild(fbStyle);
+        }
+
         // Zoom label reference
         this.zoomLabel = this.toolbar.querySelector('#canvas-zoom-label');
 
@@ -2225,6 +2394,30 @@ export const CanvasManager = {
                 /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g,
                 '<span class="wiki-link" data-note-title="$1">[[$1]]</span>'
             );
+
+            // Render comment highlights (placeholder system prevents nested marks)
+            if (nodeData.comments && nodeData.comments.length > 0) {
+                var placeholders = {};
+                var idx = 0;
+                // First pass: replace text with unique placeholders
+                var tempBody = styledBody;
+                nodeData.comments.forEach(function(c) {
+                    var escaped = c.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    var regex = new RegExp(escaped, 'gi');
+                    var ph = '%%%CMT_PH_' + (idx++) + '%%%';
+                    placeholders[ph] = c.id;
+                    tempBody = tempBody.replace(regex, ph);
+                });
+                // Second pass: replace placeholders with actual mark tags (global regex to replace all occurrences)
+                styledBody = tempBody;
+                Object.keys(placeholders).forEach(function(ph) {
+                    var cid = placeholders[ph];
+                    var phRegex = new RegExp(ph, 'g');
+                    var commentText = nodeData.comments.find(function(c) { return c.id === cid; }).text;
+                    styledBody = styledBody.replace(phRegex, '<mark class="comment-highlight" data-comment-id="' + cid + '">' + commentText + '</mark>');
+                });
+            }
+
             card.innerHTML = `
                 <div class="canvas-card-header">
                     <div class="canvas-card-title" contenteditable="true" data-placeholder="Title...">${titleText}</div>
@@ -2235,12 +2428,16 @@ export const CanvasManager = {
             `;
         }
 
-        // === SAVE ON BLUR ===
+        // === SAVE ON BLUR (rich-text aware) ===
         card.querySelectorAll('[contenteditable="true"]').forEach(el => {
             el.addEventListener('mousedown', e => e.stopPropagation());
             el.addEventListener('blur', () => {
                 const newTitle = card.querySelector('.canvas-card-title').innerText;
-                const newPreview = card.querySelector('.canvas-card-body').innerText;
+                const bodyEl = card.querySelector('.canvas-card-body');
+                // Save innerHTML (preserves bold/italic/underline) but strip wiki-link and comment wrappers
+                let newPreview = bodyEl.innerHTML;
+                newPreview = newPreview.replace(/<span class="wiki-link"[^>]*data-note-title="([^"]*)"[^>]*>\[\[\1\]\]<\/span>/g, '[[$1]]');
+                newPreview = newPreview.replace(/<mark[^>]*class="comment-highlight"[^>]*data-comment-id="[^"]*"[^>]*>([\s\S]*?)<\/mark>/g, '$1');
                 if (nodeData.title !== newTitle || nodeData.preview !== newPreview) {
                     this._saveHistoryState();
                     nodeData.title = newTitle;
@@ -2248,9 +2445,31 @@ export const CanvasManager = {
                     this._saveData();
                     this._routeWikiLinks(nodeData.id);
                 }
+                // Hide format bar on blur
+                this._hideCanvasFormatBar();
             });
             el.addEventListener('keydown', e => e.stopPropagation());
+            // Show format bar on text selection
+            el.addEventListener('mouseup', function(e) {
+                var sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.toString().trim()) {
+                    var range = sel.getRangeAt(0);
+                    if (el.contains(range.commonAncestorContainer)) {
+                        this._showCanvasFormatBar(el, range);
+                    }
+                } else {
+                    // Don't hide immediately on mouseup — let the click-through work
+                }
+            }.bind(this));
         });
+
+        // Hide format bar when clicking outside cards
+        card._hideFormatBarOnOutside = function(e) {
+            if (!e.target.closest('.canvas-format-bar') && !e.target.closest('[contenteditable]')) {
+                this._hideCanvasFormatBar();
+            }
+        }.bind(this);
+        document.addEventListener('mousedown', card._hideFormatBarOnOutside);
 
         // === DELETE BUTTON ===
         const deleteBtn = card.querySelector('.canvas-card-delete');
@@ -2303,6 +2522,22 @@ export const CanvasManager = {
                     window.Notes.open(targetNote.id);
                 }
             });
+        }
+
+        // === COMMENT HIGHLIGHT CLICK HANDLING ===
+        if (bodyEl && nodeData.comments && nodeData.comments.length > 0) {
+            bodyEl.addEventListener('mousedown', function(e) {
+                var highlight = e.target.closest('.comment-highlight');
+                if (!highlight) return;
+                e.preventDefault();
+                var commentId = highlight.getAttribute('data-comment-id');
+                if (!commentId) return;
+                // Find the comment data
+                var comment = nodeData.comments.find(function(c) { return c.id === commentId; });
+                if (!comment) return;
+                // Show the comment thread panel
+                this._showCommentThread(e.clientX, e.clientY, comment, nodeData);
+            }.bind(this));
         }
 
         // === CONTEXT MENU (COLORS) ===
@@ -3426,6 +3661,256 @@ export const CanvasManager = {
             badge.style.display = 'inline-flex';
         } else {
             badge.style.display = 'none';
+        }
+    },
+
+    // ─── RICH-TEXT FORMAT BAR ───
+    _showCanvasFormatBar: function(containerEl, range) {
+        this._hideCanvasFormatBar();
+
+        // Create format bar
+        var bar = document.createElement('div');
+        bar.className = 'canvas-format-bar';
+        bar.id = 'canvas-format-bar';
+        bar.innerHTML = `
+            <button data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+            <button data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+            <button data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+            <span class="fb-divider"></span>
+            <button data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+            <button data-cmd="code" title="Inline Code">{ }</button>
+            <span class="fb-divider"></span>
+            <button data-cmd="comment" title="Add comment — highlight and annotate selected text">💬</button>
+        `;
+
+        var self = this;
+        var currentNodeId = containerEl && containerEl.closest('[id^="canvas-node-"]')
+            ? containerEl.closest('[id^="canvas-node-"]').id.replace('canvas-node-', '')
+            : null;
+
+        // Update button active states based on current selection
+        bar.querySelectorAll('[data-cmd]').forEach(function(btn) {
+            var cmd = btn.getAttribute('data-cmd');
+            var isActive = document.queryCommandState(cmd);
+            if (isActive) btn.classList.add('active');
+
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                document.execCommand(cmd, false, null);
+                // Toggle active state
+                this.classList.toggle('active');
+                // Re-focus the contenteditable
+                containerEl.focus();
+                // Update bar position (selection might have collapsed/changed)
+                var sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+                    var newRange = sel.getRangeAt(0);
+                    if (containerEl.contains(newRange.commonAncestorContainer)) {
+                        positionBar(bar, newRange);
+                    }
+                }
+            });
+        });
+
+        // Comment button handler: create a comment from the selected text
+        var commentBtn = bar.querySelector('[data-cmd="comment"]');
+        if (commentBtn && currentNodeId) {
+            commentBtn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var sel = window.getSelection();
+                if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+                var highlightedText = sel.toString().trim();
+                if (!highlightedText) return;
+
+                var note = self._getActiveNote();
+                if (!note || !note.canvasData) return;
+                var nodeData = note.canvasData.nodes.find(function(n) { return n.id === currentNodeId; });
+                if (!nodeData) return;
+
+                // Ensure comments array exists
+                if (!nodeData.comments) nodeData.comments = [];
+
+                var commentId = 'cmt_' + Date.now();
+                nodeData.comments.push({
+                    id: commentId,
+                    text: highlightedText,
+                    author: 'You',
+                    createdAt: Date.now(),
+                    replies: []
+                });
+
+                // Save and re-render to show highlight
+                self._saveHistoryState();
+                self._saveData();
+
+                // Re-render just this card to show the highlight
+                if (window.PageManager) window.PageManager.updateBlock(self.activeNoteId, nodeData);
+                self.load(self.activeNoteId);
+
+                self._hideCanvasFormatBar();
+            });
+        }
+
+        document.body.appendChild(bar);
+
+        // Position the bar above the selection
+        var positionBar = function(barEl, r) {
+            var rect = r.getBoundingClientRect();
+            if (!rect || (rect.width === 0 && rect.height === 0)) {
+                // Use the container element's rect as fallback
+                rect = containerEl.getBoundingClientRect();
+            }
+            var top = rect.top - 44;
+            var left = rect.left + rect.width / 2 - 80;
+
+            // Clamp to viewport
+            if (top < 4) top = rect.bottom + 6;
+            if (left < 4) left = 4;
+            if (left + 160 > window.innerWidth) left = window.innerWidth - 164;
+
+            barEl.style.top = top + 'px';
+            barEl.style.left = left + 'px';
+        };
+
+        positionBar(bar, range);
+
+        // Show with animation
+        requestAnimationFrame(function() {
+            bar.classList.add('visible');
+        });
+
+        // Hide on selection change
+        this._formatBarHideHandler = function(e) {
+            // Check if click is outside format bar and outside contenteditable
+            if (e && e.target && (e.target.closest('.canvas-format-bar') || e.target.closest('[contenteditable]'))) return;
+            var sel = window.getSelection();
+            if (!sel || sel.isCollapsed) {
+                setTimeout(function() {
+                    self._hideCanvasFormatBar();
+                }, 200);
+            }
+        };
+
+        var self = this;
+        document.addEventListener('mousedown', this._formatBarHideHandler);
+        document.addEventListener('selectionchange', this._formatBarHideHandler);
+    },
+
+    _hideCanvasFormatBar: function() {
+        var bar = document.getElementById('canvas-format-bar');
+        if (bar) bar.remove();
+        if (this._formatBarHideHandler) {
+            document.removeEventListener('mousedown', this._formatBarHideHandler);
+            document.removeEventListener('selectionchange', this._formatBarHideHandler);
+            this._formatBarHideHandler = null;
+        }
+    },
+
+    // ─── COMMENT THREAD PANEL ───
+    _showCommentThread: function(clientX, clientY, comment, nodeData) {
+        this._hideCommentThread();
+
+        var panel = document.createElement('div');
+        panel.className = 'comment-thread-panel';
+        panel.id = 'comment-thread-panel';
+
+        var repliesHtml = '';
+        if (comment.replies && comment.replies.length > 0) {
+            repliesHtml = '<div class="comment-thread-replies">' +
+                comment.replies.map(function(r) {
+                    return '<div class="comment-thread-reply">' +
+                        '<div class="comment-thread-reply-text">' + r.text + '</div>' +
+                        '<div class="comment-thread-reply-meta">' + (r.author || 'Anonymous') + ' &middot; ' + new Date(r.createdAt).toLocaleDateString() + '</div>' +
+                        '</div>';
+                }).join('') +
+                '</div>';
+        }
+
+        panel.innerHTML = `
+            <div class="comment-thread-header">💬 Comment Thread</div>
+            <div class="comment-thread-text">${comment.text}</div>
+            <div class="comment-thread-meta">${comment.author || 'Anonymous'} &middot; ${new Date(comment.createdAt).toLocaleDateString()}</div>
+            ${repliesHtml}
+            <div class="comment-thread-input">
+                <input type="text" id="comment-reply-input" placeholder="Write a reply..." />
+                <button id="comment-reply-btn">Reply</button>
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        // Position the panel near the click
+        var left = Math.min(clientX, window.innerWidth - 320);
+        var top = Math.min(clientY + 12, window.innerHeight - 250);
+        if (top < 4) top = 4;
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+
+        // Focus reply input
+        var replyInput = document.getElementById('comment-reply-input');
+        if (replyInput) replyInput.focus();
+
+        // Reply button handler
+        var self = this;
+        var replyBtn = document.getElementById('comment-reply-btn');
+        if (replyBtn && replyInput) {
+            var submitReply = function() {
+                var text = replyInput.value.trim();
+                if (!text) return;
+                if (!comment.replies) comment.replies = [];
+                comment.replies.push({
+                    id: 'reply_' + Date.now(),
+                    text: text,
+                    author: 'You',
+                    createdAt: Date.now()
+                });
+                replyInput.value = '';
+                self._saveData();
+                // Re-render the panel with the new reply
+                self._showCommentThread(clientX, clientY, comment, nodeData);
+            };
+            replyBtn.addEventListener('click', submitReply);
+            replyInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitReply();
+                } else if (e.key === 'Escape') {
+                    self._hideCommentThread();
+                }
+            });
+        }
+
+        // Close on outside click
+        this._commentThreadCloseHandler = function(e) {
+            if (!panel.contains(e.target)) {
+                self._hideCommentThread();
+            }
+        };
+        setTimeout(function() {
+            document.addEventListener('mousedown', self._commentThreadCloseHandler);
+        }, 50);
+
+        // Escape to close
+        this._commentThreadEscapeHandler = function(e) {
+            if (e.key === 'Escape') {
+                self._hideCommentThread();
+            }
+        };
+        window.addEventListener('keydown', this._commentThreadEscapeHandler, { capture: true });
+    },
+
+    _hideCommentThread: function() {
+        var panel = document.getElementById('comment-thread-panel');
+        if (panel) panel.remove();
+        if (this._commentThreadCloseHandler) {
+            document.removeEventListener('mousedown', this._commentThreadCloseHandler);
+            this._commentThreadCloseHandler = null;
+        }
+        if (this._commentThreadEscapeHandler) {
+            window.removeEventListener('keydown', this._commentThreadEscapeHandler, { capture: true });
+            this._commentThreadEscapeHandler = null;
         }
     }
 };
