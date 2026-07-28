@@ -24,7 +24,12 @@ async function runSuite(suite) {
   return new Promise((resolvePromise) => {
     const proc = spawn(node, [path], { stdio: 'inherit', cwd: resolve(__dirname, '..') });
     proc.on('exit', (code) => {
-      if (code !== 0) exitCode = 1;
+      if (code !== 0) {
+        console.error(`[run-all] FAILED: ${suite} exited with code ${code}`);
+        exitCode = 1;
+      } else {
+        console.log(`[run-all] PASSED: ${suite}`);
+      }
       resolvePromise();
     });
   });
