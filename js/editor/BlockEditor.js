@@ -1410,6 +1410,64 @@ export const BlockEditor = {
                             }
                         });
 
+                        // Right-click context menu on header
+                        th.addEventListener('contextmenu', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Close any existing menu
+                            var existing = document.querySelector('.table-ctx-menu');
+                            if (existing) existing.remove();
+
+                            var menu = document.createElement('div');
+                            menu.className = 'table-ctx-menu';
+                            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;z-index:50000;';
+                            menu.innerHTML = `
+                                <div class="ctx-section-title">Align</div>
+                                <div class="ctx-item" data-action="align-left">[= Left</div>
+                                <div class="ctx-item" data-action="align-center">= Center</div>
+                                <div class="ctx-item" data-action="align-right">=] Right</div>
+                                <div class="ctx-divider"></div>
+                                <div class="ctx-section-title">Sort</div>
+                                <div class="ctx-item" data-action="sort-asc">A-Z Ascending</div>
+                                <div class="ctx-item" data-action="sort-desc">Z-A Descending</div>
+                                <div class="ctx-divider"></div>
+                                <div class="ctx-section-title">Insert</div>
+                                <div class="ctx-item" data-action="insert-col-left">+ Column Left</div>
+                                <div class="ctx-item" data-action="insert-col-right">+ Column Right</div>
+                                <div class="ctx-item" data-action="insert-row-above">+ Row Above</div>
+                                <div class="ctx-item" data-action="insert-row-below">+ Row Below</div>
+                                <div class="ctx-divider"></div>
+                                <div class="ctx-item ctx-danger" data-action="delete-col">- Delete Column</div>
+                                <div class="ctx-item ctx-danger" data-action="delete-row">- Delete Row</div>
+                            `;
+                            document.body.appendChild(menu);
+
+                            // Set focusedCell so the actions target the right column/row
+                            focusedCell.col = colIdx;
+                            focusedCell.row = -1;
+
+                            // Click handler: find toolbar button with matching action and click it
+                            menu.addEventListener('click', function(ce) {
+                                var item = ce.target.closest('.ctx-item');
+                                if (!item) return;
+                                var action = item.getAttribute('data-action');
+                                var tbBtn = toolbar.querySelector('[data-action="' + action + '"]');
+                                if (tbBtn) tbBtn.click();
+                                menu.remove();
+                            });
+
+                            // Close on outside click
+                            setTimeout(function() {
+                                var closeHandler = function(ce2) {
+                                    if (!menu.contains(ce2.target)) {
+                                        menu.remove();
+                                        document.removeEventListener('mousedown', closeHandler);
+                                    }
+                                };
+                                document.addEventListener('mousedown', closeHandler);
+                            }, 10);
+                        });
+
                         // Column resize handle
                         var resizeHandle = document.createElement('div');
                         resizeHandle.className = 'col-resize-handle';

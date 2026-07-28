@@ -8215,6 +8215,53 @@
       .col-resize-handle.dragging::after {
           background: #000;
       }
+
+      /* ── Table Header Context Menu ── */
+      .table-ctx-menu {
+        position: fixed;
+        background: rgba(16, 16, 16, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 4px 0;
+        min-width: 170px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        font-size: 0.75rem;
+        animation: ctxFadeIn 0.1s ease;
+      }
+      @keyframes ctxFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      .table-ctx-menu .ctx-section-title {
+        padding: 4px 14px 2px;
+        font-size: 0.6rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .table-ctx-menu .ctx-item {
+        padding: 5px 14px;
+        cursor: pointer;
+        color: #ccc;
+        font-size: 0.72rem;
+        transition: background 0.1s ease;
+      }
+      .table-ctx-menu .ctx-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+      .table-ctx-menu .ctx-item.ctx-danger {
+        color: #ff5555;
+      }
+      .table-ctx-menu .ctx-item.ctx-danger:hover {
+        background: rgba(255, 0, 0, 0.12);
+      }
+      .table-ctx-menu .ctx-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.06);
+        margin: 3px 10px;
+      }
+
       .table-cell:empty::before {
         content: "";
         color: #555;
