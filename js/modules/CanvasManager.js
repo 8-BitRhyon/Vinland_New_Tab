@@ -2428,12 +2428,20 @@ export const CanvasManager = {
             `;
         }
 
-        // === SAVE ON BLUR (rich-text aware) ===
+        // === SAVE ON BLUR (rich-text aware + markdown conversion) ===
         card.querySelectorAll('[contenteditable="true"]').forEach(el => {
             el.addEventListener('mousedown', e => e.stopPropagation());
             el.addEventListener('blur', () => {
                 const newTitle = card.querySelector('.canvas-card-title').innerText;
                 const bodyEl = card.querySelector('.canvas-card-body');
+                // Convert markdown patterns to formatted HTML before saving
+                if (bodyEl) {
+                    var mdHtml = bodyEl.innerHTML;
+                    var converted = this._convertMarkdownToHtml(mdHtml);
+                    if (converted !== mdHtml) {
+                        bodyEl.innerHTML = converted;
+                    }
+                }
                 // Save innerHTML (preserves bold/italic/underline) but strip wiki-link and comment wrappers
                 let newPreview = bodyEl.innerHTML;
                 newPreview = newPreview.replace(/<span class="wiki-link"[^>]*data-note-title="([^"]*)"[^>]*>\[\[\1\]\]<\/span>/g, '[[$1]]');
@@ -2448,7 +2456,6 @@ export const CanvasManager = {
                 // Hide format bar on blur
                 this._hideCanvasFormatBar();
             });
-            el.addEventListener('keydown', e => e.stopPropagation());
             // Show format bar on text selection
             el.addEventListener('mouseup', function(e) {
                 var sel = window.getSelection();
@@ -3269,6 +3276,23 @@ export const CanvasManager = {
         });
 
         this._saveData();
+    },
+
+    // ─── MARKDOWN TO HTML CONVERSION ───
+    _convertMarkdownToHtml: function(html) {
+        // Convert markdown syntax to HTML tags. Order matters: bold (**) before italic (*).
+        var result = html;
+        // Bold: **text** → <strong>text</strong>
+        result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // Underline: __text__ → <u>text</u>
+        result = result.replace(/__(.+?)__/g, '<u>$1</u>');
+        // Italic: *text* → <em>text</em>
+        result = result.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        // Strikethrough: ~~text~~ → <s>text</s>
+        result = result.replace(/~~(.+?)~~/g, '<s>$1</s>');
+        // Inline code: `text` → <code>text</code>
+        result = result.replace(/`(.+?)`/g, '<code>$1</code>');
+        return result;
     },
 
     // ─── WIKI-LINK AUTO-ROUTING ───
