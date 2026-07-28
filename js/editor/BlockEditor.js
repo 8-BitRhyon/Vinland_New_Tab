@@ -766,6 +766,19 @@ export const BlockEditor = {
         var countEl = document.getElementById('local-graph-count');
         if (!svg) return;
 
+        // Wire toggle header once (before early-return so it works even with 0 connections)
+        if (!this._localGraphToggleWired) {
+            this._localGraphToggleWired = true;
+            var toggleEl = document.getElementById('local-graph-toggle');
+            if (toggleEl) {
+                toggleEl.addEventListener('click', function() {
+                    var graphEl = document.getElementById('editor-local-graph');
+                    if (!graphEl) return;
+                    graphEl.classList.toggle('collapsed');
+                });
+            }
+        }
+
         var note = State.NOTES.find(function(n) { return n.id === noteId; });
         if (!note) return;
 
@@ -917,19 +930,6 @@ export const BlockEditor = {
 
         // Store simulation reference so it can be stopped if needed
         this._localGraphSim = simulation;
-
-        // Wire toggle header once
-        if (!this._localGraphToggleWired) {
-            this._localGraphToggleWired = true;
-            var toggleEl = document.getElementById('local-graph-toggle');
-            if (toggleEl) {
-                toggleEl.addEventListener('click', function() {
-                    var graphEl = document.getElementById('editor-local-graph');
-                    if (!graphEl) return;
-                    graphEl.classList.toggle('collapsed');
-                });
-            }
-        }
     },
 
     // ─── SELECTION ───
