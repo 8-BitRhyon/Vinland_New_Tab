@@ -1575,11 +1575,15 @@ export const SettingsUI = {
     },
 
     _applySearchFilter: function(query) {
+        var self = this;
         sessionStorage.setItem('vinland_settings_search', query);
         var tabs = document.querySelectorAll('.config-tab');
         var navItems = document.querySelectorAll('.config-nav-item');
         var searchInput = document.getElementById('config-search-input');
         var noResults = document.getElementById('config-no-results');
+
+        // Remove previous highlights before re-applying
+        this._removeHighlights();
 
         if (!query) {
             // Reset: restore nav, click active tab to refresh display
@@ -1663,6 +1667,71 @@ export const SettingsUI = {
             if (noResults) noResults.style.display = 'none';
             searchInput.classList.add('has-results');
         }
+
+        // Highlight matching text in visible tabs and nav items
+        if (query) {
+            tabs.forEach(function(tab) {
+                if (tab.style.display !== 'none') {
+                    self._highlightText(tab, query);
+                }
+            });
+            navItems.forEach(function(nav) {
+                self._highlightText(nav, query);
+            });
+        }
+    },
+
+    _removeHighlights: function() {
+        var marks = document.querySelectorAll('.config-hl');
+        marks.forEach(function(mark) {
+            var parent = mark.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                parent.normalize();
+            }
+        });
+    },
+
+    _highlightText: function(element, query) {
+        if (!element || !query) return;
+        var q = query.toLowerCase();
+        var textNodes = [];
+
+        var walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+            acceptNode: function(node) {
+                var parent = node.parentNode;
+                if (parent && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'SCRIPT', 'STYLE', 'OPTION', 'OPTGROUP'].indexOf(parent.tagName) !== -1) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        while (walker.nextNode()) {
+            textNodes.push(walker.currentNode);
+        }
+
+        // Process in reverse to avoid index shifting
+        textNodes.reverse();
+        textNodes.forEach(function(node) {
+            var text = node.textContent;
+            var lower = text.toLowerCase();
+            var idx = lower.indexOf(q);
+            if (idx === -1) return;
+
+            var before = text.slice(0, idx);
+            var match = text.slice(idx, idx + query.length);
+            var after = text.slice(idx + query.length);
+
+            var frag = document.createDocumentFragment();
+            if (before) frag.appendChild(document.createTextNode(before));
+            var mark = document.createElement('mark');
+            mark.className = 'config-hl';
+            mark.textContent = match;
+            frag.appendChild(mark);
+            if (after) frag.appendChild(document.createTextNode(after));
+
+            node.parentNode.replaceChild(frag, node);
+        });
     },
 
     /* =========================================
