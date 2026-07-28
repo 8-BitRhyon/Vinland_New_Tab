@@ -152,6 +152,9 @@ export const ModalManager = {
         // 4. Show Overlay if this is the first modal
         var overlay = document.getElementById('modal-overlay');
         if (overlay) overlay.classList.add('active');
+
+        // 5. Update modal stack indicator
+        this._updateStackIndicator();
     },
 
     toggle: function(modalId) {
@@ -202,6 +205,7 @@ export const ModalManager = {
                     confirmModal.style.display = '';
                 }
                 console.log('[closeTop] Confirm-modal hidden, returning');
+                this._updateStackIndicator();
                 return;
             }
             if (modalId === 'kanban-modal') {
@@ -225,10 +229,95 @@ export const ModalManager = {
             var overlay = document.getElementById('modal-overlay');
             if (overlay) overlay.classList.remove('active');
         }
+
+        this._updateStackIndicator();
     },
 
     closeAll: function() {
         while(this.stack.length > 0) this.closeTop();
+    },
+
+    // ─── Modal Stack Indicator ───
+    _updateStackIndicator: function() {
+        var container = document.getElementById('modal-stack-indicator');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (this.stack.length === 0) {
+            container.classList.remove('has-stack');
+            return;
+        }
+
+        container.classList.add('has-stack');
+
+        var modalLabels = {
+            'config-modal': 'Settings',
+            'note-editor-modal': 'Editor',
+            'canvas-modal': 'Canvas',
+            'graph-modal': 'Graph',
+            'kanban-modal': 'Board',
+            'help-modal': 'Help',
+            'history-modal': 'History',
+            'confirm-modal': 'Confirm',
+            'input-modal': 'Input',
+            'error-modal': 'Error'
+        };
+        var modalIcons = {
+            'config-modal': '\u2699',
+            'note-editor-modal': '\u270E',
+            'canvas-modal': '\u2B21',
+            'graph-modal': '\u25C8',
+            'kanban-modal': '\u25A6',
+            'help-modal': '?',
+            'history-modal': '\u23F0',
+            'confirm-modal': '\u26A0',
+            'input-modal': '\u270F',
+            'error-modal': '\u2716'
+        };
+
+        var self = this;
+        this.stack.forEach(function(modalId, index) {
+            var pill = document.createElement('div');
+            pill.className = 'modal-stack-pill visible';
+            if (index === self.stack.length - 1) {
+                pill.classList.add('active');
+            }
+
+            var icon = modalIcons[modalId] || '\u25A1';
+            var label = modalLabels[modalId] || modalId;
+
+            pill.innerHTML = '<span class="pill-icon">' + icon + '</span>' +
+                label +
+                '<span class="pill-count">' + (index + 1) + '/' + self.stack.length + '</span>' +
+                '<span class="pill-close">\u2716</span>';
+
+            // Click on pill body → focus that modal (bring to top via close+reopen)
+            pill.addEventListener('click', function(e) {
+                if (e.target.classList.contains('pill-close')) return;
+                if (self.stack[self.stack.length - 1] === modalId) return; // already top
+                // Reorder: move clicked modal to top of stack
+                self.stack = self.stack.filter(function(id) { return id !== modalId; });
+                self.stack.push(modalId);
+                // Update z-indexes
+                self.stack.forEach(function(id, idx) {
+                    var m = document.getElementById(id);
+                    if (m) m.style.zIndex = 21000 + idx;
+                });
+                self._updateStackIndicator();
+            });
+
+            // Click on pill-close → close that specific modal
+            var closeSpan = pill.querySelector('.pill-close');
+            if (closeSpan) {
+                closeSpan.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    self.close(modalId);
+                });
+            }
+
+            container.appendChild(pill);
+        });
     },
 
     // a11y: move focus into the dialog (first focusable, else the dialog itself)
@@ -304,6 +393,8 @@ export const ModalManager = {
             var overlay = document.getElementById('modal-overlay');
             if (overlay) overlay.classList.remove('active');
         }
+
+        this._updateStackIndicator();
     },
 
     init: function() {

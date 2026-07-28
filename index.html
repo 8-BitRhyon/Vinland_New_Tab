@@ -11265,6 +11265,81 @@
       display: none;
     }
     .boot-loader-noscript.active { display: block; }
+    /* ─── Modal Stack Indicator ─── */
+    #modal-stack-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 0;
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      z-index: 21000;
+      pointer-events: none;
+      padding: 0 80px;
+    }
+    #modal-stack-indicator.has-stack {
+      height: auto;
+      padding-top: 2px;
+    }
+    .modal-stack-pill {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 12px 3px 10px;
+      border-radius: 0 0 6px 6px;
+      font-family: var(--font-main, 'Space Mono', monospace);
+      font-size: 0.6rem;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--main-color, #00ff41);
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-top: none;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .modal-stack-pill.visible {
+      display: inline-flex;
+    }
+    .modal-stack-pill .pill-icon {
+      font-size: 0.7rem;
+      opacity: 0.6;
+    }
+    .modal-stack-pill .pill-count {
+      font-size: 0.5rem;
+      opacity: 0.5;
+      margin-left: 2px;
+    }
+    .modal-stack-pill:hover {
+      background: rgba(0, 0, 0, 0.95);
+      border-color: var(--main-color, #00ff41);
+      color: #fff;
+    }
+    .modal-stack-pill.active {
+      border-color: var(--main-color, #00ff41);
+      color: #fff;
+      background: rgba(0, 255, 65, 0.08);
+      box-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
+    }
+    .modal-stack-pill .pill-close {
+      font-size: 0.55rem;
+      opacity: 0.4;
+      margin-left: 4px;
+      transition: opacity 0.15s;
+    }
+    .modal-stack-pill:hover .pill-close {
+      opacity: 0.8;
+    }
+    .modal-stack-pill .pill-close:hover {
+      opacity: 1;
+      color: var(--danger-color, #ff0055);
+    }
     </style>
 
 <body>
@@ -11278,6 +11353,9 @@
       </div>
     </div>
     <noscript><style>#boot-loader-noscript{display:block!important}.boot-loader-spinner,.boot-loader-label{display:none!important}</style></noscript>
+
+    <!-- MODAL STACK INDICATOR -->
+    <div id="modal-stack-indicator"></div>
 
     <!-- CRT SCANLINE OVERLAY -->
     <div class="crt-overlay" id="crt-overlay"></div>
