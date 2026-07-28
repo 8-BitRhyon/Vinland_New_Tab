@@ -889,6 +889,7 @@ export const QuickOpen = {
     _resultsPageOpen: false,
     _resultsPageFilter: 'all', // 'all' | 'notes' | 'tags' | 'commands'
     _filteredResults: null,
+    _resultsPageTimer: null,
 
     /**
      * Open the full-page search results overlay (Cmd+Shift+F)
@@ -922,7 +923,7 @@ export const QuickOpen = {
                 this._executeSearch(query);
                 this._renderResultsPage();
             } else {
-                this._showResultsPagePrompt();
+                this._showRecentSearches();
             }
         }
 
@@ -1282,23 +1283,161 @@ export const QuickOpen = {
                 font-size: 0.65rem;
                 margin-top: 6px;
             }
+
+            /* ── Result entrance animation ── */
+            @keyframes srpResultIn {
+                from { opacity: 0; transform: translateY(-6px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            .srp-result {
+                animation: srpResultIn 0.2s ease both;
+            }
+
+            /* ── Recent searches ── */
+            .srp-recent-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 20px 4px;
+                font-size: 0.6rem;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                color: var(--secondary-color, #888);
+                opacity: 0.5;
+                pointer-events: none;
+            }
+            .srp-recent-clear {
+                background: none;
+                border: none;
+                color: #555;
+                cursor: pointer;
+                font-size: 0.55rem;
+                font-family: inherit;
+                pointer-events: auto;
+                transition: color 0.1s ease;
+            }
+            .srp-recent-clear:hover {
+                color: #ff5555;
+            }
+            .srp-recent-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 6px 20px;
+                cursor: pointer;
+                transition: background 0.08s ease;
+                border-radius: 4px;
+                margin: 0 4px;
+            }
+            .srp-recent-item:hover {
+                background: rgba(var(--main-color-rgb, 0, 255, 65), 0.08);
+            }
+            .srp-recent-item-icon {
+                font-size: 0.7rem;
+                opacity: 0.35;
+                flex-shrink: 0;
+            }
+            .srp-recent-item-text {
+                font-size: 0.8rem;
+                color: var(--secondary-color, #888);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .srp-recent-item:hover .srp-recent-item-text {
+                color: var(--main-color, #00ff41);
+            }
         `;
         document.head.appendChild(style);
     },
 
     /**
-     * Show empty search prompt in results page
+     * Save a query to recent searches (localStorage, max 10)
      */
-    _showResultsPagePrompt: function () {
+    _saveRecentQuery: function (query) {
+        if (!query || !query.trim()) return;
+        try {
+            var recent = JSON.parse(localStorage.getItem('vinland_recent_searches') || '[]');
+            // Remove duplicate if exists
+            var idx = recent.indexOf(query);
+            if (idx >= 0) recent.splice(idx, 1);
+            // Add to front
+            recent.unshift(query);
+            // Keep max 10
+            if (recent.length > 10) recent = recent.slice(0, 10);
+            localStorage.setItem('vinland_recent_searches', JSON.stringify(recent));
+        } catch (e) { /* ignore storage errors */ }
+    },
+
+    /**
+     * Show recent searches in the results page prompt area
+     */
+    _showRecentSearches: function () {
         var container = document.getElementById('srp-results');
         if (!container) return;
         container.innerHTML = '';
+
+        var recent = [];
+        try {
+            recent = JSON.parse(localStorage.getItem('vinland_recent_searches') || '[]');
+        } catch (e) { /* ignore */ }
+
+        // Show search prompt
         var prompt = document.createElement('div');
         prompt.className = 'srp-prompt';
         prompt.innerHTML = '<div class="srp-prompt-icon">\uD83D\uDD0D</div>' +
             '<div class="srp-prompt-text">Type to search across all notes, tags, and commands</div>' +
             '<div class="srp-prompt-hint">Results appear as you type &mdash; press <kbd>\u2191</kbd><kbd>\u2193</kbd> to navigate, <kbd>\u23CE</kbd> to open</div>';
         container.appendChild(prompt);
+
+        // Show recent searches if any
+        if (recent.length > 0) {
+            var header = document.createElement('div');
+            header.className = 'srp-recent-header';
+            var self = this;
+            header.innerHTML = '<span>Previous searches</span>' +
+                '<button class="srp-recent-clear" id="srp-recent-clear-btn">Clear</button>';
+            container.appendChild(header);
+
+            recent.forEach(function (q) {
+                var item = document.createElement('div');
+                item.className = 'srp-recent-item';
+
+                var icon = document.createElement('span');
+                icon.className = 'srp-recent-item-icon';
+                icon.textContent = '\u23F3'; // clock
+                item.appendChild(icon);
+
+                var text = document.createElement('span');
+                text.className = 'srp-recent-item-text';
+                text.textContent = q;
+                item.appendChild(text);
+
+                item.onclick = function () {
+                    var input = document.getElementById('srp-input');
+                    if (input) {
+                        input.value = q;
+                        self._executeSearch(q);
+                        self._renderResultsPage();
+                    }
+                };
+
+                container.appendChild(item);
+            });
+
+            // Wire clear button
+            var clearBtn = document.getElementById('srp-recent-clear-btn');
+            if (clearBtn) {
+                clearBtn.onclick = function (e) {
+                    e.stopPropagation();
+                    try {
+                        localStorage.removeItem('vinland_recent_searches');
+                    } catch (e) { /* ignore */ }
+                    self._showRecentSearches();
+                };
+            }
+        }
+
         var footer = document.getElementById('srp-footer-count');
         if (footer) footer.textContent = '';
     },
@@ -1365,6 +1504,8 @@ export const QuickOpen = {
                 var el = document.createElement('div');
                 el.className = 'srp-result' + (self.selectedIndex === globalIdx ? ' selected' : '');
                 el.setAttribute('data-result-index', globalIdx);
+                // Staggered entrance animation
+                el.style.animationDelay = (globalIdx * 20) + 'ms';
 
                 // Icon
                 var icon = document.createElement('span');
@@ -1445,6 +1586,11 @@ export const QuickOpen = {
         // Update footer
         if (footer) {
             footer.textContent = results.length + ' result' + (results.length !== 1 ? 's' : '');
+        }
+
+        // Save to recent searches
+        if (this.currentQuery) {
+            this._saveRecentQuery(this.currentQuery);
         }
     },
 
@@ -1581,7 +1727,7 @@ export const QuickOpen = {
 
         if (!query) {
             self.currentQuery = '';
-            self._showResultsPagePrompt();
+            self._showRecentSearches();
             return;
         }
 
