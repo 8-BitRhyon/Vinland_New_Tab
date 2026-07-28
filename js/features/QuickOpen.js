@@ -369,6 +369,51 @@ export const QuickOpen = {
                     recent: false
                 });
             }
+
+            // ─── 1b. Search Canvas Nodes within this note ───────────
+            if (note.canvasData && note.canvasData.nodes && note.canvasData.nodes.length > 0) {
+                note.canvasData.nodes.forEach(function(canvasNode) {
+                    var cnTitle = (canvasNode.title || '').toLowerCase();
+                    var cnPreview = (canvasNode.preview || '').toLowerCase();
+                    var cnCombined = cnTitle + ' ' + cnPreview;
+
+                    if (cnCombined.indexOf(q) >= 0) {
+                        var cnScore = 0;
+                        var cnExcerpt = null;
+
+                        if (cnTitle.indexOf(q) === 0) cnScore = 70;
+                        else if (cnTitle.indexOf(q) > 0) cnScore = 55;
+                        else {
+                            cnScore = 40;
+                            // Find matching line for preview excerpt
+                            var lines = (canvasNode.preview || '').split('\n');
+                            for (var li = 0; li < lines.length; li++) {
+                                if (lines[li].toLowerCase().indexOf(q) >= 0) {
+                                    var line = lines[li].trim();
+                                    if (line.length > 80) {
+                                        var matchIdx = line.toLowerCase().indexOf(q);
+                                        var start = Math.max(0, matchIdx - 30);
+                                        line = (start > 0 ? '...' : '') + line.substring(start, start + 80) + (line.length > start + 80 ? '...' : '');
+                                    }
+                                    cnExcerpt = line;
+                                    break;
+                                }
+                            }
+                        }
+
+                        results.push({
+                            type: 'canvas-node',
+                            noteId: note.id,
+                            nodeId: canvasNode.id,
+                            title: canvasNode.title || 'Untitled',
+                            path: note.title || 'Untitled',
+                            excerpt: cnExcerpt || null,
+                            score: cnScore,
+                            recent: false
+                        });
+                    }
+                });
+            }
         });
 
         // ─── 2. Search Tags ──────────────────────────────────────
@@ -504,6 +549,62 @@ export const QuickOpen = {
                 // Mouse hover
                 el.onmouseenter = function () {
                     self.selectedIndex = self._getAbsoluteIndex(idx, 'notes');
+                    self._updateSelection();
+                };
+
+                container.appendChild(el);
+            });
+        }
+
+        // ─── Canvas Nodes Section ──────────────────────────────────
+        var canvasResults = results.filter(function (r) { return r.type === 'canvas-node'; });
+        if (canvasResults.length > 0) {
+            this.sections.push({ type: 'canvas-nodes', start: currentIndex, count: canvasResults.length });
+            currentIndex += canvasResults.length;
+
+            var cnHeader = document.createElement('div');
+            cnHeader.className = 'qo-section-header';
+            cnHeader.textContent = '\u2B21  CANVAS (' + canvasResults.length + ')';
+            container.appendChild(cnHeader);
+
+            var self = this;
+            canvasResults.forEach(function (result, idx) {
+                var el = document.createElement('div');
+                el.className = 'qo-result' + (self.selectedIndex === self._getAbsoluteIndex(idx, 'canvas-nodes') ? ' selected' : '');
+                el.setAttribute('data-result-index', self._getAbsoluteIndex(idx, 'canvas-nodes'));
+
+                var icon = document.createElement('span');
+                icon.className = 'qo-result-icon';
+                icon.textContent = '\u2B21';
+                el.appendChild(icon);
+
+                var body = document.createElement('div');
+                body.className = 'qo-result-body';
+
+                var title = document.createElement('div');
+                title.className = 'qo-result-title';
+                title.textContent = result.title;
+                body.appendChild(title);
+
+                var meta = document.createElement('div');
+                meta.className = 'qo-result-meta';
+                meta.textContent = 'in ' + result.path;
+                body.appendChild(meta);
+
+                if (result.excerpt) {
+                    var excerpt = document.createElement('div');
+                    excerpt.className = 'qo-result-excerpt';
+                    excerpt.textContent = result.excerpt;
+                    body.appendChild(excerpt);
+                }
+
+                el.appendChild(body);
+
+                el.onclick = function () {
+                    self._activateResult(self._getAbsoluteIndex(idx, 'canvas-nodes'));
+                };
+                el.onmouseenter = function () {
+                    self.selectedIndex = self._getAbsoluteIndex(idx, 'canvas-nodes');
                     self._updateSelection();
                 };
 
@@ -671,6 +772,23 @@ export const QuickOpen = {
                 break;
             case 'command':
                 CommandRegistry.execute(result.id);
+                break;
+            case 'canvas-node':
+                // Open the parent note and highlight/select the canvas node
+                if (window.Notes) {
+                    window.Notes.open(result.noteId);
+                    setTimeout(function() {
+                        if (window.CanvasManager && window.CanvasManager.load) {
+                            window.CanvasManager.load(result.noteId);
+                        }
+                        var nodeEl = document.getElementById('canvas-node-' + result.nodeId);
+                        if (nodeEl && window.CanvasManager) {
+                            nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            window.CanvasManager.clearSelection();
+                            window.CanvasManager.selectNode(result.nodeId, false);
+                        }
+                    }, 200);
+                }
                 break;
         }
     },
