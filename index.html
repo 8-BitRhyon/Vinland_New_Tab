@@ -256,6 +256,77 @@
         border: 1px dashed var(--main-color);
       }
 
+      /* ── Block Color ── */
+      .block-wrapper.has-block-color {
+          background-color: color-mix(in srgb, var(--block-color) 12%, transparent);
+          border-left: 3px solid var(--block-color);
+          border-radius: 0 4px 4px 0;
+          transition: background-color 0.2s, border-color 0.2s;
+      }
+      .block-wrapper.has-block-color:hover {
+          background-color: color-mix(in srgb, var(--block-color) 18%, transparent);
+      }
+      .block-wrapper.has-block-color .block-content,
+      .block-wrapper.has-block-color .task-text {
+          color: color-mix(in srgb, var(--block-color) 70%, white);
+      }
+      .block-wrapper.has-block-color .block-type-badge {
+          border-color: var(--block-color);
+          color: var(--block-color);
+      }
+
+      /* ── Color palette popover ── */
+      .color-palette-popover {
+          position: absolute;
+          z-index: 10000;
+          background: #222;
+          border: 1px solid #444;
+          border-radius: 8px;
+          padding: 8px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+          animation: fadeIn 0.15s ease;
+      }
+      @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+      }
+      .color-palette-title {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #888;
+          margin-bottom: 6px;
+          padding: 0 2px;
+      }
+      .color-palette-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 28px);
+          gap: 4px;
+      }
+      .color-swatch {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          border: 2px solid transparent;
+          cursor: pointer;
+          padding: 0;
+          transition: transform 0.12s, border-color 0.12s;
+      }
+      .color-swatch:hover {
+          transform: scale(1.15);
+          border-color: rgba(255,255,255,0.4);
+      }
+      .color-swatch.active {
+          border-color: white;
+          box-shadow: 0 0 0 1px white;
+      }
+      .color-swatch-default {
+          background: #333;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+      }
+
       /* ── Block placeholder text ── */
       .block-content[contenteditable]:empty:not(:focus)::before,
       .task-text:empty:not(:focus)::before,

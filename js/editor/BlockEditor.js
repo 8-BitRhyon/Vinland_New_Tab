@@ -849,6 +849,13 @@ export const BlockEditor = {
         } else {
             wrapper.setAttribute('data-align', 'left');
         }
+
+        // ── Block color ──
+        if (block.color) {
+            wrapper.style.setProperty('--block-color', block.color);
+            wrapper.classList.add('has-block-color');
+        }
+
         wrapper.appendChild(dragHandle);
 
         var content;

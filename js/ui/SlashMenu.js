@@ -67,6 +67,7 @@ export const SlashMenu = {
         { id: 'query',     label: 'Query (Dataview)', icon: '🔍',  shortcut: '/query',   category: 'media', action: function() {
             if (window.BlockEditor) window.BlockEditor.insertBlock('query', 'LIST FROM #tasks');
         }},
+        { id: 'color',     label: 'Block Color',       icon: '🎨',  shortcut: '/color',   category: 'media' },
 
         // Insert
         { id: 'cmd_time',    label: 'Insert Time',       icon: '🕒', shortcut: '/time',    category: 'insert' },
@@ -392,6 +393,14 @@ export const SlashMenu = {
              currentText = currentText.replace(/\/[\w-]*$/, '').trim();
         }
 
+        // Color — shows color palette and exits
+        if (cmdId === 'color') {
+            this.filterQuery = '';
+            this.hide();
+            this._showColorPalette(block, page);
+            return;
+        }
+
         // Canvas — creates a new note and exits
         if (cmdId === 'canvas') {
             const title = 'Untitled Canvas';
@@ -536,5 +545,97 @@ export const SlashMenu = {
         } else {
              BlockEditor.focusBlock(block.id);
         }
+    },
+
+    // ── Color palette popover ────────────────────────────────
+    COLORS: [
+        { label: 'Default',     value: '' },
+        { label: 'Red',         value: '#e03e3e' },
+        { label: 'Orange',      value: '#e0913e' },
+        { label: 'Yellow',      value: '#dfe03e' },
+        { label: 'Green',       value: '#3ee05a' },
+        { label: 'Teal',        value: '#3ee0c0' },
+        { label: 'Blue',        value: '#3e7ee0' },
+        { label: 'Purple',      value: '#8e3ee0' },
+        { label: 'Pink',        value: '#e03e8e' },
+        { label: 'Gray',        value: '#8e8e96' },
+    ],
+
+    _showColorPalette: function(block, page) {
+        var self = this;
+
+        // Remove any existing palette
+        var old = document.getElementById('color-palette-popover');
+        if (old) old.remove();
+
+        var palette = document.createElement('div');
+        palette.id = 'color-palette-popover';
+        palette.className = 'color-palette-popover';
+
+        // Title
+        var title = document.createElement('div');
+        title.className = 'color-palette-title';
+        title.textContent = 'Block Color';
+        palette.appendChild(title);
+
+        // Color swatches grid
+        var grid = document.createElement('div');
+        grid.className = 'color-palette-grid';
+
+        this.COLORS.forEach(function(c) {
+            var swatch = document.createElement('button');
+            swatch.className = 'color-swatch';
+            swatch.setAttribute('data-color', c.value);
+            swatch.title = c.label;
+
+            if (c.value) {
+                swatch.style.backgroundColor = c.value;
+            } else {
+                swatch.classList.add('color-swatch-default');
+                swatch.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16"><line x1="3" y1="3" x2="13" y2="13" stroke="#666" stroke-width="2"/><line x1="13" y1="3" x2="3" y2="13" stroke="#666" stroke-width="2"/></svg>';
+            }
+
+            // Highlight current color
+            if (block.color === c.value) {
+                swatch.classList.add('active');
+            }
+
+            swatch.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var color = this.getAttribute('data-color');
+                PageManager.updateBlock(page.id, block.id, { color: color || undefined });
+                PageManager.syncContent(page.id);
+                if (window.saveData) saveData();
+                if (window.BlockEditor) window.BlockEditor.render(page.id);
+                palette.remove();
+            });
+
+            grid.appendChild(swatch);
+        });
+
+        palette.appendChild(grid);
+
+        // Position near the block
+        var blockEl = document.querySelector('[data-block-id="' + block.id + '"]');
+        if (blockEl) {
+            var rect = blockEl.getBoundingClientRect();
+            palette.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+            palette.style.left = (rect.left + window.scrollX) + 'px';
+        } else {
+            palette.style.top = '50%';
+            palette.style.left = '50%';
+        }
+
+        document.body.appendChild(palette);
+
+        // Click outside to close
+        setTimeout(function() {
+            document.addEventListener('click', function _closePalette(e) {
+                if (!palette.contains(e.target)) {
+                    palette.remove();
+                    document.removeEventListener('click', _closePalette);
+                }
+            });
+        }, 0);
     }
 };
