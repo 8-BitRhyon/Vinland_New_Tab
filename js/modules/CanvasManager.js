@@ -2592,6 +2592,9 @@ export const CanvasManager = {
     _routeWikiLinks: function(textNodeId, createFileNodes) {
         if (createFileNodes === undefined) createFileNodes = true;
 
+        // Save undo state before any modifications
+        this._saveHistoryState();
+
         var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.nodes) return;
 
