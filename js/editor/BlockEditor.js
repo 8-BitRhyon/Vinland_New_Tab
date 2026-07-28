@@ -661,6 +661,9 @@ export const BlockEditor = {
             this._initFindBar();
         }
 
+        // Update stats
+        this._updateStats(page);
+
         // Apply find highlights if find mode is active
         if (this._findState.query) {
             var self = this;
@@ -673,6 +676,47 @@ export const BlockEditor = {
         if (this.focusedBlockId && !skipFocus) this.focusBlock(this.focusedBlockId);
     },
     
+    _updateStats: function(page) {
+        if (!page || !page.blocks) return;
+        var totalWords = 0;
+        var totalChars = 0;
+        var blockCount = page.blocks.length;
+
+        page.blocks.forEach(function(b) {
+            if (b.content) {
+                totalChars += b.content.length;
+                var words = b.content.trim() ? b.content.trim().split(/\s+/).length : 0;
+                totalWords += words;
+            }
+        });
+
+        var rawReadTime = Math.round(totalWords / 200);
+
+        var wordEl = document.getElementById('stat-word-count');
+        var charEl = document.getElementById('stat-char-count');
+        var blockEl = document.getElementById('stat-block-count');
+        var timeEl = document.getElementById('stat-reading-time');
+        var editedEl = document.getElementById('stat-last-edited');
+
+        if (wordEl) wordEl.textContent = totalWords.toLocaleString() + ' words';
+        if (charEl) charEl.textContent = totalChars.toLocaleString() + ' chars';
+        if (blockEl) blockEl.textContent = blockCount + ' block' + (blockCount !== 1 ? 's' : '');
+        if (timeEl) timeEl.textContent = (rawReadTime > 0 ? rawReadTime : '<1') + ' min read';
+        if (editedEl) {
+            var modified = page.modified;
+            var created = page.created;
+            if (modified) {
+                var d = new Date(modified);
+                editedEl.textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } else if (created) {
+                var d = new Date(created);
+                editedEl.textContent = 'Created ' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            } else {
+                editedEl.textContent = '--';
+            }
+        }
+    },
+
     duplicateBlock: function(blockId) {
         HistoryManager.push(this.activePageId);
         var page = State.NOTES.find(function(n) { return n.id === this.activePageId; }.bind(this));

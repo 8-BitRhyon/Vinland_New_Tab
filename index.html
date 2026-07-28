@@ -7948,6 +7948,28 @@
       }
 
       /* .2: Tags Bar (replaces footer) */
+      .editor-stats-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 16px;
+        min-height: 24px;
+        background: color-mix(in srgb, var(--main-color) 2%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--main-color) 6%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--main-color) 6%, transparent);
+      }
+      .stat-item {
+        font-size: 0.6rem;
+        color: var(--dim-color, #555);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .stat-divider {
+        width: 1px;
+        height: 10px;
+        background: color-mix(in srgb, var(--main-color) 10%, transparent);
+      }
+
       .editor-tags-bar {
         padding: 6px 16px;
         min-height: 28px;
@@ -12789,6 +12811,19 @@
           <div id="note-preview" class="note-preview"></div>
           <!-- V105: Canvas Integration -->
           <div id="canvas-container" class="canvas-container"></div>
+          
+          <!-- Stats bar -->
+          <div class="editor-stats-bar" id="editor-stats-bar">
+            <span class="stat-item" id="stat-word-count">0 words</span>
+            <span class="stat-divider"></span>
+            <span class="stat-item" id="stat-char-count">0 chars</span>
+            <span class="stat-divider"></span>
+            <span class="stat-item" id="stat-block-count">0 blocks</span>
+            <span class="stat-divider"></span>
+            <span class="stat-item" id="stat-reading-time">0 min read</span>
+            <span class="stat-divider"></span>
+            <span class="stat-item" id="stat-last-edited">--</span>
+          </div>
           
           <!-- V63.2: Tags bar (replaces footer) -->
           <div class="editor-tags-bar">
