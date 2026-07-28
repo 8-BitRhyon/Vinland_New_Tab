@@ -1701,6 +1701,7 @@ export const SettingsUI = {
             }
 
             // Update per-tab match count badges in nav items
+            if (!self._prevTabCounts) self._prevTabCounts = {};
             tabs.forEach(function(tab, index) {
                 var navItem = navItems[index];
                 if (!navItem) return;
@@ -1711,15 +1712,20 @@ export const SettingsUI = {
                     if (tabCount > 0) {
                         badge.textContent = tabCount.toString();
                         badge.classList.add('visible');
-                        // Trigger pop animation
-                        badge.classList.remove('pop');
+                        // Trigger pop animation, or pop-up if count increased on active tab
+                        var prevCount = self._prevTabCounts[index] || 0;
+                        var increased = tabCount > prevCount;
+                        var isActive = navItem.classList.contains('active');
+                        badge.classList.remove('pop', 'pop-up');
                         void badge.offsetWidth;
-                        badge.classList.add('pop');
+                        badge.classList.add(increased && isActive ? 'pop-up' : 'pop');
                     } else {
                         badge.classList.remove('visible');
                     }
+                    self._prevTabCounts[index] = tabCount;
                 } else {
                     badge.classList.remove('visible');
+                    self._prevTabCounts[index] = 0;
                 }
             });
         }

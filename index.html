@@ -4137,6 +4137,16 @@
         animation: config-badge-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
 
+      .config-nav-match-count.pop-up {
+        animation: config-badge-pop-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      @keyframes config-badge-pop-up {
+        0%   { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--main-color) 0%, transparent); }
+        50%  { transform: scale(1.4); box-shadow: 0 0 10px 3px color-mix(in srgb, var(--main-color) 50%, transparent); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--main-color) 0%, transparent); }
+      }
+
       @keyframes config-hl-in {
         from { opacity: 0; }
         to   { opacity: 1; }
