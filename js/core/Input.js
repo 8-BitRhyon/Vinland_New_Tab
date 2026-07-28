@@ -74,7 +74,7 @@ export function initKeyboardShortcuts() {
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
             e.preventDefault();
             e.stopPropagation();
-            if (window.QuickOpen) window.QuickOpen.open(true);
+            if (window.QuickOpen) window.QuickOpen.openResultsPage('');
             return;
         }
     }, true);

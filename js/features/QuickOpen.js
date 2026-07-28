@@ -880,6 +880,729 @@ export const QuickOpen = {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FULL-PAGE SEARCH RESULTS VIEW
+    // ═══════════════════════════════════════════════════════════════
+
+    _resultsPageOpen: false,
+    _resultsPageFilter: 'all', // 'all' | 'notes' | 'tags' | 'commands'
+    _filteredResults: null,
+
+    /**
+     * Open the full-page search results overlay (Cmd+Shift+F)
+     * @param {string} query - Optional initial query
+     */
+    openResultsPage: function (query) {
+        if (this._resultsPageOpen) return;
+
+        // Close the popup if open
+        if (this.isOpen) this.close();
+
+        this._injectResultsPageStyles();
+
+        var overlay = document.getElementById('srp-overlay');
+        if (!overlay) {
+            overlay = this._injectResultsPageDOM();
+        }
+
+        overlay.classList.add('active');
+        this._resultsPageOpen = true;
+        this.selectedIndex = 0;
+        this.results = [];
+        this.currentQuery = '';
+        this._resultsPageFilter = 'all';
+
+        var input = document.getElementById('srp-input');
+        if (input) {
+            input.value = query || '';
+            input.focus();
+            if (query) {
+                this._executeSearch(query);
+                this._renderResultsPage();
+            } else {
+                this._showResultsPagePrompt();
+            }
+        }
+
+        // Bind keyboard
+        this._bindResultsPageEvents();
+    },
+
+    /**
+     * Inject results page DOM elements
+     */
+    _injectResultsPageDOM: function () {
+        var existing = document.getElementById('srp-overlay');
+        if (existing) return existing;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'srp-overlay';
+        overlay.className = 'srp-overlay';
+
+        var header = document.createElement('div');
+        header.className = 'srp-header';
+
+        var titleRow = document.createElement('div');
+        titleRow.className = 'srp-title-row';
+
+        var icon = document.createElement('span');
+        icon.className = 'srp-title-icon';
+        icon.textContent = '\uD83D\uDD0D'; // magnifying glass
+        titleRow.appendChild(icon);
+
+        var input = document.createElement('input');
+        input.id = 'srp-input';
+        input.type = 'text';
+        input.placeholder = 'Search notes, content, tags, and commands...';
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        titleRow.appendChild(input);
+
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'srp-close-btn';
+        closeBtn.textContent = 'ESC';
+        closeBtn.setAttribute('aria-label', 'Close search');
+        var self = this;
+        closeBtn.onclick = function () { self._closeResultsPage(); };
+        titleRow.appendChild(closeBtn);
+
+        header.appendChild(titleRow);
+
+        // Filter bar
+        var filterBar = document.createElement('div');
+        filterBar.className = 'srp-filter-bar';
+
+        var filters = ['all', 'notes', 'tags', 'commands'];
+        filters.forEach(function (f) {
+            var btn = document.createElement('button');
+            btn.className = 'srp-filter-btn' + (f === 'all' ? ' active' : '');
+            btn.setAttribute('data-filter', f);
+            btn.textContent = f.charAt(0).toUpperCase() + f.slice(1);
+            btn.onclick = function () {
+                self._resultsPageFilter = f;
+                self._renderResultsPage();
+            };
+            filterBar.appendChild(btn);
+        });
+
+        header.appendChild(filterBar);
+        overlay.appendChild(header);
+
+        // Results container
+        var results = document.createElement('div');
+        results.id = 'srp-results';
+        results.className = 'srp-results';
+        overlay.appendChild(results);
+
+        // Footer
+        var footer = document.createElement('div');
+        footer.className = 'srp-footer';
+        footer.innerHTML = '<span class="srp-footer-hint"><kbd>\u2191</kbd><kbd>\u2193</kbd> navigate  <kbd>\u21E7</kbd><kbd>\u2191</kbd><kbd>\u2193</kbd> jump sections  <kbd>\u23CE</kbd> open  <kbd>Esc</kbd> close</span><span class="srp-footer-count" id="srp-footer-count"></span>';
+        overlay.appendChild(footer);
+
+        // Click backdrop to close
+        overlay.addEventListener('mousedown', function (e) {
+            if (e.target === overlay) {
+                self._closeResultsPage();
+            }
+        });
+
+        document.body.appendChild(overlay);
+        return overlay;
+    },
+
+    /**
+     * Inject results page styles (one-time)
+     */
+    _injectResultsPageStyles: function () {
+        if (document.getElementById('srp-styles')) return;
+        var style = document.createElement('style');
+        style.id = 'srp-styles';
+        style.textContent = `
+            .srp-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                z-index: 27000;
+                background: rgba(0, 0, 0, 0.85);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                flex-direction: column;
+                align-items: center;
+                padding: 40px 20px;
+            }
+            .srp-overlay.active {
+                display: flex;
+            }
+            .srp-header {
+                width: 100%;
+                max-width: 800px;
+                background: rgba(10, 10, 10, 0.95);
+                border: 1px solid var(--main-color, #00ff41);
+                border-radius: 8px 8px 0 0;
+                box-shadow: 0 0 30px rgba(var(--main-color-rgb, 0, 255, 65), 0.08);
+            }
+            .srp-title-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 16px 20px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            .srp-title-icon {
+                font-size: 1.2rem;
+                opacity: 0.6;
+            }
+            .srp-title-row input {
+                flex: 1;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: var(--main-color, #00ff41);
+                font-family: var(--font-main, monospace);
+                font-size: 1.1rem;
+                letter-spacing: 0.5px;
+            }
+            .srp-title-row input::placeholder {
+                color: #555;
+                font-style: italic;
+            }
+            .srp-close-btn {
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 4px;
+                color: #888;
+                cursor: pointer;
+                font-size: 0.6rem;
+                font-family: var(--font-main, monospace);
+                padding: 4px 10px;
+                letter-spacing: 1px;
+                transition: all 0.1s ease;
+            }
+            .srp-close-btn:hover {
+                background: rgba(255, 68, 68, 0.15);
+                border-color: rgba(255, 68, 68, 0.3);
+                color: #ff5555;
+            }
+            .srp-filter-bar {
+                display: flex;
+                gap: 4px;
+                padding: 8px 20px;
+                background: rgba(0, 0, 0, 0.3);
+            }
+            .srp-filter-btn {
+                background: transparent;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                color: #666;
+                cursor: pointer;
+                font-size: 0.65rem;
+                font-family: var(--font-main, monospace);
+                padding: 3px 12px;
+                transition: all 0.12s ease;
+                letter-spacing: 0.5px;
+            }
+            .srp-filter-btn:hover {
+                color: #aaa;
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+            .srp-filter-btn.active {
+                color: var(--main-color, #00ff41);
+                border-color: rgba(var(--main-color-rgb, 0, 255, 65), 0.4);
+                background: rgba(var(--main-color-rgb, 0, 255, 65), 0.1);
+            }
+            .srp-results {
+                width: 100%;
+                max-width: 800px;
+                flex: 1;
+                overflow-y: auto;
+                background: rgba(10, 10, 10, 0.92);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-top: none;
+                border-radius: 0 0 8px 8px;
+                padding: 4px 0;
+                scrollbar-width: thin;
+                scrollbar-color: var(--main-color, #00ff41) transparent;
+            }
+            .srp-results::-webkit-scrollbar {
+                width: 6px;
+            }
+            .srp-results::-webkit-scrollbar-thumb {
+                background: var(--main-color, #00ff41);
+                border-radius: 3px;
+            }
+            .srp-results::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .srp-section-header {
+                padding: 10px 20px 4px;
+                font-size: 0.6rem;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                color: var(--secondary-color, #888);
+                opacity: 0.5;
+                pointer-events: none;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+                margin: 0 4px 2px;
+                padding-bottom: 6px;
+            }
+            .srp-section-count {
+                font-size: 0.55rem;
+                opacity: 0.6;
+            }
+            .srp-result {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 8px 20px;
+                cursor: pointer;
+                transition: background 0.08s ease;
+                border-left: 3px solid transparent;
+                margin: 0 4px;
+                border-radius: 4px;
+            }
+            .srp-result:hover,
+            .srp-result.selected {
+                background: rgba(var(--main-color-rgb, 0, 255, 65), 0.08);
+                border-left-color: var(--main-color, #00ff41);
+            }
+            .srp-result.selected {
+                background: rgba(var(--main-color-rgb, 0, 255, 65), 0.15);
+            }
+            .srp-result-icon {
+                flex-shrink: 0;
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.85rem;
+                opacity: 0.5;
+                border-radius: 4px;
+                background: rgba(255, 255, 255, 0.04);
+            }
+            .srp-result.selected .srp-result-icon {
+                opacity: 0.8;
+            }
+            .srp-result-body {
+                flex: 1;
+                min-width: 0;
+            }
+            .srp-result-title {
+                font-size: 0.85rem;
+                color: var(--main-color, #00ff41);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 500;
+            }
+            .srp-result-meta {
+                font-size: 0.6rem;
+                color: var(--secondary-color, #888);
+                font-family: var(--font-secondary, monospace);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin-top: 1px;
+                opacity: 0.6;
+            }
+            .srp-result-excerpt {
+                font-size: 0.65rem;
+                color: var(--dim-color, #555);
+                font-family: var(--font-secondary, monospace);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-style: italic;
+                margin-top: 2px;
+                opacity: 0.7;
+            }
+            .srp-result-excerpt strong {
+                color: var(--main-color, #00ff41);
+                font-weight: bold;
+                font-style: normal;
+            }
+            .srp-empty {
+                padding: 40px 20px;
+                text-align: center;
+                color: #555;
+                font-size: 0.85rem;
+            }
+            .srp-empty strong {
+                color: var(--secondary-color, #888);
+            }
+            .srp-footer {
+                width: 100%;
+                max-width: 800px;
+                padding: 8px 20px;
+                background: rgba(0, 0, 0, 0.4);
+                border: 1px solid rgba(255, 255, 255, 0.04);
+                border-top: none;
+                border-radius: 0 0 8px 8px;
+                font-size: 0.55rem;
+                color: #444;
+                display: flex;
+                justify-content: space-between;
+                font-family: var(--font-secondary, monospace);
+            }
+            .srp-footer-hint kbd {
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+                padding: 1px 4px;
+                font-family: var(--font-main, monospace);
+                font-size: 0.5rem;
+                color: var(--secondary-color, #888);
+                margin: 0 2px;
+            }
+            .srp-footer-count {
+                color: var(--secondary-color, #888);
+                opacity: 0.5;
+            }
+            .srp-prompt {
+                padding: 48px 20px;
+                text-align: center;
+            }
+            .srp-prompt-icon {
+                font-size: 2rem;
+                opacity: 0.15;
+                margin-bottom: 12px;
+            }
+            .srp-prompt-text {
+                color: #555;
+                font-size: 0.85rem;
+            }
+            .srp-prompt-hint {
+                color: #444;
+                font-size: 0.65rem;
+                margin-top: 6px;
+            }
+        `;
+        document.head.appendChild(style);
+    },
+
+    /**
+     * Show empty search prompt in results page
+     */
+    _showResultsPagePrompt: function () {
+        var container = document.getElementById('srp-results');
+        if (!container) return;
+        container.innerHTML = '';
+        var prompt = document.createElement('div');
+        prompt.className = 'srp-prompt';
+        prompt.innerHTML = '<div class="srp-prompt-icon">\uD83D\uDD0D</div>' +
+            '<div class="srp-prompt-text">Type to search across all notes, tags, and commands</div>' +
+            '<div class="srp-prompt-hint">Results appear as you type &mdash; press <kbd>\u2191</kbd><kbd>\u2193</kbd> to navigate, <kbd>\u23CE</kbd> to open</div>';
+        container.appendChild(prompt);
+        var footer = document.getElementById('srp-footer-count');
+        if (footer) footer.textContent = '';
+    },
+
+    /**
+     * Render results into the full-page overlay with highlighting
+     */
+    _renderResultsPage: function () {
+        var container = document.getElementById('srp-results');
+        var footer = document.getElementById('srp-footer-count');
+        if (!container) return;
+
+        container.innerHTML = '';
+        var filter = this._resultsPageFilter;
+        var results = this.results;
+
+        // Apply filter and store filtered results for index-safe activation
+        if (filter !== 'all') {
+            var filterType = filter === 'notes' ? 'note' : filter === 'tags' ? 'tag' : 'command';
+            this._filteredResults = results.filter(function (r) { return r.type === filterType; });
+            results = this._filteredResults;
+        } else {
+            this._filteredResults = this.results;
+        }
+
+        if (results.length === 0) {
+            container.innerHTML = '<div class="srp-empty">No results found for <strong>' +
+                this._escapeHtml(this.currentQuery || '') + '</strong></div>';
+            if (footer) footer.textContent = '0 results';
+            return;
+        }
+
+        var self = this;
+        var globalIdx = 0;
+        this.sections = [];
+
+        var visibleTypes = ['notes', 'canvas-nodes', 'tags', 'commands'];
+        visibleTypes.forEach(function (sectionType) {
+            var typeResults = results.filter(function (r) {
+                if (sectionType === 'notes') return r.type === 'note';
+                if (sectionType === 'canvas-nodes') return r.type === 'canvas-node';
+                if (sectionType === 'tags') return r.type === 'tag';
+                if (sectionType === 'commands') return r.type === 'command';
+                return false;
+            });
+
+            if (typeResults.length === 0) return;
+
+            self.sections.push({ type: sectionType, start: globalIdx, count: typeResults.length });
+
+            var header = document.createElement('div');
+            header.className = 'srp-section-header';
+            var headerLabels = {
+                'notes': '\uD83D\uDCDD Notes',
+                'canvas-nodes': '\u2B21 Canvas',
+                'tags': '\uD83C\uDFF7 Tags',
+                'commands': '\u2328 Commands'
+            };
+            header.innerHTML = '<span>' + (headerLabels[sectionType] || sectionType) + '</span>' +
+                '<span class="srp-section-count">' + typeResults.length + '</span>';
+            container.appendChild(header);
+
+            typeResults.forEach(function (result) {
+                var el = document.createElement('div');
+                el.className = 'srp-result' + (self.selectedIndex === globalIdx ? ' selected' : '');
+                el.setAttribute('data-result-index', globalIdx);
+
+                // Icon
+                var icon = document.createElement('span');
+                icon.className = 'srp-result-icon';
+                if (result.type === 'note') {
+                    icon.textContent = result.recent ? '\u23F0' : '\uD83D\uDCC4';
+                } else if (result.type === 'canvas-node') {
+                    icon.textContent = '\u2B21';
+                } else if (result.type === 'tag') {
+                    icon.textContent = '#';
+                } else {
+                    icon.textContent = '>';
+                }
+                el.appendChild(icon);
+
+                // Body
+                var body = document.createElement('div');
+                body.className = 'srp-result-body';
+
+                var title = document.createElement('div');
+                title.className = 'srp-result-title';
+                title.textContent = result.title || result.name || 'Untitled';
+                body.appendChild(title);
+
+                var meta = document.createElement('div');
+                meta.className = 'srp-result-meta';
+                if (result.type === 'note') {
+                    meta.textContent = result.path || '/';
+                } else if (result.type === 'canvas-node') {
+                    meta.textContent = 'in ' + (result.path || 'Untitled');
+                } else if (result.type === 'tag') {
+                    meta.textContent = result.count + ' note' + (result.count !== 1 ? 's' : '');
+                } else {
+                    meta.textContent = result.trigger + ' \u2014 ' + result.title;
+                }
+                body.appendChild(meta);
+
+                // Excerpt with highlighted query
+                if (result.excerpt) {
+                    var excerpt = document.createElement('div');
+                    excerpt.className = 'srp-result-excerpt';
+                    var escapedExcerpt = self._escapeHtml(result.excerpt);
+                    if (self.currentQuery) {
+                        var qEscaped = self._escapeHtml(self.currentQuery);
+                        var regex = new RegExp('(' + qEscaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                        escapedExcerpt = escapedExcerpt.replace(regex, '<strong>$1</strong>');
+                    }
+                    excerpt.innerHTML = escapedExcerpt;
+                    body.appendChild(excerpt);
+                }
+
+                el.appendChild(body);
+
+                // Store result ref for filter-safe activation
+                el._srpResult = result;
+
+                // Click handler
+                el.onclick = function () {
+                    self.selectedIndex = parseInt(el.getAttribute('data-result-index'), 10);
+                    self._activateResultsPage(el);
+                };
+                el.onmouseenter = function () {
+                    self.selectedIndex = parseInt(el.getAttribute('data-result-index'), 10);
+                    self._updateResultsPageSelection();
+                };
+
+                container.appendChild(el);
+                globalIdx++;
+            });
+        });
+
+        // Update filter button states
+        var filterBtns = document.querySelectorAll('.srp-filter-btn');
+        filterBtns.forEach(function (btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+        });
+
+        // Update footer
+        if (footer) {
+            footer.textContent = results.length + ' result' + (results.length !== 1 ? 's' : '');
+        }
+    },
+
+    /**
+     * Update selection highlight in results page
+     */
+    _updateResultsPageSelection: function () {
+        var items = document.querySelectorAll('#srp-results .srp-result');
+        items.forEach(function (el) {
+            var idx = parseInt(el.getAttribute('data-result-index'), 10);
+            el.classList.toggle('selected', idx === this.selectedIndex);
+            if (idx === this.selectedIndex) {
+                el.scrollIntoView({ block: 'nearest' });
+            }
+        }, this);
+    },
+
+    /**
+     * Activate the selected result in the results page
+     */
+    _activateResultsPage: function (el) {
+        var result;
+        if (el) {
+            // Use the result stored on the element for filter-safe lookup
+            result = el._srpResult;
+        } else {
+            // Keyboard Enter: use filtered results array
+            result = this._filteredResults[this.selectedIndex];
+        }
+        if (!result) return;
+        this._closeResultsPage();
+
+        switch (result.type) {
+            case 'note':
+                if (window.Notes) window.Notes.open(result.id);
+                break;
+            case 'tag':
+                if (window.Notes && window.Notes.filterByTag) {
+                    window.Notes.filterByTag(result.name.replace('#', ''));
+                } else if (window.Notes) {
+                    window.Notes.toggleSidebar();
+                }
+                break;
+            case 'command':
+                CommandRegistry.execute(result.id);
+                break;
+            case 'canvas-node':
+                if (window.Notes) {
+                    window.Notes.open(result.noteId);
+                    setTimeout(function () {
+                        if (window.CanvasManager && window.CanvasManager.load) {
+                            window.CanvasManager.load(result.noteId);
+                        }
+                        var nodeEl = document.getElementById('canvas-node-' + result.nodeId);
+                        if (nodeEl && window.CanvasManager) {
+                            nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            window.CanvasManager.clearSelection();
+                            window.CanvasManager.selectNode(result.nodeId, false);
+                        }
+                    }, 200);
+                }
+                break;
+        }
+    },
+
+    /**
+     * Close the results page
+     */
+    _closeResultsPage: function () {
+        if (!this._resultsPageOpen) return;
+        this._resultsPageOpen = false;
+
+        var overlay = document.getElementById('srp-overlay');
+        if (overlay) overlay.classList.remove('active');
+
+        this._unbindResultsPageEvents();
+        this.results = [];
+        this.sections = [];
+        this.selectedIndex = 0;
+    },
+
+    /**
+     * Bind keyboard events for results page
+     */
+    _bindResultsPageEvents: function () {
+        var self = this;
+        var input = document.getElementById('srp-input');
+        if (input) {
+            input.addEventListener('input', this._onResultsPageInput.bind(this));
+        }
+
+        this._resultsPageKeyHandler = function (e) {
+            if (!self._resultsPageOpen) return;
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    self.selectedIndex = Math.min(self.selectedIndex + 1, self.results.length - 1);
+                    self._updateResultsPageSelection();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    self.selectedIndex = Math.max(self.selectedIndex - 1, 0);
+                    self._updateResultsPageSelection();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    if (self._filteredResults && self._filteredResults[self.selectedIndex]) {
+                        self._activateResultsPage();
+                    }
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    self._closeResultsPage();
+                    break;
+            }
+        };
+        document.addEventListener('keydown', this._resultsPageKeyHandler);
+    },
+
+    /**
+     * Handle input in results page search field (debounced)
+     */
+    _onResultsPageInput: function () {
+        var self = this;
+        var input = document.getElementById('srp-input');
+        if (!input) return;
+
+        var query = input.value.trim();
+
+        if (self._resultsPageTimer) {
+            clearTimeout(self._resultsPageTimer);
+        }
+
+        if (!query) {
+            self.currentQuery = '';
+            self._showResultsPagePrompt();
+            return;
+        }
+
+        self._resultsPageTimer = setTimeout(function () {
+            self._executeSearch(query);
+            self._renderResultsPage();
+        }, 150);
+    },
+
+    /**
+     * Unbind results page keyboard events
+     */
+    _unbindResultsPageEvents: function () {
+        if (this._resultsPageKeyHandler) {
+            document.removeEventListener('keydown', this._resultsPageKeyHandler);
+            this._resultsPageKeyHandler = null;
+        }
+        if (this._resultsPageTimer) {
+            clearTimeout(this._resultsPageTimer);
+            this._resultsPageTimer = null;
+        }
     }
 };
 

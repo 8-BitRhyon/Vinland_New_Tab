@@ -896,6 +896,29 @@ export const CanvasManager = {
                     background: rgba(255, 255, 255, 0.08);
                     margin: 3px 8px;
                 }
+
+                /* ── Edge hover glow ── */
+                .canvas-edge {
+                    transition: stroke-width 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
+                    cursor: pointer;
+                }
+                .canvas-edge:hover {
+                    stroke-width: 2.5 !important;
+                    opacity: 1 !important;
+                    filter: drop-shadow(0 0 6px var(--main-color, #00ff41));
+                }
+                .canvas-edge-label-hint {
+                    opacity: 0;
+                    transition: opacity 0.12s ease;
+                    pointer-events: none;
+                    cursor: pointer;
+                }
+                .canvas-edge-label-hint.visible {
+                    opacity: 0.6;
+                }
+                .canvas-edge-label-hint.visible:hover {
+                    opacity: 1;
+                }
             `;
             document.head.appendChild(fbStyle);
         }
