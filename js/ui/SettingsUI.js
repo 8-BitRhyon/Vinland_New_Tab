@@ -240,10 +240,32 @@ export const SettingsUI = {
             var isOpen = ModalManager.stack.includes('config-modal') || (configModal && configModal.classList.contains('active'));
             if (!isOpen) return;
 
-            // Ignore if focus is in an input field (so we don't block cursor movement/typing)
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            // Determine if EventTarget is an input field — shortcuts that are safe to use
+            // while typing will check this individually instead of returning early.
+            var isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
 
-            // Cmd/Ctrl + S: save config
+            // Escape: if search input is focused and has text, clear it first.
+            // Otherwise, ModalManager's global Escape handler closes the modal.
+            if (e.key === 'Escape') {
+                var searchInput = document.getElementById('config-search-input');
+                if (searchInput && document.activeElement === searchInput && searchInput.value.trim().length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Trigger clear button click to reset the filter
+                    var clearBtn = document.getElementById('config-search-clear');
+                    if (clearBtn) clearBtn.click();
+                    return;
+                }
+            }
+
+            // Cmd/Ctrl + W: close settings (works even when focused on an input)
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'w') {
+                e.preventDefault();
+                if (self.close) self.close();
+                return;
+            }
+
+            // Cmd/Ctrl + S: save config (allowed even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
                 e.preventDefault();
                 if (CONFIG_DIRTY) {
@@ -256,7 +278,7 @@ export const SettingsUI = {
                 return;
             }
 
-            // Cmd/Ctrl + 1-6: switch to tab by index
+            // Cmd/Ctrl + 1-6: switch to tab by index (allowed even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '6') {
                 e.preventDefault();
                 var idx = parseInt(e.key) - 1;
@@ -267,7 +289,7 @@ export const SettingsUI = {
                 return;
             }
 
-            // Cmd/Ctrl + F: focus search input
+            // Cmd/Ctrl + F: focus search input (allowed even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
                 e.preventDefault();
                 var searchInput = document.getElementById('config-search-input');
@@ -277,6 +299,9 @@ export const SettingsUI = {
                 }
                 return;
             }
+
+            // Remaining shortcuts require NOT being in an input field
+            if (isInput) return;
 
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                 var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
@@ -611,6 +636,10 @@ export const SettingsUI = {
             console.log('[SettingsUI] Saving from RAW JSON');
             var rawInput = document.getElementById('cfg-json-dump');
             if (rawInput) {
+                // Confirm before applying raw JSON (destructive operation)
+                if (!confirm('Apply raw JSON config? This will overwrite ALL settings.')) {
+                    return;
+                }
                 try {
                     var newConfig = JSON.parse(rawInput.value);
                     State.CONFIG = Object.assign(State.CONFIG, newConfig);

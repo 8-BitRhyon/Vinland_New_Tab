@@ -37,9 +37,21 @@ export function initKeyboardShortcuts() {
     if (TabManager && TabManager.init) TabManager.init();
     // PageActions.init() removed - called in boot.js
 
-    // Capture-phase: CMD+P (Quick Open) - must be before notes-specific shortcuts
+    // Capture-phase: CMD+P — Quick Open (default), or Toggle Pin when notes editor is active
     document.addEventListener('keydown', function(e) {
         if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'p') {
+            var isNotesActive = ModalManager && ModalManager.stack && ModalManager.stack.includes('note-editor-modal');
+            if (isNotesActive) {
+                // Forward to the bubble-phase Toggle Pin handler by NOT stopping propagation
+                // Just prevent the default Quick Open behavior
+                e.preventDefault();
+                var Notes = window.Notes;
+                if (Notes && Notes.togglePin) {
+                    Notes.togglePin();
+                    e.stopPropagation();
+                }
+                return;
+            }
             e.preventDefault();
             e.stopPropagation();
             if (window.QuickOpen) window.QuickOpen.toggle();
@@ -107,12 +119,13 @@ export function initKeyboardShortcuts() {
         }
     }, true);
 
-    // Capture-phase: CMD+Shift+Q (Dataview Query)
+    // Capture-phase: CMD+Shift+Q (Dataview Query) — was duplicated (line + ~40 lines below), 
+    // second copy removed and this one fixed to actually call DataviewQuery
     document.addEventListener('keydown', function(e) {
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'q') {
             e.preventDefault();
             e.stopPropagation();
-            if (window.QuickCapture) window.QuickCapture.open();
+            if (window.DataviewQuery) window.DataviewQuery.open();
             return;
         }
     }, true);
@@ -134,16 +147,6 @@ export function initKeyboardShortcuts() {
             e.preventDefault();
             e.stopPropagation();
             if (window.VersionHistoryManager) window.VersionHistoryManager.openModal();
-            return;
-        }
-    }, true);
-
-    // Capture-phase: CMD+Shift+Q (Quick Capture)
-    document.addEventListener('keydown', function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'q') {
-            e.preventDefault();
-            e.stopPropagation();
-            if (window.DataviewQuery) window.DataviewQuery.open();
             return;
         }
     }, true);
@@ -207,14 +210,6 @@ export function initKeyboardShortcuts() {
                 return;
             }
 
-            // CMD+P: Toggle Pin
-            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'p') {
-                e.preventDefault();
-                Notes = window.Notes;
-                if (Notes && Notes.togglePin) Notes.togglePin();
-                return;
-            }
-            
             // CMD+SHIFT+P: Focus Path Input
             if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
                 e.preventDefault();
@@ -299,6 +294,18 @@ export function initKeyboardShortcuts() {
             e.preventDefault();
             var cmdInput2 = document.getElementById('cmd-input');
             if (cmdInput2) cmdInput2.focus();
+            return;
+        }
+    }, true);
+
+    // Capture-phase: CMD+, (Settings)
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.SettingsUI && window.SettingsUI.toggleConfig) {
+                window.SettingsUI.toggleConfig();
+            }
             return;
         }
     }, true);
