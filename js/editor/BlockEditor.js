@@ -664,6 +664,9 @@ export const BlockEditor = {
         // Update stats
         this._updateStats(page);
 
+        // Render local graph
+        this._renderLocalGraph(pageId);
+
         // Apply find highlights if find mode is active
         if (this._findState.query) {
             var self = this;
@@ -750,7 +753,162 @@ export const BlockEditor = {
             sel.removeAllRanges();
             sel.addRange(range);
         }
-    },    // ─── SELECTION ───
+    },
+
+    // ─── LOCAL GRAPH ───
+
+    _renderLocalGraph: function(noteId) {
+        if (typeof d3 === 'undefined') return;
+        // Stop previous simulation to prevent CPU leak on re-render
+        if (this._localGraphSim) this._localGraphSim.stop();
+        var svg = document.getElementById('local-graph-svg');
+        var emptyEl = document.getElementById('local-graph-empty');
+        var countEl = document.getElementById('local-graph-count');
+        if (!svg) return;
+
+        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        if (!note) return;
+
+        // Gather connected notes: backlinks + forward links
+        var connectedIds = new Set();
+        var connectedNotes = [];
+
+        // Backlinks (notes that link TO this note)
+        if (window.MetadataCache && window.MetadataCache.getBacklinks) {
+            var backlinkData = window.MetadataCache.getBacklinks(noteId);
+            backlinkData.forEach(function(m) {
+                if (m.id && m.id !== noteId && !connectedIds.has(m.id)) {
+                    connectedIds.add(m.id);
+                    var n = State.NOTES.find(function(x) { return x.id === m.id; });
+                    if (n) connectedNotes.push({ id: n.id, name: n.title || 'Untitled', direction: 'incoming' });
+                }
+            });
+        }
+
+        // Forward links (notes this note links TO) — parse [[wiki links]] from content/blocks
+        var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+        var textToSearch = '';
+        if (note.blocks && Array.isArray(note.blocks)) {
+            textToSearch = note.blocks.map(function(b) { return (b.content || ''); }).join('\n');
+        } else {
+            textToSearch = note.content || '';
+        }
+        var match;
+        while ((match = wikiLinkRegex.exec(textToSearch)) !== null) {
+            var targetTitle = match[1].trim().toLowerCase();
+            var target = State.NOTES.find(function(n) {
+                return n.title && n.title.trim().toLowerCase() === targetTitle && n.id !== noteId;
+            });
+            if (target && !connectedIds.has(target.id)) {
+                connectedIds.add(target.id);
+                connectedNotes.push({ id: target.id, name: target.title || 'Untitled', direction: 'outgoing' });
+            }
+        }
+
+        // Update count badge
+        if (countEl) {
+            countEl.textContent = connectedNotes.length > 0 ? connectedNotes.length + ' connection' + (connectedNotes.length !== 1 ? 's' : '') : '';
+        }
+
+        // Empty state
+        if (connectedNotes.length === 0) {
+            svg.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        // Build D3 nodes & links: center note + connected notes
+        var centerNote = { id: note.id, name: note.title || 'Untitled', isCenter: true };
+        var nodes = [centerNote].concat(connectedNotes);
+        var links = connectedNotes.map(function(cn) {
+            return { source: note.id, target: cn.id };
+        });
+
+        // Clear and render
+        svg.innerHTML = '';
+        var width = svg.clientWidth || 400;
+        var height = 180;
+
+        var svgSel = d3.select(svg);
+        svgSel.attr('viewBox', [0, 0, width, height]);
+
+        var g = svgSel.append('g');
+
+        var simulation = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(120))
+            .force('charge', d3.forceManyBody().strength(-200))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30));
+
+        var link = g.append('g')
+            .selectAll('line')
+            .data(links)
+            .join('line')
+            .attr('stroke', function(d) {
+                var cn = connectedNotes.find(function(n) { return n.id === (d.target.id || d.target); });
+                return cn && cn.direction === 'incoming' ? 'var(--graph-col-3, #ff0055)' : 'var(--secondary-color, #555)';
+            })
+            .attr('stroke-width', '1.5px')
+            .attr('stroke-opacity', 0.6)
+            .attr('stroke-dasharray', function(d) {
+                var cn = connectedNotes.find(function(n) { return n.id === (d.target.id || d.target); });
+                return cn && cn.direction === 'incoming' ? '4,3' : 'none';
+            });
+
+        var node = g.append('g')
+            .selectAll('g')
+            .data(nodes)
+            .join('g')
+            .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; })
+            .on('click', function(event, d) {
+                if (!d.isCenter && window.Notes && window.Notes.open) {
+                    window.Notes.open(d.id);
+                }
+            });
+
+        // Color: main color for center, graph colors for connected
+        var mainColor = 'var(--main-color, #00ff41)';
+        node.append('circle')
+            .attr('r', function(d) { return d.isCenter ? 8 : 5; })
+            .attr('fill', function(d) {
+                if (d.isCenter) return mainColor;
+                var cn = connectedNotes.find(function(n) { return n.id === d.id; });
+                return cn && cn.direction === 'incoming'
+                    ? 'var(--graph-col-3, #ff0055)'
+                    : 'var(--graph-col-2, #00e5ff)';
+            })
+            .attr('stroke', '#000')
+            .attr('stroke-width', '1px');
+
+        node.append('text')
+            .text(function(d) {
+                return d.name.length > 20 ? d.name.substring(0, 18) + '…' : d.name;
+            })
+            .attr('x', function(d) { return d.isCenter ? 12 : 9; })
+            .attr('y', 4)
+            .style('font-size', '9px')
+            .style('fill', function(d) { return d.isCenter ? 'var(--main-color, #00ff41)' : '#ccc'; })
+            .style('font-weight', function(d) { return d.isCenter ? 'bold' : 'normal'; })
+            .style('pointer-events', 'none');
+
+        simulation.on('tick', function() {
+            link
+                .attr('x1', function(d) { return d.source.x; })
+                .attr('y1', function(d) { return d.source.y; })
+                .attr('x2', function(d) { return d.target.x; })
+                .attr('y2', function(d) { return d.target.y; });
+
+            node.attr('transform', function(d) {
+                return 'translate(' + d.x + ',' + d.y + ')';
+            });
+        });
+
+        // Store simulation reference so it can be stopped if needed
+        this._localGraphSim = simulation;
+    },
+
+    // ─── SELECTION ───
     selectBlock: function(blockId, additive) {
         if (additive) {
             var idx = this.selectedBlockIds.indexOf(blockId);
