@@ -511,6 +511,75 @@ async function boot() {
   console.log("Vinland: Systems Online.");
 }
 
+// ─── Global Error Boundary ───
+window.onerror = function (msg, source, lineno, colno, error) {
+  var modal = document.getElementById('error-modal');
+  if (!modal) return;
+
+  var msgEl = document.getElementById('error-modal-msg');
+  var detailEl = document.getElementById('error-modal-detail');
+  if (msgEl) {
+    msgEl.textContent = msg || 'Unknown error';
+  }
+  if (detailEl && (source || error)) {
+    detailEl.style.display = 'block';
+    detailEl.textContent = [
+      'File: ' + (source || 'unknown'),
+      'Line: ' + (lineno || '?') + ', Col: ' + (colno || '?'),
+      error && error.stack ? 'Stack:\n' + error.stack : ''
+    ].filter(Boolean).join('\n');
+  }
+
+  // Bind Reload button
+  var reloadBtn = document.getElementById('error-modal-reload');
+  if (reloadBtn) {
+    reloadBtn.onclick = function () { location.reload(); };
+  }
+
+  if (window.ModalManager) {
+    window.ModalManager.open('error-modal');
+  } else {
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+  }
+
+  return true; // Suppress default browser error dialog
+};
+
+// ─── Promise rejection handler (unhandledrejection) ───
+window.addEventListener('unhandledrejection', function (event) {
+  var reason = event.reason;
+  var modal = document.getElementById('error-modal');
+  if (!modal) return;
+
+  var msgEl = document.getElementById('error-modal-msg');
+  var detailEl = document.getElementById('error-modal-detail');
+  if (msgEl) {
+    msgEl.textContent = reason && reason.message
+      ? 'Unhandled Promise rejection: ' + reason.message
+      : 'Unhandled Promise rejection';
+  }
+  if (detailEl && reason) {
+    detailEl.style.display = 'block';
+    detailEl.textContent = reason.stack || String(reason);
+  }
+
+  // Bind Reload button
+  var reloadBtn = document.getElementById('error-modal-reload');
+  if (reloadBtn) {
+    reloadBtn.onclick = function () { location.reload(); };
+  }
+
+  if (window.ModalManager) {
+    window.ModalManager.open('error-modal');
+  } else {
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+  }
+
+  event.preventDefault(); // Suppress default browser console warning
+});
+
 // Start
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", boot);
