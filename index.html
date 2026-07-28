@@ -885,6 +885,56 @@
       .canvas-card:active {
         cursor: grabbing;
       }
+
+      /* ── Canvas Edge (SVG path) ── */
+      .canvas-edge {
+          transition: opacity 0.15s ease, stroke-width 0.15s ease;
+      }
+      .canvas-edge:hover {
+          opacity: 1 !important;
+          stroke-width: 3 !important;
+          filter: drop-shadow(0 0 4px var(--main-color, #00ff41));
+      }
+
+      /* ── Canvas Edge Label (SVG text with pill background) ── */
+      .canvas-edge-label-bg {
+          fill: rgba(0, 0, 0, 0.85);
+          rx: 4;
+          ry: 4;
+      }
+      .canvas-edge-label {
+          fill: var(--main-color, #00ff41);
+          font-size: 11px;
+          font-family: monospace;
+          dominant-baseline: central;
+          text-anchor: middle;
+          pointer-events: all;
+          cursor: pointer;
+          transition: fill 0.15s ease;
+      }
+      .canvas-edge-label:hover {
+          fill: #fff;
+      }
+
+      /* ── Edge label hint (+, shown on hover when no label) ── */
+      .canvas-edge-label-hint {
+          fill: var(--main-color, #00ff41);
+          font-size: 14px;
+          font-family: monospace;
+          font-weight: bold;
+          text-anchor: middle;
+          dominant-baseline: central;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.15s ease;
+      }
+      .canvas-edge-label-hint.visible {
+          opacity: 0.5;
+      }
+      .canvas-edge-label-hint.visible:hover {
+          opacity: 1;
+      }
+
       .canvas-card-header {
         display: flex;
         justify-content: space-between;

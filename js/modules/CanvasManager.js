@@ -2539,42 +2539,112 @@ export const CanvasManager = {
         }
         path.setAttribute('d', d);
 
+        // ── Hover hint: show "+" on edge when no label exists ──
+        const hintId = `edge-label-hint-${edge.id}`;
+        let hintEl = document.getElementById(hintId);
+        if (!hintEl) {
+            hintEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            hintEl.id = hintId;
+            hintEl.classList.add('canvas-edge-label-hint');
+            hintEl.textContent = '+';
+            this.svgLayer.appendChild(hintEl);
+
+            // Show on hover only when no label exists (registered once)
+            const showHint = () => {
+                if (!edge.label) {
+                    hintEl.classList.add('visible');
+                }
+            };
+            const hideHint = () => {
+                hintEl.classList.remove('visible');
+            };
+            path.addEventListener('mouseenter', showHint);
+            path.addEventListener('mouseleave', hideHint);
+        }
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        hintEl.setAttribute('x', mx);
+        hintEl.setAttribute('y', my);
+
         // Render label at midpoint
         this._renderEdgeLabel(edge, x1, y1, x2, y2);
     },
 
     _renderEdgeLabel: function(edge, x1, y1, x2, y2) {
-        const labelId = `edge-label-${edge.id}`;
-        let labelEl = document.getElementById(labelId);
+        const groupId = `edge-label-group-${edge.id}`;
+        let groupEl = document.getElementById(groupId);
 
         if (!edge.label) {
-            if (labelEl) labelEl.remove();
+            if (groupEl) groupEl.remove();
             return;
         }
 
         const mx = (x1 + x2) / 2;
         const my = (y1 + y2) / 2;
 
-        if (!labelEl) {
-            labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            labelEl.id = labelId;
-            labelEl.classList.add('canvas-edge-label');
-            labelEl.setAttribute('text-anchor', 'middle');
-            labelEl.setAttribute('fill', '#aaa');
-            labelEl.setAttribute('font-size', '11');
-            labelEl.setAttribute('font-family', 'monospace');
-            labelEl.style.pointerEvents = 'all';
-            labelEl.style.cursor = 'pointer';
-            this.svgLayer.appendChild(labelEl);
+        if (!groupEl) {
+            groupEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            groupEl.id = groupId;
 
-            labelEl.addEventListener('dblclick', (e) => {
+            // Background rect (sized after text is set)
+            const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bg.classList.add('canvas-edge-label-bg');
+            bg.setAttribute('y', my - 10);
+            bg.setAttribute('height', '20');
+            groupEl.appendChild(bg);
+
+            // Label text
+            const labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            labelEl.id = `edge-label-${edge.id}`;
+            labelEl.classList.add('canvas-edge-label');
+            labelEl.setAttribute('x', mx);
+            labelEl.setAttribute('y', my);
+            labelEl.textContent = edge.label;
+            groupEl.appendChild(labelEl);
+
+            // Measure text width and set rect width
+            // Use a temp canvas for measurement
+            var tempSpan = document.createElement('span');
+            tempSpan.style.cssText = 'font-size:11px;font-family:monospace;position:absolute;visibility:hidden;white-space:nowrap;';
+            tempSpan.textContent = edge.label;
+            document.body.appendChild(tempSpan);
+            const textWidth = tempSpan.offsetWidth;
+            document.body.removeChild(tempSpan);
+
+            bg.setAttribute('x', mx - textWidth / 2 - 8);
+            bg.setAttribute('width', textWidth + 16);
+
+            this.svgLayer.appendChild(groupEl);
+
+            // Double-click to edit
+            const editHandler = (e) => {
                 e.stopPropagation();
                 this._editEdgeLabel(edge, x1, y1, x2, y2);
-            });
+            };
+            labelEl.addEventListener('dblclick', editHandler);
+            bg.addEventListener('dblclick', editHandler);
+        } else {
+            // Update existing
+            var labelEl = groupEl.querySelector('text');
+            var bg = groupEl.querySelector('rect');
+            if (labelEl && bg) {
+                labelEl.setAttribute('x', mx);
+                labelEl.setAttribute('y', my);
+                labelEl.textContent = edge.label;
+                bg.setAttribute('y', my - 10);
+
+                // Re-measure
+                var tempSpan = document.createElement('span');
+                tempSpan.style.cssText = 'font-size:11px;font-family:monospace;position:absolute;visibility:hidden;white-space:nowrap;';
+                tempSpan.textContent = edge.label;
+                document.body.appendChild(tempSpan);
+                const textWidth = tempSpan.offsetWidth;
+                document.body.removeChild(tempSpan);
+
+                bg.setAttribute('x', mx - textWidth / 2 - 8);
+                bg.setAttribute('width', textWidth + 16);
+            }
         }
-        labelEl.setAttribute('x', mx);
-        labelEl.setAttribute('y', my - 8);
-        labelEl.textContent = edge.label;
     },
 
     _editEdgeLabel: function(edge, x1, y1, x2, y2) {
@@ -2631,11 +2701,11 @@ export const CanvasManager = {
 
         note.canvasData.edges = note.canvasData.edges.filter(e => e.id !== edgeId);
 
-        // Remove SVG elements
-        const path = document.getElementById(`edge-${edgeId}`);
-        if (path) path.remove();
-        const label = document.getElementById(`edge-label-${edgeId}`);
-        if (label) label.remove();
+        // Remove SVG elements (path, label group, hover hint)
+        ['edge-', 'edge-label-group-', 'edge-label-hint-'].forEach(function(prefix) {
+            var el = document.getElementById(prefix + edgeId);
+            if (el) el.remove();
+        });
 
         this._saveData();
     },
