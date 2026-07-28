@@ -744,12 +744,12 @@ export const BlockEditor = {
     },
 
     // ─── DRAG REORDER ───
-    reorderBlock: function(draggedId, targetId) {
+    reorderBlock: function(draggedId, targetId, dropPosition) {
         var note = this._getActivePage();
         if (!note || !note.blocks) return;
         
         if (this.selectedBlockIds.length > 1 && this.selectedBlockIds.includes(draggedId)) {
-            this.reorderSelectedBlocks(targetId);
+            this.reorderSelectedBlocks(targetId, dropPosition);
             return;
         }
 
@@ -757,75 +757,59 @@ export const BlockEditor = {
         var targetIdx = note.blocks.findIndex(function(b) { return b.id === targetId; });
         if (draggedIdx === -1 || targetIdx === -1 || draggedIdx === targetIdx) return;
 
-        // FIX 2: Push to Undo Stack
         if (typeof HistoryManager !== 'undefined') HistoryManager.push(this.activePageId);
 
-        // FIX 1: Directional Drop Logic
-        var isDraggingDown = draggedIdx < targetIdx;
         var draggedBlock = note.blocks.splice(draggedIdx, 1)[0];
         
-        // Recalculate target index because array length changed
+        // Find target's new index after splice, then insert at correct position
         var newTargetIdx = note.blocks.findIndex(function(b) { return b.id === targetId; });
-        if (isDraggingDown) {
-            newTargetIdx++; // Insert AFTER the target if we dragged downwards
+        if (dropPosition === 'after') {
+            newTargetIdx++;
         }
 
         note.blocks.splice(newTargetIdx, 0, draggedBlock);
-        
-        // FIX 3: Update order properties
         PageManager.reorderBlocks(note); 
-        
         saveData();
         PageManager.syncContent(this.activePageId);
         
-        // FIX 4: Restore Focus (remove 'true')
         this.focusedBlockId = draggedId;
         this.render(this.activePageId); 
-        this.flashBlock(draggedId); // Visual feedback
+        this.flashBlock(draggedId);
     },
 
-    reorderSelectedBlocks: function(targetId) {
+    reorderSelectedBlocks: function(targetId, dropPosition) {
         var note = this._getActivePage();
         if (!note || !note.blocks) return;
         
         var targetIdx = note.blocks.findIndex(function(b) { return b.id === targetId; });
         if (targetIdx === -1) return;
 
-        // FIX 2: Push to Undo Stack
         if (typeof HistoryManager !== 'undefined') HistoryManager.push(this.activePageId);
 
         var selectedBlocks = [];
         var remainingBlocks = [];
-        var firstSelectedIdx = -1;
 
         note.blocks.forEach(function(block, idx) {
             if (BlockEditor.selectedBlockIds.includes(block.id)) {
                 selectedBlocks.push(block);
-                if (firstSelectedIdx === -1) firstSelectedIdx = idx;
             } else {
                 remainingBlocks.push(block);
             }
         });
 
-        // FIX 1: Directional drop for multi-select
         var newTargetIdx = remainingBlocks.findIndex(function(b) { return b.id === targetId; });
         if (newTargetIdx === -1) newTargetIdx = remainingBlocks.length;
         
-        var isDraggingDown = firstSelectedIdx < targetIdx;
-        if (isDraggingDown) {
-            newTargetIdx++; 
+        if (dropPosition === 'after') {
+            newTargetIdx++;
         }
 
         remainingBlocks.splice.apply(remainingBlocks, [newTargetIdx, 0].concat(selectedBlocks));
         note.blocks = remainingBlocks;
-        
-        // FIX 3: Update order properties
         PageManager.reorderBlocks(note);
-
         saveData();
         PageManager.syncContent(this.activePageId);
         
-        // FIX 4: Restore Focus
         this.render(this.activePageId);
         this.updateSelectionVisuals();
     },
@@ -879,19 +863,30 @@ export const BlockEditor = {
         wrapper.addEventListener('dragend', function(e) {
             wrapper.classList.remove('dragging');
             BlockEditor.draggedBlockId = null;
-            document.querySelectorAll('.block-wrapper.drag-over').forEach(el => el.classList.remove('drag-over'));
+            document.querySelectorAll('.block-wrapper.drop-before, .block-wrapper.drop-after').forEach(function(el) {
+                el.classList.remove('drop-before', 'drop-after');
+            });
         });
         wrapper.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            if (BlockEditor.draggedBlockId && BlockEditor.draggedBlockId !== block.id) wrapper.classList.add('drag-over');
+            if (!BlockEditor.draggedBlockId || BlockEditor.draggedBlockId === block.id) return;
+            var rect = wrapper.getBoundingClientRect();
+            var midY = rect.top + rect.height / 2;
+            wrapper.classList.toggle('drop-before', e.clientY < midY);
+            wrapper.classList.toggle('drop-after', e.clientY >= midY);
         });
-        wrapper.addEventListener('dragleave', function(e) { wrapper.classList.remove('drag-over'); });
+        wrapper.addEventListener('dragleave', function(e) { 
+            wrapper.classList.remove('drop-before', 'drop-after'); 
+        });
         wrapper.addEventListener('drop', function(e) {
             e.preventDefault();
-            wrapper.classList.remove('drag-over');
+            var isBefore = wrapper.classList.contains('drop-before');
+            wrapper.classList.remove('drop-before', 'drop-after');
             var draggedId = e.dataTransfer.getData('text/plain');
-            if (draggedId && draggedId !== block.id) BlockEditor.reorderBlock(draggedId, block.id);
+            if (draggedId && draggedId !== block.id) {
+                BlockEditor.reorderBlock(draggedId, block.id, isBefore ? 'before' : 'after');
+            }
         });
 
         switch (block.type) {

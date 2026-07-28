@@ -8559,9 +8559,30 @@
         cursor: grabbing;
       }
 
-      /* Drag Target Indicator */
-      .block-wrapper.drag-over {
-        border-top: 2px solid var(--main-color);
+      /* Drop Position Indicators */
+      .block-wrapper.drop-before::after,
+      .block-wrapper.drop-after::after {
+        content: '';
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 2px;
+        background: var(--main-color);
+        box-shadow: 0 0 8px var(--main-color), 0 0 16px rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
+        pointer-events: none;
+        z-index: 5;
+        border-radius: 1px;
+        animation: dropIndicatorIn 0.15s ease-out;
+      }
+      .block-wrapper.drop-before::after {
+        top: -1px;
+      }
+      .block-wrapper.drop-after::after {
+        bottom: -1px;
+      }
+      @keyframes dropIndicatorIn {
+        from { opacity: 0; transform: scaleX(0.1); }
+        to   { opacity: 1; transform: scaleX(1); }
       }
 
       /* Multi-Block Selection */
