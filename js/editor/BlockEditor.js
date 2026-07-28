@@ -658,6 +658,19 @@ export const BlockEditor = {
         if (this.focusedBlockId && !skipFocus) this.focusBlock(this.focusedBlockId);
     },
     
+    duplicateBlock: function(blockId) {
+        HistoryManager.push(this.activePageId);
+        var page = State.NOTES.find(function(n) { return n.id === this.activePageId; }.bind(this));
+        if (!page || !page.blocks) return;
+        var idx = page.blocks.findIndex(function(b) { return b.id === blockId; });
+        if (idx === -1) return;
+        var newBlock = JSON.parse(JSON.stringify(page.blocks[idx]));
+        newBlock.id = 'blk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        page.blocks.splice(idx + 1, 0, newBlock);
+        this.render(this.activePageId);
+        this.focusBlock(newBlock.id);
+    },
+
     focusBlock: function (blockId) {
         this.focusedBlockId = blockId;
         var el = this.container.querySelector('[data-block-id="' + blockId + '"] .block-content');
@@ -833,6 +846,18 @@ export const BlockEditor = {
         typeBadge.className = 'block-type-badge';
         typeBadge.textContent = this._getTypeLabel(block.type);
         wrapper.appendChild(typeBadge);
+
+        // Duplicate button (visible on hover in the drag-handle column)
+        var dupBtn = document.createElement('button');
+        dupBtn.className = 'block-dup-btn';
+        dupBtn.title = 'Duplicate block (Cmd+D)';
+        dupBtn.textContent = '⧉';
+        dupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            self.duplicateBlock(block.id);
+        });
+        wrapper.appendChild(dupBtn);
         
         if (block.level) wrapper.style.paddingLeft = (block.level * 24) + 'px';
         
@@ -2205,15 +2230,7 @@ export const BlockEditor = {
             var blockWrapper = e.target.closest('.block-wrapper');
             if (blockWrapper) {
                 var blockId = blockWrapper.getAttribute('data-block-id');
-                HistoryManager.push(this.activePageId);
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
-                var idx = page.blocks.findIndex(b => b.id === blockId);
-                var newBlock = JSON.parse(JSON.stringify(page.blocks[idx]));
-                // Regenerate IDs
-                newBlock.id = 'blk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-                page.blocks.splice(idx + 1, 0, newBlock);
-                this.render(this.activePageId);
-                this.focusBlock(newBlock.id);
+                this.duplicateBlock(blockId);
             }
             return;
         }

@@ -239,6 +239,36 @@
       }
 
       /* Show badge on block hover (same timing as drag handle) */
+      .block-dup-btn {
+        position: absolute;
+        left: -32px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        color: #555;
+        background: none;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.12s ease;
+        padding: 0;
+        line-height: 1;
+        z-index: 2;
+      }
+      .block-wrapper:hover .block-dup-btn,
+      .block-wrapper.block-selected .block-dup-btn {
+        opacity: 1;
+      }
+      .block-dup-btn:hover {
+        color: var(--main-color, #00ff41);
+        background: rgba(0, 255, 65, 0.08);
+      }
       .block-wrapper:hover .block-type-badge,
       .block-wrapper.block-selected .block-type-badge {
           opacity: 0.5;
