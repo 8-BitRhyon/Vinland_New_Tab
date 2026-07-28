@@ -350,6 +350,7 @@ export const CanvasManager = {
     },
 
     init: function() {
+        try {
         this.container = document.getElementById('canvas-container');
         console.log('[CanvasManager] init() - container found:', !!this.container);
         if (!this.container) return;
@@ -928,10 +929,14 @@ export const CanvasManager = {
 
         this.bindToolbar();
         this.bindEvents();
+    } catch (e) {
+        console.error('[CanvasManager] init() guard:', e);
+    }
     },
 
     // ─── DATA LOADING ───
     load: function(noteId) {
+        try {
         console.log('[CanvasManager] load() - noteId:', noteId, '| board:', !!this.board, '| container:', !!this.container);
         
         // Anti-Race Condition: Self-initialize if not ready
@@ -1003,6 +1008,9 @@ export const CanvasManager = {
         // Feature 6: Minimap
         this._initMinimap();
         this._updateMinimap();
+    } catch (e) {
+        console.error('[CanvasManager] load() guard:', e);
+    }
     },
 
     // ─── UI UPDATES ───
