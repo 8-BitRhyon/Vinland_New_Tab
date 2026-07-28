@@ -825,8 +825,6 @@ export const CanvasManager = {
         });
     },
 
-    },
-
     // ─── PICKER OVERLAYS ───
     _showNotePicker: function(screenX, screenY) {
         this._closeNotePicker();
