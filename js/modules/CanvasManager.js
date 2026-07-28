@@ -1112,6 +1112,18 @@ export const CanvasManager = {
                     <span class="canvas-shortcuts-key"><kbd>⇧</kbd><kbd>1</kbd></span>
                 </div>
                 <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Zoom to selection</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>Z</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Nudge node 1px</span>
+                    <span class="canvas-shortcuts-key"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Nudge node 10px</span>
+                    <span class="canvas-shortcuts-key"><kbd>⇧</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
                     <span class="canvas-shortcuts-label">Zoom in/out</span>
                     <span class="canvas-shortcuts-key"><kbd class="mod">⌘</kbd><kbd>SCROLL</kbd></span>
                 </div>
@@ -1355,6 +1367,50 @@ export const CanvasManager = {
                 }
             }
 
+            // Arrow key nudging (move selected nodes 1px, or 10px with Shift)
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !isInput) {
+                if (self.selectedNodeIds.size > 0) {
+                    e.preventDefault();
+                    var dx = 0, dy = 0;
+                    var step = e.shiftKey ? 10 : 1;
+                    if (e.key === 'ArrowUp') dy = -step;
+                    else if (e.key === 'ArrowDown') dy = step;
+                    else if (e.key === 'ArrowLeft') dx = -step;
+                    else if (e.key === 'ArrowRight') dx = step;
+
+                    self._saveHistoryState();
+
+                    var note = self._getActiveNote();
+                    if (note && note.canvasData && note.canvasData.nodes) {
+                        note.canvasData.nodes.forEach(function(n) {
+                            if (self.selectedNodeIds.has(n.id)) {
+                                n.x += dx / self.transform.scale;
+                                n.y += dy / self.transform.scale;
+                                var el = document.getElementById('canvas-node-' + n.id);
+                                if (el) {
+                                    el.style.left = n.x + 'px';
+                                    el.style.top = n.y + 'px';
+                                }
+                            }
+                        });
+                    }
+
+                    self._refreshEdges();
+                    self._updateMinimap();
+                    self._saveData();
+                    return;
+                }
+            }
+
+            // Zoom to selection (Alt+Z)
+            if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'z' && !isInput) {
+                if (self.selectedNodeIds.size > 0) {
+                    e.preventDefault();
+                    self._zoomToSelection();
+                    return;
+                }
+            }
+
             // Keyboard Spawning (Tab / Enter)
             if (self.selectedNodeId && (e.key === 'Tab' || (!e.shiftKey && e.key === 'Enter'))) {
                 if (isInput) {
@@ -1582,6 +1638,45 @@ export const CanvasManager = {
             note.canvasData.viewport = { x: this.transform.x, y: this.transform.y, scale: this.transform.scale };
             this._saveData();
         }
+    },
+
+    _zoomToSelection: function() {
+        var note = this._getActiveNote();
+        if (!note || !note.canvasData || !note.canvasData.nodes || this.selectedNodeIds.size === 0) return;
+
+        // Build bounding box from selected nodes only
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        var found = false;
+        note.canvasData.nodes.forEach(function(n) {
+            if (this.selectedNodeIds.has(n.id)) {
+                var w = n.width || 200;
+                var h = n.height || 80;
+                if (n.x < minX) minX = n.x;
+                if (n.y < minY) minY = n.y;
+                if (n.x + w > maxX) maxX = n.x + w;
+                if (n.y + h > maxY) maxY = n.y + h;
+                found = true;
+            }
+        }.bind(this));
+        if (!found) return;
+
+        var padding = 60;
+        var contentWidth = (maxX - minX) + (padding * 2);
+        var contentHeight = (maxY - minY) + (padding * 2);
+        var rect = this.container.getBoundingClientRect();
+        var newScale = Math.min(rect.width / contentWidth, rect.height / contentHeight);
+        newScale = Math.max(0.1, Math.min(2, newScale));
+
+        var centerX = minX + (maxX - minX) / 2;
+        var centerY = minY + (maxY - minY) / 2;
+
+        this.transform.scale = newScale;
+        this.transform.x = (rect.width / 2) - (centerX * newScale);
+        this.transform.y = (rect.height / 2) - (centerY * newScale);
+
+        this.updateTransform();
+        this.updateUI();
+        this._saveViewport();
     },
 
     zoomToFit: function() {
