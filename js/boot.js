@@ -50,6 +50,7 @@ import { BackupManager } from "./features/BackupManager.js";
 import { WorkspaceManager } from "./features/WorkspaceManager.js";
 import { PropertiesPanel } from "./ui/PropertiesPanel.js";
 import { WikiLinkAutocomplete } from "./ui/WikiLinkAutocomplete.js";
+import { FormatToolbar } from "./ui/FormatToolbar.js";
 import { ObsidianImporter } from "./features/ObsidianImporter.js";
 import { VersionHistoryManager } from "./features/VersionHistoryManager.js";
 import { FlashcardManager } from "./features/FlashcardManager.js";
@@ -101,6 +102,7 @@ window.CanvasSearch = CanvasSearch;
 window.Audio = Audio;
 window.SlashMenu = SlashMenu;
 window.PageActions = PageActions;
+window.FormatToolbar = FormatToolbar;
 window.CalloutModal = CalloutModal;
 window.closeNoteEditor = closeNoteEditor;
 window.renderNotes = legacyRenderNotes;
@@ -469,6 +471,7 @@ async function boot() {
   if (Bookmarks) Bookmarks.init();
   if (PageActions) PageActions.init();
   if (SlashMenu) SlashMenu.init();
+  if (FormatToolbar) FormatToolbar.init();
   if (Clock) Clock.init();
   if (CalloutModal) CalloutModal.init();
 

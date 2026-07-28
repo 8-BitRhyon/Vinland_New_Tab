@@ -10064,6 +10064,83 @@
         outline-offset: 2px;
       }
 
+      /* ── Floating Format Toolbar ── */
+      .format-toolbar {
+        display: none;
+        position: fixed;
+        z-index: calc(var(--z-context-menu) + 3);
+        background: #141414;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        padding: 4px 6px;
+        gap: 1px;
+        align-items: center;
+        box-shadow:
+          0 4px 24px rgba(0,0,0,0.7),
+          0 0 0 1px rgba(var(--main-color-rgb,0,255,65),0.06);
+        pointer-events: auto;
+      }
+
+      .fmt-btn {
+        background: transparent;
+        border: none;
+        color: #777;
+        width: 32px;
+        height: 30px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: var(--font-main);
+        font-size: 0.95rem;
+        transition: all 0.1s var(--motion-ease);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      .fmt-btn:hover {
+        background: rgba(255,255,255,0.07);
+        color: #ddd;
+      }
+
+      .fmt-btn:active {
+        transform: scale(var(--press-scale));
+      }
+
+      .fmt-btn.active {
+        background: rgba(var(--main-color-rgb,0,255,65),0.15);
+        color: var(--main-color);
+      }
+
+      .fmt-btn.fmt-bold   { font-weight: 700; }
+      .fmt-btn.fmt-italic { font-style: italic; }
+      .fmt-btn.fmt-underline { text-decoration: underline; }
+      .fmt-btn.fmt-link   { font-size: 0.85rem; }
+      .fmt-btn.fmt-wiki   { font-size: 0.75rem; letter-spacing: -1px; }
+
+      .fmt-divider {
+        display: inline-block;
+        width: 1px;
+        height: 20px;
+        background: rgba(255,255,255,0.08);
+        margin: 0 3px;
+      }
+
+      /* Downward arrow (toolbar sits above selection) */
+      .format-toolbar::after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 6px solid #141414;
+        pointer-events: none;
+      }
+
       /* P0 a11y: honor reduced-motion; stop CRT/scanline/glow for users who ask. */
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
