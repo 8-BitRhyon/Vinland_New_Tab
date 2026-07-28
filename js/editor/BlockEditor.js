@@ -861,10 +861,21 @@ export const BlockEditor = {
             .data(nodes)
             .join('g')
             .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; })
+            .attr('title', function(d) { return d.isCenter ? '' : 'Open "' + d.name + '"'; })
             .on('click', function(event, d) {
                 if (!d.isCenter && window.Notes && window.Notes.open) {
                     window.Notes.open(d.id);
                 }
+            })
+            .on('mouseenter', function() {
+                d3.select(this).select('circle').transition().duration(200).attr('r', function(d2) {
+                    return (d2.isCenter ? 8 : 5) * 1.3;
+                });
+            })
+            .on('mouseleave', function() {
+                d3.select(this).select('circle').transition().duration(200).attr('r', function(d2) {
+                    return d2.isCenter ? 8 : 5;
+                });
             });
 
         // Color: main color for center, graph colors for connected
@@ -906,6 +917,19 @@ export const BlockEditor = {
 
         // Store simulation reference so it can be stopped if needed
         this._localGraphSim = simulation;
+
+        // Wire toggle header once
+        if (!this._localGraphToggleWired) {
+            this._localGraphToggleWired = true;
+            var toggleEl = document.getElementById('local-graph-toggle');
+            if (toggleEl) {
+                toggleEl.addEventListener('click', function() {
+                    var graphEl = document.getElementById('editor-local-graph');
+                    if (!graphEl) return;
+                    graphEl.classList.toggle('collapsed');
+                });
+            }
+        }
     },
 
     // ─── SELECTION ───
