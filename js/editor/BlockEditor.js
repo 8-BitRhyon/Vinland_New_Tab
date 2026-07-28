@@ -1315,11 +1315,16 @@ export const BlockEditor = {
                         headers: ['Header 1', 'Header 2', 'Header 3'],
                         rows: [['', '', ''], ['', '', '']],
                         columnAligns: ['left', 'left', 'left'],
+                        columnWidths: [],
                         hasHeaderRow: true
                     };
                 }
-                
                 var tableData = block.tableData;
+                // Ensure columnWidths array matches column count
+                while (tableData.columnWidths.length < tableData.headers.length) {
+                    tableData.columnWidths.push('');
+                }
+
                 var tableWrapper = document.createElement('div');
                 tableWrapper.className = 'table-wrapper';
                 
@@ -1359,6 +1364,10 @@ export const BlockEditor = {
                     tableData.headers.forEach(function(headerText, colIdx) {
                         var th = document.createElement('th');
                         th.style.textAlign = tableData.columnAligns[colIdx] || 'left';
+                        if (tableData.columnWidths && tableData.columnWidths[colIdx]) {
+                            th.style.width = tableData.columnWidths[colIdx] + 'px';
+                            th.style.minWidth = tableData.columnWidths[colIdx] + 'px';
+                        }
                         
                         var cell = document.createElement('div');
                         cell.className = 'table-cell table-header-cell';
@@ -1399,8 +1408,48 @@ export const BlockEditor = {
                                 if (belowCell) belowCell.focus();
                             }
                         });
-                        
+
+                        // Column resize handle
+                        var resizeHandle = document.createElement('div');
+                        resizeHandle.className = 'col-resize-handle';
+                        resizeHandle.setAttribute('data-col', colIdx);
+                        resizeHandle.addEventListener('mousedown', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            var startX = e.clientX;
+                            var startWidth = th.offsetWidth;
+
+                            var onMouseMove = function(me) {
+                                var dx = me.clientX - startX;
+                                var newWidth = Math.max(80, startWidth + dx);
+                                th.style.width = newWidth + 'px';
+                                th.style.minWidth = newWidth + 'px';
+                                // Sync cells in same column
+                                table.querySelectorAll('.table-cell[data-col="' + colIdx + '"]').forEach(function(c) {
+                                    c.parentElement.style.width = newWidth + 'px';
+                                });
+                            };
+
+                            var onMouseUp = function() {
+                                window.removeEventListener('mousemove', onMouseMove);
+                                window.removeEventListener('mouseup', onMouseUp);
+                                // Save to columnWidths
+                                var newWidth = th.offsetWidth;
+                                if (!tableData.columnWidths) tableData.columnWidths = [];
+                                while (tableData.columnWidths.length < tableData.headers.length) {
+                                    tableData.columnWidths.push('');
+                                }
+                                tableData.columnWidths[colIdx] = newWidth;
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                if (window.saveData) saveData();
+                            };
+
+                            window.addEventListener('mousemove', onMouseMove);
+                            window.addEventListener('mouseup', onMouseUp);
+                        });
+
                         th.appendChild(cell);
+                        th.appendChild(resizeHandle);
                         headerRow.appendChild(th);
                     });
                     
@@ -1417,6 +1466,10 @@ export const BlockEditor = {
                     rowData.forEach(function(cellText, colIdx) {
                         var td = document.createElement('td');
                         td.style.textAlign = tableData.columnAligns[colIdx] || 'left';
+                        if (tableData.columnWidths && tableData.columnWidths[colIdx]) {
+                            td.style.width = tableData.columnWidths[colIdx] + 'px';
+                            td.style.minWidth = tableData.columnWidths[colIdx] + 'px';
+                        }
                         
                         var cell = document.createElement('div');
                         cell.className = 'table-cell';
