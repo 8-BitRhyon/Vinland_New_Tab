@@ -6,10 +6,12 @@ import { Notes } from './NotesController.js';
 export const GraphManager = {
     simulation: null,
     svg: null,
+    g: null,
     width: 0,
     height: 0,
     containerId: 'graph-container',
     isLocalMode: false, // Local Focus Mode state
+    filterQuery: '', // Search/filter query
 
     // .38: Persist graph node positions to localStorage
     saveLayout: function() {
@@ -136,20 +138,83 @@ export const GraphManager = {
         // Initial setup if needed
     },
 
+    _onSearchChange: function() {
+        var input = document.getElementById('graph-search');
+        if (!input) return;
+        this.filterQuery = input.value;
+        // Debounce re-render to avoid lag on large graphs
+        if (this._searchTimer) clearTimeout(this._searchTimer);
+        var self = this;
+        this._searchTimer = setTimeout(function() {
+            self.render();
+        }, 150);
+    },
+
+    _clearSearchTimer: function() {
+        if (this._searchTimer) {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+        }
+    },
+
+    _updateMatchCount: function(count) {
+        var el = document.getElementById('graph-match-count');
+        if (!el) {
+            // Create match count element next to the search input
+            var input = document.getElementById('graph-search');
+            if (input && input.parentNode) {
+                el = document.createElement('span');
+                el.id = 'graph-match-count';
+                el.style.cssText = 'font-size:0.65rem;color:var(--main-color);opacity:0.6;white-space:nowrap;';
+                input.parentNode.insertBefore(el, input.nextSibling);
+            }
+        }
+        if (el) {
+            if (this.filterQuery.trim()) {
+                el.textContent = count === 0 ? ' 0 matches' : ' ' + count + ' match' + (count !== 1 ? 'es' : '');
+                el.style.display = '';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+    },
+
     open: function() {
         ModalManager.open('graph-modal');
+
+        // Wire search input
+        var self = this;
+        var searchInput = document.getElementById('graph-search');
+        if (searchInput) {
+            searchInput.value = this.filterQuery;
+            // Remove old listener to avoid duplicates
+            if (this._searchHandler) {
+                searchInput.removeEventListener('input', this._searchHandler);
+            }
+            this._searchHandler = function() { self._onSearchChange(); };
+            searchInput.addEventListener('input', this._searchHandler);
+
+            // Focus search on Cmd+F / Ctrl+F inside graph modal
+            if (this._searchKeyHandler) {
+                searchInput.removeEventListener('keydown', this._searchKeyHandler);
+            }
+            this._searchKeyHandler = function(e) {
+                if (e.key === 'Escape') {
+                    searchInput.blur();
+                }
+            };
+            searchInput.addEventListener('keydown', this._searchKeyHandler);
+        }
         
         // Ensure the button text matches the current state (in case PageActions changed it)
         var toggleBtn = document.getElementById('graph-mode-toggle');
         if (toggleBtn) {
-            var self = this;
             toggleBtn.textContent = this.isLocalMode ? 'LOCAL' : 'GLOBAL';
             toggleBtn.classList.toggle('active', this.isLocalMode);
             toggleBtn.onclick = function() { self.toggleLocalMode(); };
         }
         
         // Wire layout control buttons
-        var self = this;
         var pinBtn = document.getElementById('graph-pin-btn');
         if (pinBtn) {
             pinBtn.onclick = function() { self.pinAllNodes(); };
@@ -163,10 +228,40 @@ export const GraphManager = {
             resetBtn.onclick = function() { self.resetLayout(); };
         }
 
+        // Wire close button to call close() for cleanup
+        var closeBtn = document.getElementById('graph-modal-close');
+        if (closeBtn) {
+            closeBtn.onclick = function() {
+                self.close();
+                ModalManager.close('graph-modal');
+            };
+        }
+
         // Render after modal animation
         setTimeout(() => {
             this.render();
         }, 300);
+    },
+
+    close: function() {
+        this._clearSearchTimer();
+        // Clean up search listeners
+        var searchInput = document.getElementById('graph-search');
+        if (searchInput) {
+            if (this._searchHandler) {
+                searchInput.removeEventListener('input', this._searchHandler);
+                this._searchHandler = null;
+            }
+            if (this._searchKeyHandler) {
+                searchInput.removeEventListener('keydown', this._searchKeyHandler);
+                this._searchKeyHandler = null;
+            }
+        }
+    },
+
+    _escapeHtml: function(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
     // Toggle between Global and Local (1-degree neighbor) view
@@ -304,7 +399,45 @@ export const GraphManager = {
             links = allLinks;
         }
 
-        console.log('[Graph] Nodes:', nodes.length, '| Links:', links.length, '| Mode:', this.isLocalMode ? 'LOCAL' : 'GLOBAL');
+        // ─── SEARCH/FILTER ────────────────────────────────────────
+        if (this.filterQuery.trim()) {
+            var q = this.filterQuery.toLowerCase().trim();
+            var filteredNodeIds = new Set();
+            var filteredNodes = nodes.filter(function(n) {
+                var match = n.name && n.name.toLowerCase().includes(q);
+                if (match) filteredNodeIds.add(n.id);
+                return match;
+            });
+            nodes = filteredNodes;
+            links = links.filter(function(l) {
+                var s = l.source.id || l.source;
+                var t = l.target.id || l.target;
+                return filteredNodeIds.has(s) && filteredNodeIds.has(t);
+            });
+        }
+
+        // Show match count
+        this._updateMatchCount(nodes.length);
+
+        // ─── EMPTY STATE ──────────────────────────────────────────
+        if (nodes.length === 0) {
+            var container = document.getElementById(this.containerId);
+            if (container) {
+                container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--secondary-color,#555);font-size:0.85rem;font-family:var(--font-mono,monospace);opacity:0.6;">' +
+                    (this.filterQuery.trim()
+                        ? 'No nodes match &quot;' + this._escapeHtml(this.filterQuery) + '&quot;'
+                        : 'No notes to display') +
+                    '</div>';
+            }
+            if (this.simulation) {
+                this.simulation.stop();
+                this.simulation = null;
+            }
+            this.svg = null;
+            return;
+        }
+
+        console.log('[Graph] Nodes:', nodes.length, '| Links:', links.length, '| Mode:', this.isLocalMode ? 'LOCAL' : 'GLOBAL', '| Filter:', this.filterQuery || '(none)');
 
         // ─── V19.38: APPLY SAVED POSITIONS ──────────────────────
         // Pin nodes that have a saved position (fx/fy) so the force
@@ -361,6 +494,12 @@ export const GraphManager = {
 
         // ─── D3 SIMULATION ──────────────────────────────────────
         var self = this;
+
+        // Store the filtered IDs for CSS class toggling
+        this._filteredNodeIds = null;
+        if (this.filterQuery.trim()) {
+            this._filteredNodeIds = new Set(nodes.map(function(n) { return n.id; }));
+        }
 
         this.svg = d3.select('#' + this.containerId).append("svg")
             .attr("width", '100%')
@@ -432,6 +571,16 @@ export const GraphManager = {
             if (this.adjacencyList.has(s)) this.adjacencyList.get(s).push(t);
             if (this.adjacencyList.has(t)) this.adjacencyList.get(t).push(s);
         });
+
+        // When filter is active, dim all nodes slightly and brighten on hover
+        if (this._filteredNodeIds) {
+            node.attr('opacity', 0.6);
+            node.on('mouseenter.filter', function() {
+                d3.select(this).attr('opacity', 1);
+            }).on('mouseleave.filter', function() {
+                d3.select(this).attr('opacity', 0.6);
+            });
+        }
 
         node.on('mouseover', (event, d) => {
             // 1. BFS to find all connected nodes (Full Chain)
