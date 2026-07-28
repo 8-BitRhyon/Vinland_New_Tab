@@ -2041,6 +2041,10 @@ export const BlockEditor = {
         const bar = document.getElementById('editor-find-bar');
         const input = document.getElementById('find-input');
         if (!bar || !input) return;
+        // Save currently focused element for restoration on close
+        this._findState._lastFocusBlock = document.activeElement && this.container && this.container.contains(document.activeElement)
+            ? document.activeElement
+            : null;
         this._findState.open = true;
         bar.style.display = 'flex';
         input.value = '';
@@ -2063,9 +2067,16 @@ export const BlockEditor = {
         document.getElementById('find-replace-row').style.display = 'none';
         // Re-render to remove marks
         if (this.activePageId) this.render(this.activePageId);
-        // Focus the first block
-        const firstBlock = this.container ? this.container.querySelector('.block-content') : null;
-        if (firstBlock) firstBlock.focus();
+        // Restore previously focused block element
+        var focusEl = this._findState._lastFocusBlock;
+        if (focusEl && typeof focusEl.focus === 'function') {
+            focusEl.focus();
+        } else {
+            // Fallback: focus the first block
+            const firstBlock = this.container ? this.container.querySelector('.block-content') : null;
+            if (firstBlock) firstBlock.focus();
+        }
+        this._findState._lastFocusBlock = null;
     },
 
     _findSearch: function(query) {
@@ -2440,6 +2451,13 @@ export const BlockEditor = {
             e.preventDefault();
             e.stopPropagation();
             this._findOpen();
+            return;
+        }
+
+        // CMD+H: Toggle replace row (when find bar is open)
+        if ((e.metaKey || e.ctrlKey) && e.key === 'h' && this._findState.open) {
+            e.preventDefault();
+            this._findToggleReplace();
             return;
         }
 

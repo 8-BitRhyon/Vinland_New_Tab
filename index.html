@@ -10559,12 +10559,20 @@
         color: inherit;
         border-radius: 2px;
         padding: 0 1px;
+        transition: background 0.15s, transform 0.1s;
+      }
+      .block-editor mark.find-match:hover {
+        background: color-mix(in srgb, #ffcc00 60%, transparent);
+        cursor: pointer;
       }
       .block-editor mark.find-match.current {
         background: #ffcc00;
         color: #000;
         border-radius: 2px;
         padding: 0 1px;
+      }
+      .block-editor mark.find-match.current:hover {
+        background: color-mix(in srgb, #ffcc00 80%, #000);
       }
 
       /* ── Floating Format Toolbar ── */
