@@ -1321,6 +1321,51 @@
         border-color: #fff;
       }
 
+      /* ── Canvas Align Menu (dropdown from ≐ button) ── */
+      .canvas-align-menu {
+          position: fixed;
+          background: #1a1a1a;
+          border: 1px solid #333;
+          border-radius: 6px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+          padding: 4px;
+          z-index: 35000;
+          min-width: 210px;
+          animation: fadeIn 0.12s ease;
+      }
+      .canvas-align-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 7px 10px;
+          cursor: pointer;
+          border-radius: 4px;
+          color: #ccc;
+          font-size: 0.78rem;
+          transition: background-color 0.12s;
+      }
+      .canvas-align-item:hover {
+          background-color: rgba(var(--main-color-rgb, 0,255,65), 0.12);
+          color: #fff;
+      }
+      .canvas-align-label {
+          flex: 1;
+      }
+      .canvas-align-shortcut {
+          color: #555;
+          font-size: 0.65rem;
+          margin-left: 12px;
+          white-space: nowrap;
+      }
+      .canvas-align-item:hover .canvas-align-shortcut {
+          color: var(--main-color, #00ff41);
+      }
+      .canvas-align-divider {
+          height: 1px;
+          background: #333;
+          margin: 4px 8px;
+      }
+
       /* Canvas Minimap */
       .canvas-minimap {
         position: absolute;

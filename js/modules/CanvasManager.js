@@ -406,6 +406,8 @@ export const CanvasManager = {
             <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-snap-toggle" title="Toggle Snap to Grid (nodes align to 30px grid)">⧉</button>
             <span class="canvas-tb-divider">|</span>
+            <button class="canvas-tb-btn" id="canvas-align-btn" title="Align selected nodes">≐</button>
+            <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
         `;
         this.container.appendChild(this.toolbar);
@@ -845,6 +847,11 @@ export const CanvasManager = {
             this._showShortcutsPanel();
         });
 
+        // ≐ ALIGN button
+        this.toolbar.querySelector('#canvas-align-btn').addEventListener('click', (e) => {
+            this._showAlignMenu(e.target);
+        });
+
         // ⧉ SNAP TOGGLE button
         this.toolbar.querySelector('#canvas-snap-toggle').addEventListener('click', () => {
             this.gridSnapEnabled = !this.gridSnapEnabled;
@@ -1059,6 +1066,42 @@ export const CanvasManager = {
             </div>
 
             <div class="canvas-shortcuts-section">
+                <div class="canvas-shortcuts-section-title">Node Alignment</div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Align Left</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>L</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Align Right</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>R</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Align Top</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>T</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Align Bottom</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>B</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Center Horizontal</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>C</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Center Vertical</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>M</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Distribute Horizontally</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>H</kbd></span>
+                </div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Distribute Vertically</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>E</kbd></span>
+                </div>
+            </div>
+
+            <div class="canvas-shortcuts-section">
                 <div class="canvas-shortcuts-section-title">View & Navigation</div>
                 <div class="canvas-shortcuts-item">
                     <span class="canvas-shortcuts-label">Search nodes</span>
@@ -1263,6 +1306,26 @@ export const CanvasManager = {
                 e.preventDefault();
                 self._showShortcutsPanel();
                 return;
+            }
+
+            // Alignment shortcuts: Alt+Shift+[key]
+            if (e.altKey && e.shiftKey && !isInput) {
+                var alignAction = null;
+                switch (e.key.toLowerCase()) {
+                    case 'l': alignAction = 'left'; break;
+                    case 'r': alignAction = 'right'; break;
+                    case 't': alignAction = 'top'; break;
+                    case 'b': alignAction = 'bottom'; break;
+                    case 'c': alignAction = 'center-h'; break;
+                    case 'm': alignAction = 'center-v'; break;
+                    case 'h': alignAction = 'distribute-h'; break;
+                    case 'e': alignAction = 'distribute-v'; break;
+                }
+                if (alignAction && self.selectedNodeIds.size >= 2) {
+                    e.preventDefault();
+                    self._alignNodes(alignAction);
+                    return;
+                }
             }
 
             if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
@@ -2646,6 +2709,174 @@ export const CanvasManager = {
             }
         }
     },
+
+    // ─── NODE ALIGNMENT ───
+
+    _showAlignMenu: function(targetBtn) {
+        var old = document.getElementById('canvas-align-menu');
+        if (old) old.remove();
+
+        var menu = document.createElement('div');
+        menu.id = 'canvas-align-menu';
+        menu.className = 'canvas-align-menu';
+
+        var items = [
+            { action: 'left',   label: 'Align Left',     shortcut: 'Alt+⇧+L' },
+            { action: 'right',  label: 'Align Right',    shortcut: 'Alt+⇧+R' },
+            { action: 'top',    label: 'Align Top',      shortcut: 'Alt+⇧+T' },
+            { action: 'bottom', label: 'Align Bottom',   shortcut: 'Alt+⇧+B' },
+            { action: 'center-h', label: 'Center Horizontal', shortcut: 'Alt+⇧+C' },
+            { action: 'center-v', label: 'Center Vertical',   shortcut: 'Alt+⇧+M' },
+            { type: 'divider' },
+            { action: 'distribute-h', label: 'Distribute Horizontally', shortcut: 'Alt+⇧+H' },
+            { action: 'distribute-v', label: 'Distribute Vertically',   shortcut: 'Alt+⇧+E' },
+        ];
+
+        var self = this;
+        items.forEach(function(item) {
+            if (item.type === 'divider') {
+                var hr = document.createElement('div');
+                hr.className = 'canvas-align-divider';
+                menu.appendChild(hr);
+                return;
+            }
+            var el = document.createElement('div');
+            el.className = 'canvas-align-item';
+            el.innerHTML = '<span class="canvas-align-label">' + item.label + '</span>'
+                + '<span class="canvas-align-shortcut">' + item.shortcut + '</span>';
+            el.addEventListener('click', function() {
+                self._alignNodes(item.action);
+                menu.remove();
+            });
+            menu.appendChild(el);
+        });
+
+        var rect = targetBtn.getBoundingClientRect();
+        menu.style.top = (rect.bottom + 4) + 'px';
+        menu.style.left = rect.left + 'px';
+        menu.style.position = 'fixed';
+        document.body.appendChild(menu);
+
+        setTimeout(function() {
+            var handler = function(e) {
+                if (!menu.contains(e.target) && e.target !== targetBtn) {
+                    menu.remove();
+                    document.removeEventListener('mousedown', handler);
+                }
+            };
+            document.addEventListener('mousedown', handler);
+        }, 0);
+    },
+
+    _alignNodes: function(action) {
+        if (this.selectedNodeIds.size < 2) return;
+
+        this._saveHistoryState();
+
+        var note = this._getActiveNote();
+        if (!note || !note.canvasData || !note.canvasData.nodes) return;
+
+        var selected = [];
+        note.canvasData.nodes.forEach(function(n) {
+            if (this.selectedNodeIds.has(n.id)) {
+                selected.push(n);
+            }
+        }.bind(this));
+
+        if (selected.length < 2) return;
+
+        // Compute bounding box
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        var sumCenterX = 0, sumCenterY = 0;
+        selected.forEach(function(n) {
+            var w = n.width || 200;
+            var h = n.height || 80;
+            if (n.x < minX) minX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.x + w > maxX) maxX = n.x + w;
+            if (n.y + h > maxY) maxY = n.y + h;
+        });
+
+        var centerX = minX + (maxX - minX) / 2;
+        var centerY = minY + (maxY - minY) / 2;
+
+        switch (action) {
+            case 'left':
+                selected.forEach(function(n) { n.x = minX; });
+                break;
+            case 'right':
+                selected.forEach(function(n) {
+                    var w = n.width || 200;
+                    n.x = maxX - w;
+                });
+                break;
+            case 'top':
+                selected.forEach(function(n) { n.y = minY; });
+                break;
+            case 'bottom':
+                selected.forEach(function(n) {
+                    var h = n.height || 80;
+                    n.y = maxY - h;
+                });
+                break;
+            case 'center-h':
+                selected.forEach(function(n) {
+                    var w = n.width || 200;
+                    n.x = centerX - w / 2;
+                });
+                break;
+            case 'center-v':
+                selected.forEach(function(n) {
+                    var h = n.height || 80;
+                    n.y = centerY - h / 2;
+                });
+                break;
+            case 'distribute-h':
+                if (selected.length > 2) {
+                    selected.sort(function(a, b) { return (a.x || 0) - (b.x || 0); });
+                    var totalWidth = selected.reduce(function(sum, n) { return sum + (n.width || 200); }, 0);
+                    var gap = (maxX - minX - totalWidth) / (selected.length - 1);
+                    var currentX = minX;
+                    selected.forEach(function(n) {
+                        n.x = currentX;
+                        currentX += (n.width || 200) + gap;
+                    });
+                }
+                break;
+            case 'distribute-v':
+                if (selected.length > 2) {
+                    selected.sort(function(a, b) { return (a.y || 0) - (b.y || 0); });
+                    var totalHeight = selected.reduce(function(sum, n) { return sum + (n.height || 80); }, 0);
+                    var gap = (maxY - minY - totalHeight) / (selected.length - 1);
+                    var currentY = minY;
+                    selected.forEach(function(n) {
+                        n.y = currentY;
+                        currentY += (n.height || 80) + gap;
+                    });
+                }
+                break;
+        }
+
+        // Update DOM
+        selected.forEach(function(n) {
+            var el = document.getElementById('canvas-node-' + n.id);
+            if (el) {
+                el.style.left = n.x + 'px';
+                el.style.top = n.y + 'px';
+            }
+        });
+
+        // Snap to grid if enabled
+        if (this.gridSnapEnabled) {
+            selected.forEach(function(n) { this._snapNodePosition(n); }.bind(this));
+        }
+
+        this._refreshEdges();
+        this._updateMinimap();
+        this._saveData();
+    },
+
+    // ─── EDGE LABELS ───
 
     _editEdgeLabel: function(edge, x1, y1, x2, y2) {
         const mx = (x1 + x2) / 2;
