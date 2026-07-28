@@ -111,93 +111,101 @@ function serializeNote(note) {
 }
 
 export function loadData() {
-    State.TASKS = VinlandDB.load('TASKS');
-    State.BOARDS = VinlandDB.load('BOARDS');
-    State.CANVASES = VinlandDB.load('CANVASES');
-    State.COMMAND_HISTORY = VinlandDB.load('HISTORY');
-
-    // --- NOTES: migrate legacy blob once, then hydrate from shards ---
-    var legacy = localStorage.getItem(VinlandDB.collections.NOTES);
-    if (legacy) {
-        try {
-            var legacyNotes = JSON.parse(legacy) || [];
-            legacyNotes.forEach(function (n) {
-                if (!n || !n.id) return;
-                localStorage.setItem(NOTE_PREFIX + n.id, JSON.stringify(n));
-            });
-            var ids = legacyNotes.filter(function (n) { return n && n.id; }).map(function (n) { return n.id; });
-            localStorage.setItem(NOTES_INDEX, JSON.stringify(ids));
-            localStorage.removeItem(VinlandDB.collections.NOTES);
-        } catch (e) {
-            console.error('VinlandDB: legacy NOTES migration failed', e);
-        }
-    }
-
-    State.NOTES = [];
-    noteCache = new Map();
-    canvasCache = new Map();
-    noteIdList = [];
-    var indexRaw = localStorage.getItem(NOTES_INDEX);
-    if (indexRaw) {
-        try {
-            var ids = JSON.parse(indexRaw) || [];
-            ids.forEach(function (id) {
-                var raw = localStorage.getItem(NOTE_PREFIX + id);
-                if (!raw) return;
-                try {
-                    var note = JSON.parse(raw);
-                    State.NOTES.push(note);
-                    noteCache.set(id, raw);
-                    noteIdList.push(id);
-                } catch (e) { console.error('VinlandDB: note parse failed', id, e); }
-            });
-        } catch (e) { console.error('VinlandDB: NOTES_INDEX parse failed', e); }
-    }
-
-    // Fallback: if index was missing or yielded no notes, scan for orphaned shards.
-    // This can happen if a mid-migration crash removed the legacy blob but didn't
-    // finish writing the index. Rebuild the index from whatever shards exist.
-    if (State.NOTES.length === 0 && typeof localStorage.length === 'number') {
-        var recovered = [];
-        for (var i = 0; i < localStorage.length; i++) {
-            var key = localStorage.key(i);
-            if (!key || !key.startsWith(NOTE_PREFIX)) continue;
+    // Top-level integrity guard: wrap the entire load path so a single
+    // corrupt localStorage key or IndexedDB failure never blocks startup.
+    try {
+        State.TASKS = VinlandDB.load('TASKS');
+        State.BOARDS = VinlandDB.load('BOARDS');
+        State.CANVASES = VinlandDB.load('CANVASES');
+        State.COMMAND_HISTORY = VinlandDB.load('HISTORY');
+    
+        // --- NOTES: migrate legacy blob once, then hydrate from shards ---
+        var legacy = localStorage.getItem(VinlandDB.collections.NOTES);
+        if (legacy) {
             try {
-                var note = JSON.parse(localStorage.getItem(key));
-                if (note && note.id) {
-                    State.NOTES.push(note);
-                    noteCache.set(key.substring(NOTE_PREFIX.length), localStorage.getItem(key));
-                    recovered.push(note.id);
-                }
-            } catch (e) { /* skip malformed keys */ }
-        }
-        if (recovered.length > 0) {
-            noteIdList = recovered;
-            localStorage.setItem(NOTES_INDEX, JSON.stringify(recovered));
-            console.log('[loadData] recovered', recovered.length, 'notes from orphaned shards');
-        }
-    }
-
-    // ponytail: hydrate canvasData from IndexedDB for notes whose shard only
-    // carries the {_external:true} marker. Fire-and-forget so loadData stays
-    // synchronous (the node unit-test path calls it without await; IndexedDB is
-    // absent there anyway). Known ceiling: a canvas opened in the same tick as
-    // boot may render before IDB resolves - local and fast enough to ignore.
-    if (typeof indexedDB !== 'undefined') {
-        State.NOTES.forEach(function (note) {
-            if (note && note.canvasData && note.canvasData._external === true) {
-                DB.get(CANVAS_IDX_PREFIX + note.id).then(function (real) {
-                    if (real) note.canvasData = real;
-                }).catch(function () { /* leave marker; canvas will show empty */ });
+                var legacyNotes = JSON.parse(legacy) || [];
+                legacyNotes.forEach(function (n) {
+                    if (!n || !n.id) return;
+                    localStorage.setItem(NOTE_PREFIX + n.id, JSON.stringify(n));
+                });
+                var ids = legacyNotes.filter(function (n) { return n && n.id; }).map(function (n) { return n.id; });
+                localStorage.setItem(NOTES_INDEX, JSON.stringify(ids));
+                localStorage.removeItem(VinlandDB.collections.NOTES);
+            } catch (e) {
+                console.error('VinlandDB: legacy NOTES migration failed', e);
             }
-        });
+        }
+    
+        State.NOTES = [];
+        noteCache = new Map();
+        canvasCache = new Map();
+        noteIdList = [];
+        var indexRaw = localStorage.getItem(NOTES_INDEX);
+        if (indexRaw) {
+            try {
+                var ids = JSON.parse(indexRaw) || [];
+                ids.forEach(function (id) {
+                    var raw = localStorage.getItem(NOTE_PREFIX + id);
+                    if (!raw) return;
+                    try {
+                        var note = JSON.parse(raw);
+                        State.NOTES.push(note);
+                        noteCache.set(id, raw);
+                        noteIdList.push(id);
+                    } catch (e) { console.error('VinlandDB: note parse failed', id, e); }
+                });
+            } catch (e) { console.error('VinlandDB: NOTES_INDEX parse failed', e); }
+        }
+    
+        // Fallback: if index was missing or yielded no notes, scan for orphaned shards.
+        // This can happen if a mid-migration crash removed the legacy blob but didn't
+        // finish writing the index. Rebuild the index from whatever shards exist.
+        if (State.NOTES.length === 0 && typeof localStorage.length === 'number') {
+            var recovered = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (!key || !key.startsWith(NOTE_PREFIX)) continue;
+                try {
+                    var note = JSON.parse(localStorage.getItem(key));
+                    if (note && note.id) {
+                        State.NOTES.push(note);
+                        noteCache.set(key.substring(NOTE_PREFIX.length), localStorage.getItem(key));
+                        recovered.push(note.id);
+                    }
+                } catch (e) { /* skip malformed keys */ }
+            }
+            if (recovered.length > 0) {
+                noteIdList = recovered;
+                localStorage.setItem(NOTES_INDEX, JSON.stringify(recovered));
+                console.log('[loadData] recovered', recovered.length, 'notes from orphaned shards');
+            }
+        }
+    
+        // ponytail: hydrate canvasData from IndexedDB for notes whose shard only
+        // carries the {_external:true} marker. Fire-and-forget so loadData stays
+        // synchronous (the node unit-test path calls it without await; IndexedDB is
+        // absent there anyway). Known ceiling: a canvas opened in the same tick as
+        // boot may render before IDB resolves - local and fast enough to ignore.
+        if (typeof indexedDB !== 'undefined') {
+            State.NOTES.forEach(function (note) {
+                if (note && note.canvasData && note.canvasData._external === true) {
+                    DB.get(CANVAS_IDX_PREFIX + note.id).then(function (real) {
+                        if (real) note.canvasData = real;
+                    }).catch(function () { /* leave marker; canvas will show empty */ });
+                }
+            });
+        }
+    
+        try {
+          var sessions = parseInt(localStorage.getItem(VinlandDB.collections.SESSIONS) || '0') + 1;
+          localStorage.setItem(VinlandDB.collections.SESSIONS, sessions.toString());
+          var sessionEl = document.getElementById('session-count');
+          if (sessionEl) sessionEl.textContent = sessions;
+        } catch (e) { console.error('[Storage] session count error:', e); }
+    } catch (e) {
+        console.error('[Storage] loadData integrity guard — data may be partially loaded:', e);
     }
-
-    var sessions = parseInt(localStorage.getItem(VinlandDB.collections.SESSIONS) || '0') + 1;
-    localStorage.setItem(VinlandDB.collections.SESSIONS, sessions.toString());
-    var sessionEl = document.getElementById('session-count');
-    if (sessionEl) sessionEl.textContent = sessions;
-}
+    }
 
 export function saveData() {
     // TASKS / BOARDS / CANVASES / HISTORY: small collections, full write is fine.
