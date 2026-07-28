@@ -13,6 +13,7 @@ const suites = [
   'notes-editor-open.test.mjs',
   'storage-shard.test.mjs',
   'dataview-unit-tests.mjs',
+  'helpers-unit-tests.mjs',
   'canvas-unit-tests.mjs',
 ];
 
