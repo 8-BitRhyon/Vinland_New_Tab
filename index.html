@@ -164,16 +164,37 @@
           top: 50%;
           transform: translateY(-50%);
           width: 20px;
-          height: 20px;
+          height: 24px;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: grab;
           opacity: 0;
           line-height: 1;
-          transition: opacity 0.15s var(--motion-ease);
+          transition: opacity 0.15s var(--motion-ease), background 0.15s var(--motion-ease);
           border-radius: 3px;
           color: var(--secondary-color);
+      }
+
+      /* Grip icon — 2×3 dot grid via radial-gradient */
+      .block-drag-handle::before {
+          content: '';
+          display: block;
+          width: 14px;
+          height: 18px;
+          background-image:
+              radial-gradient(circle, currentColor 1.2px, transparent 1.2px);
+          background-size: 6px 6px;
+          background-position: 1px 1px, 7px 1px,
+                             1px 7px, 7px 7px,
+                             1px 13px, 7px 13px;
+          background-repeat: no-repeat;
+          opacity: 0.5;
+          transition: opacity 0.15s var(--motion-ease);
+      }
+
+      .block-drag-handle:hover::before {
+          opacity: 1;
       }
 
       .block-drag-handle::after {
