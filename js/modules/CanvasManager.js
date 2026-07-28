@@ -849,6 +849,53 @@ export const CanvasManager = {
                 .comment-thread-input button:hover {
                     background: rgba(255, 200, 0, 0.25);
                 }
+                .edge-waypoint-handle {
+                    transition: r 0.1s ease, fill 0.1s ease;
+                }
+                .edge-waypoint-handle:hover {
+                    r: 7;
+                    fill: #fff;
+                }
+                .canvas-edge-context-menu {
+                    position: fixed;
+                    background: rgba(16, 16, 16, 0.97);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 6px;
+                    padding: 4px 0;
+                    min-width: 160px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+                    font-size: 0.75rem;
+                    animation: contextFadeIn 0.1s ease;
+                }
+                @keyframes contextFadeIn {
+                    from { opacity: 0; transform: scale(0.96); }
+                    to   { opacity: 1; transform: scale(1); }
+                }
+                .canvas-edge-context-menu .ctx-item {
+                    padding: 6px 14px;
+                    cursor: pointer;
+                    color: #ccc;
+                    transition: background 0.1s ease;
+                    white-space: nowrap;
+                }
+                .canvas-edge-context-menu .ctx-item:hover {
+                    background: rgba(255, 255, 255, 0.08);
+                    color: #fff;
+                }
+                .canvas-edge-context-menu .ctx-item.ctx-danger {
+                    border-top: 1px solid rgba(255, 255, 255, 0.06);
+                    margin-top: 2px;
+                    padding-top: 8px;
+                    color: #ff5555;
+                }
+                .canvas-edge-context-menu .ctx-item.ctx-danger:hover {
+                    background: rgba(255, 0, 0, 0.12);
+                }
+                .canvas-edge-context-menu .ctx-divider {
+                    height: 1px;
+                    background: rgba(255, 255, 255, 0.08);
+                    margin: 3px 8px;
+                }
             `;
             document.head.appendChild(fbStyle);
         }
@@ -2882,21 +2929,27 @@ export const CanvasManager = {
         const x1 = ports.from.x, y1 = ports.from.y;
         const x2 = ports.to.x, y2 = ports.to.y;
 
-        const dx = Math.abs(x2 - x1);
-        const dy = Math.abs(y2 - y1);
-        const tension = Math.max(dx, dy) * 0.4;
-
-        // Determine control point direction based on which ports were chosen
-        const dirX = x2 > x1 ? 1 : -1;
-        const dirY = y2 > y1 ? 1 : -1;
-        const isHorizontal = dx > dy;
-
+        // Build path string — through waypoints if any, else auto-bezier
         let d;
-        if (isHorizontal) {
-            d = `M ${x1} ${y1} C ${x1 + tension * dirX} ${y1}, ${x2 - tension * dirX} ${y2}, ${x2} ${y2}`;
+        const wps = edge.waypoints;
+        if (wps && wps.length > 0) {
+            d = `M ${x1} ${y1}`;
+            wps.forEach(function(wp) { d += ` L ${wp.x} ${wp.y}`; });
+            d += ` L ${x2} ${y2}`;
         } else {
-            d = `M ${x1} ${y1} C ${x1} ${y1 + tension * dirY}, ${x2} ${y2 - tension * dirY}, ${x2} ${y2}`;
+            const dx = Math.abs(x2 - x1);
+            const dy = Math.abs(y2 - y1);
+            const tension = Math.max(dx, dy) * 0.4;
+            const dirX = x2 > x1 ? 1 : -1;
+            const dirY = y2 > y1 ? 1 : -1;
+            if (dx > dy) {
+                d = `M ${x1} ${y1} C ${x1 + tension * dirX} ${y1}, ${x2 - tension * dirX} ${y2}, ${x2} ${y2}`;
+            } else {
+                d = `M ${x1} ${y1} C ${x1} ${y1 + tension * dirY}, ${x2} ${y2 - tension * dirY}, ${x2} ${y2}`;
+            }
         }
+
+        var self = this;
 
         // Create or update path
         let path = document.getElementById(`edge-${edge.id}`);
@@ -2908,7 +2961,6 @@ export const CanvasManager = {
             path.setAttribute('fill', 'none');
 
             if (edge.isWikiLink) {
-                // Wiki-link routed edges: dashed and dimmer to distinguish from manual edges
                 path.setAttribute('stroke-width', '1.5');
                 path.setAttribute('opacity', '0.5');
                 path.setAttribute('stroke-dasharray', '5,3');
@@ -2922,24 +2974,117 @@ export const CanvasManager = {
             path.style.cursor = 'pointer';
             this.svgLayer.appendChild(path);
 
-            // Click to select/delete edge
-            path.addEventListener('contextmenu', (e) => {
+            // Right-click: edge context menu (delete + add waypoint)
+            path.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (confirm('Delete this connection?')) {
-                    this._deleteEdge(edge.id);
-                }
+                self._showEdgeContextMenu(e.clientX, e.clientY, edge, fromNode, toNode);
             });
 
-            // Double-click to edit label
-            path.addEventListener('dblclick', (e) => {
+            // Double-click on path: add waypoint at click position
+            path.addEventListener('dblclick', function(e) {
                 e.stopPropagation();
-                this._editEdgeLabel(edge, x1, y1, x2, y2);
+                var rect = self.container.getBoundingClientRect();
+                var wx = (e.clientX - rect.left - self.transform.x) / self.transform.scale;
+                var wy = (e.clientY - rect.top - self.transform.y) / self.transform.scale;
+                if (!edge.waypoints) edge.waypoints = [];
+                edge.waypoints.push({ x: wx, y: wy });
+                self._saveData();
+                self.renderEdge(edge);
             });
         }
         path.setAttribute('d', d);
 
+        // ── RENDER / UPDATE WAYPOINT HANDLES ──
+        if (wps && wps.length > 0) {
+            var existingHandles = {};
+            self.svgLayer.querySelectorAll('[id^="edge-wp-' + edge.id + '-"]').forEach(function(el) {
+                existingHandles[el.id] = el;
+            });
+            wps.forEach(function(wp, i) {
+                var handleId = 'edge-wp-' + edge.id + '-' + i;
+                var circle = existingHandles[handleId];
+                if (!circle) {
+                    circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.id = handleId;
+                    circle.classList.add('edge-waypoint-handle');
+                    circle.setAttribute('r', '5');
+                    circle.setAttribute('fill', 'var(--main-color, #00ff41)');
+                    circle.setAttribute('stroke', '#000');
+                    circle.setAttribute('stroke-width', '1.5');
+                    circle.style.cursor = 'move';
+                    circle.style.pointerEvents = 'all';
+                    self.svgLayer.appendChild(circle);
+
+                    // ── Drag waypoint ──
+                    circle.addEventListener('mousedown', function(downE) {
+                        downE.stopPropagation();
+                        downE.preventDefault();
+                        var wpIdx = parseInt(this.id.split('-').pop());
+                        var startX = downE.clientX;
+                        var startY = downE.clientY;
+                        var origWp = { x: wps[wpIdx].x, y: wps[wpIdx].y };
+
+                        var onMove = function(moveE) {
+                            var rect = self.container.getBoundingClientRect();
+                            var dx2 = (moveE.clientX - startX) / self.transform.scale;
+                            var dy2 = (moveE.clientY - startY) / self.transform.scale;
+                            wps[wpIdx].x = origWp.x + dx2;
+                            wps[wpIdx].y = origWp.y + dy2;
+                            self.renderEdge(edge);
+                        };
+                        var onUp = function() {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                            self._saveData();
+                        };
+                        window.addEventListener('mousemove', onMove);
+                        window.addEventListener('mouseup', onUp);
+                    });
+
+                    // ── Right-click waypoint: delete ──
+                    circle.addEventListener('contextmenu', function(ce) {
+                        ce.preventDefault();
+                        ce.stopPropagation();
+                        var wpIdx = parseInt(this.id.split('-').pop());
+                        if (confirm('Delete this waypoint?')) {
+                            edge.waypoints.splice(wpIdx, 1);
+                            if (edge.waypoints.length === 0) delete edge.waypoints;
+                            self._saveData();
+                            self.renderEdge(edge);
+                        }
+                    });
+                }
+                circle.setAttribute('cx', wp.x);
+                circle.setAttribute('cy', wp.y);
+                delete existingHandles[handleId];
+            });
+            // Remove stale handles
+            Object.keys(existingHandles).forEach(function(id) { existingHandles[id].remove(); });
+        } else {
+            // No waypoints — remove any leftover handles
+            self.svgLayer.querySelectorAll('[id^="edge-wp-' + edge.id + '-"]').forEach(function(el) { el.remove(); });
+        }
+
         // ── Hover hint: show "+" on edge when no label exists ──
+        // Position hint at midpoint of the edge path (or first waypoint segment midpoint)
+        let hintX = (x1 + x2) / 2, hintY = (y1 + y2) / 2;
+        if (wps && wps.length > 0) {
+            // Place hint at midpoint of longest waypoint segment
+            var segments = [{ sx: x1, sy: y1, ex: wps[0].x, ey: wps[0].y }];
+            for (var si = 1; si < wps.length; si++) {
+                segments.push({ sx: wps[si-1].x, sy: wps[si-1].y, ex: wps[si].x, ey: wps[si].y });
+            }
+            segments.push({ sx: wps[wps.length-1].x, sy: wps[wps.length-1].y, ex: x2, ey: y2 });
+            var longest = segments[0];
+            var longestLen = 0;
+            segments.forEach(function(s) {
+                var len = Math.hypot(s.ex - s.sx, s.ey - s.sy);
+                if (len > longestLen) { longestLen = len; longest = s; }
+            });
+            hintX = (longest.sx + longest.ex) / 2;
+            hintY = (longest.sy + longest.ey) / 2;
+        }
         const hintId = `edge-label-hint-${edge.id}`;
         let hintEl = document.getElementById(hintId);
         if (!hintEl) {
@@ -2949,11 +3094,8 @@ export const CanvasManager = {
             hintEl.textContent = '+';
             this.svgLayer.appendChild(hintEl);
 
-            // Show on hover only when no label exists (registered once)
             const showHint = () => {
-                if (!edge.label) {
-                    hintEl.classList.add('visible');
-                }
+                if (!edge.label) hintEl.classList.add('visible');
             };
             const hideHint = () => {
                 hintEl.classList.remove('visible');
@@ -2961,10 +3103,8 @@ export const CanvasManager = {
             path.addEventListener('mouseenter', showHint);
             path.addEventListener('mouseleave', hideHint);
         }
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
-        hintEl.setAttribute('x', mx);
-        hintEl.setAttribute('y', my);
+        hintEl.setAttribute('x', hintX);
+        hintEl.setAttribute('y', hintY);
 
         // Render label at midpoint
         this._renderEdgeLabel(edge, x1, y1, x2, y2);
@@ -3269,13 +3409,73 @@ export const CanvasManager = {
 
         note.canvasData.edges = note.canvasData.edges.filter(e => e.id !== edgeId);
 
-        // Remove SVG elements (path, label group, hover hint)
+        // Remove SVG elements (path, label group, hover hint, waypoint handles)
         ['edge-', 'edge-label-group-', 'edge-label-hint-'].forEach(function(prefix) {
             var el = document.getElementById(prefix + edgeId);
             if (el) el.remove();
         });
+        document.querySelectorAll('[id^="edge-wp-' + edgeId + '-"]').forEach(function(el) { el.remove(); });
 
         this._saveData();
+    },
+
+    // ─── EDGE CONTEXT MENU ───
+    _showEdgeContextMenu: function(clientX, clientY, edge, fromNode, toNode) {
+        // Remove any existing context menu
+        var existing = document.querySelector('.canvas-edge-context-menu');
+        if (existing) existing.remove();
+
+        var menu = document.createElement('div');
+        menu.className = 'canvas-edge-context-menu';
+        menu.style.cssText = 'position:fixed;left:' + clientX + 'px;top:' + clientY + 'px;z-index:45000;';
+        menu.innerHTML = `
+            <div class="ctx-item" data-action="add-waypoint">+ Add Waypoint</div>
+            <div class="ctx-item" data-action="edit-label">✎ Edit Label</div>
+            <div class="ctx-divider"></div>
+            <div class="ctx-item ctx-danger" data-action="delete-edge">✕ Delete Connection</div>
+        `;
+        document.body.appendChild(menu);
+
+        var self = this;
+        menu.addEventListener('click', function(e) {
+            var item = e.target.closest('.ctx-item');
+            if (!item) return;
+            var action = item.getAttribute('data-action');
+            switch (action) {
+                case 'add-waypoint': {
+                    var rect = self.container.getBoundingClientRect();
+                    var wx = (clientX - rect.left - self.transform.x) / self.transform.scale;
+                    var wy = (clientY - rect.top - self.transform.y) / self.transform.scale;
+                    if (!edge.waypoints) edge.waypoints = [];
+                    edge.waypoints.push({ x: wx, y: wy });
+                    self._saveData();
+                    self.renderEdge(edge);
+                    break;
+                }
+                case 'edit-label': {
+                    menu.remove();
+                    const ports = self._getAutoPorts(fromNode, toNode);
+                    self._editEdgeLabel(edge, ports.from.x, ports.from.y, ports.to.x, ports.to.y);
+                    return;
+                }
+                case 'delete-edge': {
+                    self._deleteEdge(edge.id);
+                    break;
+                }
+            }
+            menu.remove();
+        });
+
+        // Close on outside click
+        setTimeout(function() {
+            var closeHandler = function(ce) {
+                if (!menu.contains(ce.target)) {
+                    menu.remove();
+                    document.removeEventListener('mousedown', closeHandler);
+                }
+            };
+            document.addEventListener('mousedown', closeHandler);
+        }, 10);
     },
 
     // ─── MARKDOWN TO HTML CONVERSION ───
@@ -3392,8 +3592,11 @@ export const CanvasManager = {
     _refreshEdges: function() {
         var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.edges) return;
-        // Fix: clear existing lines first so deleted ones disappear
         this.svgLayer.innerHTML = '';
+        // Rebuild arrowhead defs (destroyed by innerHTML clearing)
+        var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = '<marker id="canvas-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" fill="var(--main-color, #00ff41)"><path d="M 0 0 L 10 5 L 0 10 z" /></marker><marker id="canvas-arrowhead-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" fill="#555"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>';
+        this.svgLayer.appendChild(defs);
         note.canvasData.edges.forEach(edge => this.renderEdge(edge));
     },
 
