@@ -15,6 +15,7 @@ const suites = [
   'dataview-unit-tests.mjs',
   'helpers-unit-tests.mjs',
   'canvas-unit-tests.mjs',
+  'snap-grid-unit-tests.mjs',
 ];
 
 let exitCode = 0;
