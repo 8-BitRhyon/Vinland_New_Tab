@@ -25,6 +25,21 @@ export const CanvasManager = {
     _backlinksPanel: null,
     _backlinksFileNodeId: null,
 
+    // ─── HELPERS ───
+    _getActiveNote: function() {
+        return window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
+    },
+    _saveData: function() {
+        if (window.saveData) window.saveData();
+    },
+    _getWorldCenter: function() {
+        const rect = this.container.getBoundingClientRect();
+        return {
+            x: (rect.width / 2 - this.transform.x) / this.transform.scale,
+            y: (rect.height / 2 - this.transform.y) / this.transform.scale
+        };
+    },
+
     // === SELECTION HELPERS ===
     selectNode: function(nodeId, isMultiSelect) {
         if (!isMultiSelect) {
@@ -60,8 +75,9 @@ export const CanvasManager = {
         this._closeBacklinks();
     },
 
+    // ─── CLIPBOARD & BULK OPERATIONS ───
     deleteSelectedNodes: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         if (this._saveHistoryState) this._saveHistoryState();
@@ -85,7 +101,7 @@ export const CanvasManager = {
 
         this.clearSelection();
         this._refreshEdges();
-        if (window.saveData) window.saveData();
+        this._saveData();
         this.updateUI();
         // Update backlinks badges
         var self = this;
@@ -99,7 +115,7 @@ export const CanvasManager = {
     },
 
     copySelectedNodes: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData || this.selectedNodeIds.size === 0) return;
 
         const clonedNodes = [];
@@ -126,7 +142,7 @@ export const CanvasManager = {
 
     pasteCopiedNodes: function() {
         if (!this.clipboard || !this.clipboard.nodes || this.clipboard.nodes.length === 0) return;
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         if (this._saveHistoryState) this._saveHistoryState();
@@ -195,13 +211,13 @@ export const CanvasManager = {
         });
 
         this._refreshEdges();
-        if (window.saveData) window.saveData();
+        this._saveData();
         this.updateUI();
         console.log('[CanvasManager] Pasted nodes:', newNodes.length);
     },
 
     duplicateSelectedNodes: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData || this.selectedNodeIds.size === 0) return;
 
         if (this._saveHistoryState) this._saveHistoryState();
@@ -255,11 +271,12 @@ export const CanvasManager = {
         });
 
         this._refreshEdges();
-        if (window.saveData) window.saveData();
+        this._saveData();
         this.updateUI();
         console.log('[CanvasManager] Duplicated nodes:', newNodes.length);
     },
 
+    // ─── UTILITY HELPERS ───
     getMouseWorldCoords: function() {
         if (!this.lastMouseCoords || !this.container) return { x: 0, y: 0 };
         const rect = this.container.getBoundingClientRect();
@@ -269,7 +286,7 @@ export const CanvasManager = {
     },
 
     _saveHistoryState: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         const stateCopy = JSON.parse(JSON.stringify(note.canvasData));
@@ -283,7 +300,7 @@ export const CanvasManager = {
 
     undo: function() {
         if (this.historyStack.length === 0) return;
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         const currentState = JSON.parse(JSON.stringify(note.canvasData));
@@ -293,13 +310,13 @@ export const CanvasManager = {
         note.canvasData = previousState;
 
         this.load(this.activeNoteId);
-        if (window.saveData) window.saveData();
+        this._saveData();
         console.log('[CanvasManager] Undo complete.');
     },
 
     redo: function() {
         if (this.redoStack.length === 0) return;
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         const currentState = JSON.parse(JSON.stringify(note.canvasData));
@@ -309,7 +326,7 @@ export const CanvasManager = {
         note.canvasData = nextState;
 
         this.load(this.activeNoteId);
-        if (window.saveData) window.saveData();
+        this._saveData();
         console.log('[CanvasManager] Redo complete.');
     },
 
@@ -651,6 +668,7 @@ export const CanvasManager = {
         this.bindEvents();
     },
 
+    // ─── DATA LOADING ───
     load: function(noteId) {
         console.log('[CanvasManager] load() - noteId:', noteId, '| board:', !!this.board, '| container:', !!this.container);
         
@@ -661,7 +679,7 @@ export const CanvasManager = {
         }
         
         this.activeNoteId = noteId;
-        const note = window.State.NOTES.find(n => n.id === noteId);
+        const note = this._getActiveNote();
         if (!note) { console.warn('[CanvasManager] Note not found!'); return; }
 
         // Ensure canvasData exists
@@ -697,7 +715,7 @@ export const CanvasManager = {
                 this.renderEdge(edge);
             });
         }
-        setTimeout(() => this.updateUI(), 50);
+        setTimeout(function() { self.updateUI(); }, 50);
 
         // Update backlinks badges for all file nodes
         setTimeout(() => {
@@ -725,8 +743,9 @@ export const CanvasManager = {
         this._updateMinimap();
     },
 
+    // ─── UI UPDATES ───
     updateUI: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         const count = (note && note.canvasData && note.canvasData.nodes) ? note.canvasData.nodes.length : 0;
 
         // Node count
@@ -766,12 +785,12 @@ export const CanvasManager = {
                 height: 80
             };
 
-            const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+            var note = this._getActiveNote();
             if (note && note.canvasData) {
                 if (!note.canvasData.nodes) note.canvasData.nodes = [];
                 note.canvasData.nodes.push(newNode);
                 this.addCard(newNode);
-                if (window.saveData) window.saveData();
+                this._saveData();
                 this.updateUI();
             }
         });
@@ -806,6 +825,9 @@ export const CanvasManager = {
         });
     },
 
+    },
+
+    // ─── PICKER OVERLAYS ───
     _showNotePicker: function(screenX, screenY) {
         this._closeNotePicker();
 
@@ -824,20 +846,20 @@ export const CanvasManager = {
         const list = document.createElement('div');
         picker.appendChild(list);
 
-        const self = this;
-        const allNotes = (window.State.NOTES || []).filter(n => n.type !== 'canvas' && n.id !== this.activeNoteId);
+        var self = this;
+        var allNotes = (window.State.NOTES || []).filter(function(n) { return n.type !== 'canvas' && n.id !== self.activeNoteId; });
 
-        const renderList = (filter) => {
+        var renderList = function(filter) {
             list.innerHTML = '';
-            const filtered = filter
-                ? allNotes.filter(n => (n.title || '').toLowerCase().includes(filter.toLowerCase()))
+            var filtered = filter
+                ? allNotes.filter(function(n) { return (n.title || '').toLowerCase().includes(filter.toLowerCase()); })
                 : allNotes;
 
-            filtered.slice(0, 15).forEach(n => {
-                const item = document.createElement('div');
+            filtered.slice(0, 15).forEach(function(n) {
+                var item = document.createElement('div');
                 item.className = 'canvas-note-picker-item';
                 item.textContent = n.title || 'Untitled';
-                item.addEventListener('click', () => {
+                item.addEventListener('click', function() {
                     self._addFileNode(n.id);
                     self._closeNotePicker();
                 });
@@ -845,7 +867,7 @@ export const CanvasManager = {
             });
 
             if (filtered.length === 0) {
-                const empty = document.createElement('div');
+                var empty = document.createElement('div');
                 empty.style.cssText = 'padding:8px;color:#555;font-size:0.75rem;text-align:center;';
                 empty.textContent = 'No notes found';
                 list.appendChild(empty);
@@ -853,14 +875,14 @@ export const CanvasManager = {
         };
 
         renderList('');
-        search.addEventListener('input', () => renderList(search.value));
+        search.addEventListener('input', function() { renderList(search.value); });
 
         document.body.appendChild(picker);
         search.focus();
 
         // Close on outside click
-        setTimeout(() => {
-            const closeHandler = (e) => {
+        setTimeout(function() {
+            var closeHandler = function(e) {
                 if (!picker.contains(e.target)) {
                     self._closeNotePicker();
                     document.removeEventListener('mousedown', closeHandler);
@@ -871,32 +893,32 @@ export const CanvasManager = {
     },
 
     _closeNotePicker: function() {
-        const existing = document.getElementById('canvas-note-picker');
+        var existing = document.getElementById('canvas-note-picker');
         if (existing) existing.remove();
     },
 
     _showUrlPicker: function(screenX, screenY) {
         this._closeUrlPicker();
 
-        const picker = document.createElement('div');
-        picker.className = 'canvas-note-picker'; // Reuse same styling as note picker
+        var picker = document.createElement('div');
+        picker.className = 'canvas-note-picker';
         picker.id = 'canvas-url-picker';
         picker.style.left = screenX + 'px';
         picker.style.top = screenY + 'px';
         picker.style.position = 'fixed';
         picker.style.width = '300px';
 
-        const input = document.createElement('input');
+        var input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'Paste YouTube or Website URL...';
         input.style.width = '100%';
         picker.appendChild(input);
 
-        const self = this;
-        input.addEventListener('keydown', (e) => {
+        var self = this;
+        input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                const url = input.value.trim();
+                var url = input.value.trim();
                 if (url) {
                     self._addEmbedNode(url);
                     self._closeUrlPicker();
@@ -910,8 +932,8 @@ export const CanvasManager = {
         input.focus();
 
         // Close on outside click
-        setTimeout(() => {
-            const closeHandler = (e) => {
+        setTimeout(function() {
+            var closeHandler = function(e) {
                 if (!picker.contains(e.target)) {
                     self._closeUrlPicker();
                     document.removeEventListener('mousedown', closeHandler);
@@ -922,13 +944,11 @@ export const CanvasManager = {
     },
 
     _closeUrlPicker: function() {
-        const existing = document.getElementById('canvas-url-picker');
+        var existing = document.getElementById('canvas-url-picker');
         if (existing) existing.remove();
     },
 
-    // ==========================================
-    // KEYBOARD SHORTCUTS REFERENCE PANEL
-    // ==========================================
+    // ─── OVERLAY PANELS ───
 
     _showShortcutsPanel: function() {
         this._closeShortcutsPanel();
@@ -1057,42 +1077,39 @@ export const CanvasManager = {
         }
     },
 
+    // ─── NODE CREATION ───
     _addFileNode: function(linkedNoteId) {
         this._saveHistoryState();
-        const linkedNote = window.State.NOTES.find(n => n.id === linkedNoteId);
+        var linkedNote = window.State.NOTES.find(function(n) { return n.id === linkedNoteId; });
         if (!linkedNote) return;
 
-        const rect = this.container.getBoundingClientRect();
-        const cx = (rect.width / 2 - this.transform.x) / this.transform.scale;
-        const cy = (rect.height / 2 - this.transform.y) / this.transform.scale;
+        var center = this._getWorldCenter();
 
-        const newNode = {
+        var newNode = {
             id: 'node_' + Date.now(),
             type: 'file',
             linkedNoteId: linkedNoteId,
             title: linkedNote.title || 'Untitled',
             preview: '',
-            x: cx - 120,
-            y: cy - 60,
+            x: center.x - 120,
+            y: center.y - 60,
             width: 240,
             height: 160
         };
 
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (note && note.canvasData) {
             if (!note.canvasData.nodes) note.canvasData.nodes = [];
             note.canvasData.nodes.push(newNode);
             this.addCard(newNode);
-            if (window.saveData) window.saveData();
+            this._saveData();
             this.updateUI();
         }
     },
 
     _addEmbedNode: function(url) {
         this._saveHistoryState();
-        const rect = this.container.getBoundingClientRect();
-        const cx = (rect.width / 2 - this.transform.x) / this.transform.scale;
-        const cy = (rect.height / 2 - this.transform.y) / this.transform.scale;
+        var center = this._getWorldCenter();
 
         // Auto-convert common URLs to embedded formats
         let embedUrl = url;
@@ -1113,60 +1130,52 @@ export const CanvasManager = {
             embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&showinfo=0&origin=${originStr}`;
         }
 
-        const newNode = {
+        var newNode = {
             id: 'node_' + Date.now(),
             type: 'embed',
             url: embedUrl,
             title: (function(url) { try { return new URL(url).hostname.replace('www.', ''); } catch(e) { return url; } })(embedUrl),
-            x: cx - 160,
-            y: cy - 100,
+            x: center.x - 160,
+            y: center.y - 100,
             width: 320,
             height: 240
         };
 
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (note && note.canvasData) {
             if (!note.canvasData.nodes) note.canvasData.nodes = [];
             note.canvasData.nodes.push(newNode);
             this.addCard(newNode);
-            if (window.saveData) window.saveData();
+            this._saveData();
             this.updateUI();
         }
     },
 
     _addGroupNode: function() {
         this._saveHistoryState();
-        const rect = this.container.getBoundingClientRect();
-        const cx = (rect.width / 2 - this.transform.x) / this.transform.scale;
-        const cy = (rect.height / 2 - this.transform.y) / this.transform.scale;
+        var center = this._getWorldCenter();
 
-        const newNode = {
+        var newNode = {
             id: 'node_' + Date.now(),
             type: 'group',
             label: 'New Group',
-            x: cx - 200,
-            y: cy - 150,
+            x: center.x - 200,
+            y: center.y - 150,
             width: 400,
             height: 300,
-            color: 'default' // Add optional color property
+            color: 'default'
         };
 
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (note && note.canvasData) {
             if (!note.canvasData.nodes) note.canvasData.nodes = [];
-            // Push group to beginning of array so it renders behind text/file/embed nodes
             note.canvasData.nodes.unshift(newNode);
-            
-            // Re-render entire canvas to ensure z-indexing / DOM order is correct
             this.load(this.activeNoteId);
-            if (window.saveData) window.saveData();
-            
-            // UX / Bugfix: Auto-focus the label to prevent the +Button from retaining focus
-            // and being accidentally triggered again by Enter/Space.
-            setTimeout(() => {
-                const el = document.getElementById(`canvas-node-${newNode.id}`);
+            this._saveData();
+            setTimeout(function() {
+                var el = document.getElementById('canvas-node-' + newNode.id);
                 if (el) {
-                    const input = el.querySelector('.canvas-group-label');
+                    var input = el.querySelector('.canvas-group-label');
                     if (input) {
                         input.focus();
                         input.select();
@@ -1176,26 +1185,23 @@ export const CanvasManager = {
         }
     },
 
+    // ─── EVENT BINDING ───
     bindEvents: function() {
         if (!this.container) return;
 
         // === KEYBOARD SHORTCUTS & PAN STATE ===
-        let isSpacePressed = false;
-        window.addEventListener('keydown', (e) => {
-            const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+        var isSpacePressed = false;
+        var self = this;
+        window.addEventListener('keydown', function(e) {
+            var isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+            var isCmdOrCtrl = e.metaKey || e.ctrlKey;
             
-            // Cmd+F / Ctrl+F = Find in canvas (CanvasSearch)
-            const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+            // Cmd+F / Ctrl+F = Find in canvas
             if (isCmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'f') {
-                // Allow Cmd+F when typing in canvas, but not in other inputs
-                if (isInput && !e.target.closest('#canvas-container')) {
-                    // Let browser handle default Cmd+F behavior
-                } else {
+                if (!isInput || e.target.closest('#canvas-container')) {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (window.CanvasSearch) {
-                        window.CanvasSearch.toggle();
-                    }
+                    if (window.CanvasSearch) window.CanvasSearch.toggle();
                     return;
                 }
             }
@@ -1203,80 +1209,67 @@ export const CanvasManager = {
             // Shift + 1 = Zoom to Fit
             if (e.shiftKey && e.key === '!' && !isInput) {
                 e.preventDefault();
-                this.zoomToFit();
+                self.zoomToFit();
                 return;
             }
 
             if (e.code === 'Space' && !isInput) {
                 isSpacePressed = true;
-                this.container.style.cursor = 'grab';
-                e.preventDefault(); // Prevent page scroll
+                self.container.style.cursor = 'grab';
+                e.preventDefault();
                 return;
             }
 
-            // ? = Open shortcuts panel (Shift+/ dispatches key '?' on US keyboards)
             if (e.key === '?' && !isInput) {
                 e.preventDefault();
-                this._showShortcutsPanel();
+                self._showShortcutsPanel();
                 return;
             }
 
-            // Delete Key: Batch delete selected nodes
             if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
-                if (this.selectedNodeIds.size > 0) {
+                if (self.selectedNodeIds.size > 0) {
                     e.preventDefault();
-                    this.deleteSelectedNodes();
+                    self.deleteSelectedNodes();
                 }
             }
 
-            // Clipboard & Undo/Redo: Copy, Paste, Duplicate, Undo, Redo
             if (isCmdOrCtrl && !isInput) {
                 if (e.key === 'c' || e.key === 'C') {
                     e.preventDefault();
-                    this.copySelectedNodes();
+                    self.copySelectedNodes();
                 } else if (e.key === 'v' || e.key === 'V') {
                     e.preventDefault();
-                    this.pasteCopiedNodes();
+                    self.pasteCopiedNodes();
                 } else if (e.key === 'd' || e.key === 'D') {
                     e.preventDefault();
-                    this.duplicateSelectedNodes();
+                    self.duplicateSelectedNodes();
                 } else if (e.key === 'z' || e.key === 'Z') {
                     e.preventDefault();
-                    if (e.shiftKey) {
-                        this.redo();
-                    } else {
-                        this.undo();
-                    }
+                    if (e.shiftKey) self.redo();
+                    else self.undo();
                 } else if (e.key === 'y' || e.key === 'Y') {
                     e.preventDefault();
-                    this.redo();
+                    self.redo();
                 }
             }
 
-            // FEATURE: Keyboard Spawning (Tab / Enter)
-            if (this.selectedNodeId && (e.key === 'Tab' || (!e.shiftKey && e.key === 'Enter'))) {
-                // If we are typing, it should be the input of the SELECTED node, otherwise ignore.
+            // Keyboard Spawning (Tab / Enter)
+            if (self.selectedNodeId && (e.key === 'Tab' || (!e.shiftKey && e.key === 'Enter'))) {
                 if (isInput) {
-                    const activeCard = e.target.closest('.canvas-card, .canvas-group');
-                    if (!activeCard || activeCard.id !== `canvas-node-${this.selectedNodeId}`) return;
+                    var activeCard = e.target.closest('.canvas-card, .canvas-group');
+                    if (!activeCard || activeCard.id !== 'canvas-node-' + self.selectedNodeId) return;
                 }
+                e.preventDefault();
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
-                e.preventDefault(); // Prevent standard tabbing/newline
-                
-                // Unfocus current text if needed
-                if (document.activeElement && document.activeElement.blur) {
-                    document.activeElement.blur();
-                }
-
-                const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+                var note = self._getActiveNote();
                 if (!note || !note.canvasData) return;
 
-                const parentNode = note.canvasData.nodes.find(n => n.id === this.selectedNodeId);
+                var parentNode = note.canvasData.nodes.find(function(n) { return n.id === self.selectedNodeId; });
                 if (!parentNode) return;
 
-                this._saveHistoryState();
-                // Create new generic text node
-                const newNode = {
+                self._saveHistoryState();
+                var newNode = {
                     id: 'node_' + Date.now(),
                     title: '',
                     preview: '',
@@ -1285,18 +1278,15 @@ export const CanvasManager = {
                 };
 
                 if (e.key === 'Tab') {
-                    // Spawn child to the right
                     newNode.x = parentNode.x + (parentNode.width || 200) + 60;
                     newNode.y = parentNode.y;
-                } else if (e.key === 'Enter') {
-                    // Spawn sibling below
+                } else {
                     newNode.x = parentNode.x;
                     newNode.y = parentNode.y + (parentNode.height || 80) + 60;
                 }
 
                 note.canvasData.nodes.push(newNode);
 
-                // If Tab, draw edge from parent to child
                 if (e.key === 'Tab') {
                     if (!note.canvasData.edges) note.canvasData.edges = [];
                     note.canvasData.edges.push({
@@ -1308,70 +1298,58 @@ export const CanvasManager = {
                     });
                 }
 
-                this.selectedNodeId = newNode.id;
-                this.addCard(newNode);
-                
-                if (e.key === 'Tab') {
-                    this._refreshEdges();
-                }
+                self.selectedNodeId = newNode.id;
+                self.addCard(newNode);
+                if (e.key === 'Tab') self._refreshEdges();
+                self._saveData();
 
-                if (window.saveData) window.saveData();
-
-                // Select the new node and focus its body text
-                document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(el => el.classList.remove('selected-node'));
-                const newCard = document.getElementById(`canvas-node-${newNode.id}`);
+                document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(function(el) { el.classList.remove('selected-node'); });
+                var newCard = document.getElementById('canvas-node-' + newNode.id);
                 if (newCard) {
                     newCard.classList.add('selected-node');
-                    // setTimeout to allow DOM insertion settling
-                    setTimeout(() => {
-                        const bodyContent = newCard.querySelector('.canvas-card-body');
-                        if (bodyContent) {
-                            bodyContent.focus();
-                            // Place cursor at end if needed, but it's empty so focus is fine
-                        }
+                    setTimeout(function() {
+                        var bodyContent = newCard.querySelector('.canvas-card-body');
+                        if (bodyContent) bodyContent.focus();
                     }, 50);
                 }
             }
         });
-        window.addEventListener('keyup', (e) => {
+        window.addEventListener('keyup', function(e) {
             if (e.code === 'Space') {
                 isSpacePressed = false;
-                this.container.style.cursor = '';
+                self.container.style.cursor = '';
             }
         });
 
-        // === PAN OR LASSO SELECT: Spacebar-drag / Middle-click to PAN; left-click to LASSO ===
-        this.container.addEventListener('mousedown', (e) => {
-            const isBgClick = !e.target.closest('.canvas-card') && !e.target.closest('.canvas-toolbar') && !e.target.closest('#canvas-note-picker') && !e.target.closest('#canvas-url-picker');
-            
-            if (isBgClick) {
-                const isPanCommand = isSpacePressed || e.button === 1;
-                if (isPanCommand) {
-                    e.preventDefault();
-                    this.isPanning = true;
-                    this.dragStart = { x: e.clientX - this.transform.x, y: e.clientY - this.transform.y };
-                    this.container.style.cursor = 'grabbing';
-                } else if (e.button === 0) {
-                    // Start Marquee Selection
-                    this.clearSelection();
-                    this.isSelectingMarquee = true;
-                    this.marqueeStart = { x: e.clientX, y: e.clientY };
-                    this.marqueeEl = document.createElement('div');
-                    this.marqueeEl.className = 'canvas-selection-marquee';
-                    this.container.appendChild(this.marqueeEl);
-                }
+        // === PAN OR LASSO SELECT ===
+        self.container.addEventListener('mousedown', function(e) {
+            var isBgClick = !e.target.closest('.canvas-card') && !e.target.closest('.canvas-toolbar') && !e.target.closest('#canvas-note-picker') && !e.target.closest('#canvas-url-picker');
+            if (!isBgClick) return;
+            var isPanCmd = isSpacePressed || e.button === 1;
+            if (isPanCmd) {
+                e.preventDefault();
+                self.isPanning = true;
+                self.dragStart = { x: e.clientX - self.transform.x, y: e.clientY - self.transform.y };
+                self.container.style.cursor = 'grabbing';
+            } else if (e.button === 0) {
+                self.clearSelection();
+                self.isSelectingMarquee = true;
+                self.marqueeStart = { x: e.clientX, y: e.clientY };
+                self.marqueeEl = document.createElement('div');
+                self.marqueeEl.className = 'canvas-selection-marquee';
+                self.container.appendChild(self.marqueeEl);
             }
         });
 
         // === DOUBLE CLICK: Create node ===
-        this.container.addEventListener('dblclick', (e) => {
+        self.container.addEventListener('dblclick', function(e) {
             if (e.target.closest('.canvas-card') || e.target.closest('.canvas-toolbar')) return;
-            this._saveHistoryState();
-            const rect = this.container.getBoundingClientRect();
-            const x = (e.clientX - rect.left - this.transform.x) / this.transform.scale;
-            const y = (e.clientY - rect.top - this.transform.y) / this.transform.scale;
+            self._saveHistoryState();
+            var rect = self.container.getBoundingClientRect();
+            var x = (e.clientX - rect.left - self.transform.x) / self.transform.scale;
+            var y = (e.clientY - rect.top - self.transform.y) / self.transform.scale;
 
-            const newNode = {
+            var newNode = {
                 id: 'node_' + Date.now(),
                 title: '',
                 preview: '',
@@ -1381,173 +1359,153 @@ export const CanvasManager = {
                 height: 80
             };
 
-            const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+            var note = self._getActiveNote();
             if (note && note.canvasData) {
                 if (!note.canvasData.nodes) note.canvasData.nodes = [];
                 note.canvasData.nodes.push(newNode);
-                this.addCard(newNode);
-                if (window.saveData) window.saveData();
-                this.updateUI();
+                self.addCard(newNode);
+                self._saveData();
+                self.updateUI();
             }
         });
 
-        // === GLOBAL MOUSE MOVE: Panning + Marquee Select + Edge re-rendering ===
-        window.addEventListener('mousemove', (e) => {
-            this.lastMouseCoords = { x: e.clientX, y: e.clientY };
-            if (this.isPanning) {
-                this.transform.x = e.clientX - this.dragStart.x;
-                this.transform.y = e.clientY - this.dragStart.y;
-                this.updateTransform();
-                this._updateBacklinksPosition();
+        // === GLOBAL MOUSE MOVE ===
+        window.addEventListener('mousemove', function(e) {
+            self.lastMouseCoords = { x: e.clientX, y: e.clientY };
+            if (self.isPanning) {
+                self.transform.x = e.clientX - self.dragStart.x;
+                self.transform.y = e.clientY - self.dragStart.y;
+                self.updateTransform();
+                self._updateBacklinksPosition();
                 return;
             }
 
-            if (this.isSelectingMarquee && this.marqueeEl) {
-                const currentX = e.clientX;
-                const currentY = e.clientY;
-                const x = Math.min(this.marqueeStart.x, currentX);
-                const y = Math.min(this.marqueeStart.y, currentY);
-                const w = Math.abs(this.marqueeStart.x - currentX);
-                const h = Math.abs(this.marqueeStart.y - currentY);
-                
-                const rect = this.container.getBoundingClientRect();
-                this.marqueeEl.style.left = (x - rect.left) + 'px';
-                this.marqueeEl.style.top = (y - rect.top) + 'px';
-                this.marqueeEl.style.width = w + 'px';
-                this.marqueeEl.style.height = h + 'px';
-                
-                // Real-time calculation of intersections
-                const worldX1 = (x - rect.left - this.transform.x) / this.transform.scale;
-                const worldY1 = (y - rect.top - this.transform.y) / this.transform.scale;
-                const worldX2 = worldX1 + w / this.transform.scale;
-                const worldY2 = worldY1 + h / this.transform.scale;
-                
-                const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+            if (self.isSelectingMarquee && self.marqueeEl) {
+                var currentX = e.clientX;
+                var currentY = e.clientY;
+                var x = Math.min(self.marqueeStart.x, currentX);
+                var y = Math.min(self.marqueeStart.y, currentY);
+                var w = Math.abs(self.marqueeStart.x - currentX);
+                var h = Math.abs(self.marqueeStart.y - currentY);
+                var rect = self.container.getBoundingClientRect();
+
+                self.marqueeEl.style.left = (x - rect.left) + 'px';
+                self.marqueeEl.style.top = (y - rect.top) + 'px';
+                self.marqueeEl.style.width = w + 'px';
+                self.marqueeEl.style.height = h + 'px';
+
+                var worldX1 = (x - rect.left - self.transform.x) / self.transform.scale;
+                var worldY1 = (y - rect.top - self.transform.y) / self.transform.scale;
+                var worldX2 = worldX1 + w / self.transform.scale;
+                var worldY2 = worldY1 + h / self.transform.scale;
+
+                var note = self._getActiveNote();
                 if (note && note.canvasData && note.canvasData.nodes) {
-                    note.canvasData.nodes.forEach(node => {
-                        const wNode = node.width || 200;
-                        const hNode = node.height || 80;
-                        const isIntersecting = !(node.x + wNode < worldX1 || node.x > worldX2 || node.y + hNode < worldY1 || node.y > worldY2);
-                        
-                        const cardEl = document.getElementById(`canvas-node-${node.id}`);
+                    note.canvasData.nodes.forEach(function(node) {
+                        var wNode = node.width || 200;
+                        var hNode = node.height || 80;
+                        var isIntersecting = !(node.x + wNode < worldX1 || node.x > worldX2 || node.y + hNode < worldY1 || node.y > worldY2);
+                        var cardEl = document.getElementById('canvas-node-' + node.id);
                         if (cardEl) {
                             if (isIntersecting) {
                                 cardEl.classList.add('selected-node');
-                                this.selectedNodeIds.add(node.id);
+                                self.selectedNodeIds.add(node.id);
                             } else {
                                 cardEl.classList.remove('selected-node');
-                                this.selectedNodeIds.delete(node.id);
+                                self.selectedNodeIds.delete(node.id);
                             }
                         }
                     });
-                    this.selectedNodeId = this.selectedNodeIds.size > 0 ? Array.from(this.selectedNodeIds)[0] : null;
+                    self.selectedNodeId = self.selectedNodeIds.size > 0 ? Array.from(self.selectedNodeIds)[0] : null;
                 }
                 return;
             }
 
-            if (this.draggedNodeId) {
-                const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+            if (self.draggedNodeId) {
+                var note = self._getActiveNote();
                 if (!note || !note.canvasData || !note.canvasData.edges) return;
-
-                note.canvasData.edges.forEach(edge => {
-                    if (edge.fromNode === this.draggedNodeId || edge.toNode === this.draggedNodeId) {
-                        this.renderEdge(edge);
+                note.canvasData.edges.forEach(function(edge) {
+                    if (edge.fromNode === self.draggedNodeId || edge.toNode === self.draggedNodeId) {
+                        self.renderEdge(edge);
                     }
                 });
             }
         });
 
         // === GLOBAL MOUSE UP ===
-        window.addEventListener('mouseup', () => {
-            if (this.isPanning) {
-                this.isPanning = false;
-                this.container.style.cursor = isSpacePressed ? 'grab' : '';
-                this._saveViewport();
+        window.addEventListener('mouseup', function() {
+            if (self.isPanning) {
+                self.isPanning = false;
+                self.container.style.cursor = isSpacePressed ? 'grab' : '';
+                self._saveViewport();
             }
-            if (this.isSelectingMarquee) {
-                this.isSelectingMarquee = false;
-                if (this.marqueeEl) {
-                    this.marqueeEl.remove();
-                    this.marqueeEl = null;
+            if (self.isSelectingMarquee) {
+                self.isSelectingMarquee = false;
+                if (self.marqueeEl) {
+                    self.marqueeEl.remove();
+                    self.marqueeEl = null;
                 }
             }
-            this.draggedNodeId = null;
+            self.draggedNodeId = null;
         });
 
         // === ZOOM & PAN (Trackpad / Mouse Wheel) ===
-        this.container.addEventListener('wheel', (e) => {
+        self.container.addEventListener('wheel', function(e) {
             e.preventDefault();
-
             if (e.ctrlKey || e.metaKey) {
-                // PINCH TO ZOOM / MOUSE WHEEL ZOOM
-                const rect = this.container.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-
-                // Zoom intensity relative to scroll delta
-                const zoomFactor = Math.pow(0.995, e.deltaY);
-                const newScale = Math.max(0.1, Math.min(5, this.transform.scale * zoomFactor));
-
-                // Calculate offset to zoom *into* the cursor position
-                this.transform.x = mouseX - (mouseX - this.transform.x) * (newScale / this.transform.scale);
-                this.transform.y = mouseY - (mouseY - this.transform.y) * (newScale / this.transform.scale);
-                this.transform.scale = newScale;
-                
+                var rect = self.container.getBoundingClientRect();
+                var mouseX = e.clientX - rect.left;
+                var mouseY = e.clientY - rect.top;
+                var zoomFactor = Math.pow(0.995, e.deltaY);
+                var newScale = Math.max(0.1, Math.min(5, self.transform.scale * zoomFactor));
+                self.transform.x = mouseX - (mouseX - self.transform.x) * (newScale / self.transform.scale);
+                self.transform.y = mouseY - (mouseY - self.transform.y) * (newScale / self.transform.scale);
+                self.transform.scale = newScale;
             } else {
-                // TWO-FINGER PANNING (Trackpad)
-                this.transform.x -= e.deltaX;
-                this.transform.y -= e.deltaY;
+                self.transform.x -= e.deltaX;
+                self.transform.y -= e.deltaY;
             }
-            
-            this.updateTransform();
-            this.updateUI();
-            this._updateBacklinksPosition();
-            
-            // Debounce save viewport to avoid localstorage spam during swipe
-            clearTimeout(this._wheelSaveTimeout);
-            this._wheelSaveTimeout = setTimeout(() => this._saveViewport(), 300);
-
+            self.updateTransform();
+            self.updateUI();
+            self._updateBacklinksPosition();
+            clearTimeout(self._wheelSaveTimeout);
+            self._wheelSaveTimeout = setTimeout(function() { self._saveViewport(); }, 300);
         }, { passive: false });
     },
 
+    // ─── VIEWPORT ───
     _saveViewport: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (note && note.canvasData) {
             note.canvasData.viewport = { x: this.transform.x, y: this.transform.y, scale: this.transform.scale };
-            if (window.saveData) window.saveData();
+            this._saveData();
         }
     },
 
     zoomToFit: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.nodes || note.canvasData.nodes.length === 0) return;
 
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        note.canvasData.nodes.forEach(n => {
-            const w = n.width || 200;
-            const h = n.height || 80;
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        note.canvasData.nodes.forEach(function(n) {
+            var w = n.width || 200;
+            var h = n.height || 80;
             if (n.x < minX) minX = n.x;
             if (n.y < minY) minY = n.y;
             if (n.x + w > maxX) maxX = n.x + w;
             if (n.y + h > maxY) maxY = n.y + h;
         });
 
-        const padding = 60; // Extra breathing room
-        const contentWidth = (maxX - minX) + (padding * 2);
-        const contentHeight = (maxY - minY) + (padding * 2);
-        
-        const rect = this.container.getBoundingClientRect();
-        const scaleX = rect.width / contentWidth;
-        const scaleY = rect.height / contentHeight;
-        
-        let newScale = Math.min(scaleX, scaleY);
-        newScale = Math.max(0.1, Math.min(2, newScale)); // Cap scale between 10% and 200%
+        var padding = 60;
+        var contentWidth = (maxX - minX) + (padding * 2);
+        var contentHeight = (maxY - minY) + (padding * 2);
+        var rect = this.container.getBoundingClientRect();
+        var newScale = Math.min(rect.width / contentWidth, rect.height / contentHeight);
+        newScale = Math.max(0.1, Math.min(2, newScale));
 
-        // Center point of nodes
-        const centerX = minX + (maxX - minX) / 2;
-        const centerY = minY + (maxY - minY) / 2;
+        var centerX = minX + (maxX - minX) / 2;
+        var centerY = minY + (maxY - minY) / 2;
 
-        // Calculate offset to place center of nodes at center of screen
         this.transform.scale = newScale;
         this.transform.x = (rect.width / 2) - (centerX * newScale);
         this.transform.y = (rect.height / 2) - (centerY * newScale);
@@ -1555,15 +1513,9 @@ export const CanvasManager = {
         this.updateTransform();
         this.updateUI();
         this._saveViewport();
-
-        // Optional UX: flash the canvas grid to show transition
-        this.container.style.transition = 'background-position 0.3s ease';
-        setTimeout(() => this.container.style.transition = '', 300);
     },
 
-    // ==========================================
-    // MINIMAP
-    // ==========================================
+    // ─── MINIMAP ───
 
     _initMinimap: function() {
         if (!this.container) return;
@@ -1597,7 +1549,7 @@ export const CanvasManager = {
 
     _updateMinimap: function() {
         if (!this.minimap || !this.minimapViewport) return;
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.nodes || note.canvasData.nodes.length === 0) {
             this.minimap.style.display = 'none';
             return;
@@ -2408,6 +2360,8 @@ export const CanvasManager = {
         window.addEventListener('mousemove', onMouseMoveEdge);
         window.addEventListener('mouseup', onMouseUpEdge);
     },
+
+    // ─── EDGE RENDERING ───
 
     // === PORT CALCULATION ===
     _getPortToward: function(nodeData, tx, ty) {
