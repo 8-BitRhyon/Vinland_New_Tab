@@ -2929,6 +2929,32 @@ export const CanvasManager = {
         const x1 = ports.from.x, y1 = ports.from.y;
         const x2 = ports.to.x, y2 = ports.to.y;
 
+        // ── Smarter bezier control points (perpendicular offset method) ──
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.hypot(dx, dy);
+
+        // Compute perpendicular unit vector (rotates 90° clockwise from direction)
+        var perpX = 0, perpY = 1;
+        if (dist > 1) {
+            perpX = -dy / dist;
+            perpY = dx / dist;
+        }
+
+        // Offset: proportional to distance, clamped between 60-200px
+        const rawOffset = dist * 0.4;
+        const offset = Math.max(60, Math.min(rawOffset, 200));
+
+        // Control points at 25% and 75% along the line, offset perpendicularly
+        const cp1x = x1 + dx * 0.25 + perpX * offset;
+        const cp1y = y1 + dy * 0.25 + perpY * offset;
+        const cp2x = x2 - dx * 0.25 + perpX * offset;
+        const cp2y = y2 - dy * 0.25 + perpY * offset;
+
+        // True midpoint of cubic bezier at t=0.5: ⅛P0 + ⅜P1 + ⅜P2 + ⅛P3
+        var bezierMidX = 0.125 * x1 + 0.375 * cp1x + 0.375 * cp2x + 0.125 * x2;
+        var bezierMidY = 0.125 * y1 + 0.375 * cp1y + 0.375 * cp2y + 0.125 * y2;
+
         // Build path string — through waypoints if any, else auto-bezier
         let d;
         const wps = edge.waypoints;
@@ -2937,16 +2963,7 @@ export const CanvasManager = {
             wps.forEach(function(wp) { d += ` L ${wp.x} ${wp.y}`; });
             d += ` L ${x2} ${y2}`;
         } else {
-            const dx = Math.abs(x2 - x1);
-            const dy = Math.abs(y2 - y1);
-            const tension = Math.max(dx, dy) * 0.4;
-            const dirX = x2 > x1 ? 1 : -1;
-            const dirY = y2 > y1 ? 1 : -1;
-            if (dx > dy) {
-                d = `M ${x1} ${y1} C ${x1 + tension * dirX} ${y1}, ${x2 - tension * dirX} ${y2}, ${x2} ${y2}`;
-            } else {
-                d = `M ${x1} ${y1} C ${x1} ${y1 + tension * dirY}, ${x2} ${y2 - tension * dirY}, ${x2} ${y2}`;
-            }
+            d = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
         }
 
         var self = this;
@@ -3067,8 +3084,8 @@ export const CanvasManager = {
         }
 
         // ── Hover hint: show "+" on edge when no label exists ──
-        // Position hint at midpoint of the edge path (or first waypoint segment midpoint)
-        let hintX = (x1 + x2) / 2, hintY = (y1 + y2) / 2;
+        // Position hint at bezier midpoint (or longest waypoint segment midpoint)
+        let hintX = bezierMidX, hintY = bezierMidY;
         if (wps && wps.length > 0) {
             // Place hint at midpoint of longest waypoint segment
             var segments = [{ sx: x1, sy: y1, ex: wps[0].x, ey: wps[0].y }];
@@ -3106,11 +3123,11 @@ export const CanvasManager = {
         hintEl.setAttribute('x', hintX);
         hintEl.setAttribute('y', hintY);
 
-        // Render label at midpoint
-        this._renderEdgeLabel(edge, x1, y1, x2, y2);
+        // Render label at bezier midpoint
+        this._renderEdgeLabel(edge, bezierMidX, bezierMidY);
     },
 
-    _renderEdgeLabel: function(edge, x1, y1, x2, y2) {
+    _renderEdgeLabel: function(edge, mx, my) {
         const groupId = `edge-label-group-${edge.id}`;
         let groupEl = document.getElementById(groupId);
 
@@ -3118,9 +3135,6 @@ export const CanvasManager = {
             if (groupEl) groupEl.remove();
             return;
         }
-
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
 
         if (!groupEl) {
             groupEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -3159,7 +3173,7 @@ export const CanvasManager = {
             // Double-click to edit
             const editHandler = (e) => {
                 e.stopPropagation();
-                this._editEdgeLabel(edge, x1, y1, x2, y2);
+                this._editEdgeLabel(edge, mx, my);
             };
             labelEl.addEventListener('dblclick', editHandler);
             bg.addEventListener('dblclick', editHandler);
@@ -3355,10 +3369,7 @@ export const CanvasManager = {
 
     // ─── EDGE LABELS ───
 
-    _editEdgeLabel: function(edge, x1, y1, x2, y2) {
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
-
+    _editEdgeLabel: function(edge, mx, my) {
         // Convert board coords to screen coords
         const screenX = mx * this.transform.scale + this.transform.x;
         const screenY = my * this.transform.scale + this.transform.y;
@@ -3455,7 +3466,7 @@ export const CanvasManager = {
                 case 'edit-label': {
                     menu.remove();
                     const ports = self._getAutoPorts(fromNode, toNode);
-                    self._editEdgeLabel(edge, ports.from.x, ports.from.y, ports.to.x, ports.to.y);
+                    self._editEdgeLabel(edge, (ports.from.x + ports.to.x) / 2, (ports.from.y + ports.to.y) / 2);
                     return;
                 }
                 case 'delete-edge': {
