@@ -7970,6 +7970,63 @@
         background: color-mix(in srgb, var(--main-color) 10%, transparent);
       }
 
+      .editor-local-graph {
+        border-top: 1px solid color-mix(in srgb, var(--main-color) 6%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--main-color) 6%, transparent);
+      }
+      .local-graph-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 0.6rem;
+        color: var(--dim-color, #555);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: background 0.15s;
+      }
+      .local-graph-header:hover {
+        background: color-mix(in srgb, var(--main-color) 4%, transparent);
+      }
+      .local-graph-icon {
+        font-size: 0.7rem;
+      }
+      .local-graph-title {
+        flex: 1;
+      }
+      .local-graph-count {
+        font-size: 0.55rem;
+        color: color-mix(in srgb, var(--main-color) 50%, transparent);
+      }
+      .local-graph-arrow {
+        font-size: 0.5rem;
+        transition: transform 0.2s;
+      }
+      .editor-local-graph.collapsed .local-graph-arrow {
+        transform: rotate(-90deg);
+      }
+      .editor-local-graph.collapsed .local-graph-body {
+        display: none;
+      }
+      .local-graph-body {
+        padding: 0 12px 8px;
+      }
+      .local-graph-svg {
+        display: block;
+        width: 100%;
+        height: 180px;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--main-color) 2%, transparent);
+      }
+      .local-graph-empty {
+        display: none;
+        text-align: center;
+        font-size: 0.65rem;
+        color: var(--dim-color, #555);
+        padding: 20px 0;
+      }
+
       .editor-tags-bar {
         padding: 6px 16px;
         min-height: 28px;
@@ -12823,6 +12880,20 @@
             <span class="stat-item" id="stat-reading-time">0 min read</span>
             <span class="stat-divider"></span>
             <span class="stat-item" id="stat-last-edited">--</span>
+          </div>
+
+          <!-- Local Graph (collapsible) -->
+          <div class="editor-local-graph" id="editor-local-graph">
+            <div class="local-graph-header" id="local-graph-toggle">
+              <span class="local-graph-icon">⬡</span>
+              <span class="local-graph-title">LOCAL GRAPH</span>
+              <span class="local-graph-count" id="local-graph-count"></span>
+              <span class="local-graph-arrow" id="local-graph-arrow">▼</span>
+            </div>
+            <div class="local-graph-body" id="local-graph-body">
+              <svg id="local-graph-svg" class="local-graph-svg"></svg>
+              <div class="local-graph-empty" id="local-graph-empty">No connected notes</div>
+            </div>
           </div>
           
           <!-- V63.2: Tags bar (replaces footer) -->
