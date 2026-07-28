@@ -1347,6 +1347,7 @@ export const BlockEditor = {
                     '<button class="table-toolbar-btn block-action-btn" data-action="sort-asc" title="Sort A-Z">A-Z</button>' +
                     '<button class="table-toolbar-btn block-action-btn" data-action="sort-desc" title="Sort Z-A">Z-A</button>' +
                     '<div class="table-toolbar-divider"></div>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="reset-widths" title="Reset column widths to auto">⇔</button>' +
                     '<button class="table-toolbar-btn block-action-btn" data-action="delete-table" title="Delete Table" style="color:#f44;">X</button>';
                 
                 // Create table element
@@ -1650,6 +1651,11 @@ export const BlockEditor = {
                                 PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
                                 self.render(self.activePageId);
                             }
+                            break;
+                        case 'reset-widths':
+                            tableData.columnWidths = [];
+                            PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                            self.render(self.activePageId);
                             break;
                         case 'delete-table':
                             PageManager.deleteBlock(self.activePageId, block.id);
