@@ -160,11 +160,11 @@
 
       .block-drag-handle {
           position: absolute;
-          left: 4px;
+          left: -2px;
           top: 50%;
           transform: translateY(-50%);
-          width: 20px;
-          height: 24px;
+          width: 28px;
+          height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -172,56 +172,73 @@
           opacity: 0;
           line-height: 1;
           transition: opacity 0.15s var(--motion-ease), background 0.15s var(--motion-ease);
-          border-radius: 3px;
+          border-radius: 4px;
           color: var(--secondary-color);
+          z-index: 3;
       }
 
-      /* Grip icon — 2×3 dot grid via radial-gradient */
-      .block-drag-handle::before {
-          content: '';
-          display: block;
-          width: 14px;
-          height: 18px;
-          background-image:
-              radial-gradient(circle, currentColor 1.2px, transparent 1.2px);
-          background-size: 6px 6px;
-          background-position: 1px 1px, 7px 1px,
-                             1px 7px, 7px 7px,
-                             1px 13px, 7px 13px;
-          background-repeat: no-repeat;
-          opacity: 0.5;
-          transition: opacity 0.15s var(--motion-ease);
-      }
-
-      .block-drag-handle:hover::before {
-          opacity: 1;
-      }
-
+      /* Gutter groove — visible on hover behind the grip */
       .block-drag-handle::after {
-          content: "";
+          content: '';
           position: absolute;
-          inset: -8px;
+          inset: -4px -8px;
+          border-radius: 4px;
+          background: transparent;
+          transition: background 0.15s ease;
+      }
+      .block-wrapper:hover .block-drag-handle::after {
+          background: rgba(var(--main-color-rgb, 0,255,65), 0.04);
+      }
+      .block-drag-handle:hover::after {
+          background: rgba(var(--main-color-rgb, 0,255,65), 0.1);
       }
 
-      /* Show handle on hover */
+      /* Grip icon — larger 2×3 dot grid with better visibility */
+      .block-drag-handle .grip-dots {
+          position: relative;
+          display: block;
+          width: 16px;
+          height: 22px;
+          z-index: 1;
+          background-image:
+              radial-gradient(circle, currentColor 1.5px, transparent 1.5px);
+          background-size: 7px 7px;
+          background-position:
+              1px 1px, 8px 1px,
+              1px 8px, 8px 8px,
+              1px 15px, 8px 15px;
+          background-repeat: no-repeat;
+          opacity: 0.4;
+          transition: opacity 0.15s ease;
+      }
+      .block-wrapper:hover .grip-dots { opacity: 0.6; }
+      .block-drag-handle:hover .grip-dots { opacity: 1; }
+      .block-drag-handle:active .grip-dots { opacity: 1; }
+
+      /* Show handle on hover — with a slight left slide for polish */
       .block-wrapper:hover .block-drag-handle,
       .block-wrapper.block-selected .block-drag-handle {
           opacity: 1;
       }
 
       .block-drag-handle:hover {
-          background: rgba(255, 255, 255, 0.1);
           color: var(--main-color);
       }
 
       .block-drag-handle:active {
           cursor: grabbing;
       }
+      /* Click-target expander — invisible, ensures the handle is easy to grab */
+      .block-drag-handle .grip-expander {
+          position: absolute;
+          inset: -8px;
+          z-index: -1;
+      }
 
       /* ── Block-type badge (shows next to drag handle) ── */
       .block-type-badge {
           position: absolute;
-          left: 26px; /* Right after the drag handle (4px + 20px + 2px gap) */
+          left: 32px; /* Right after wider drag handle (-2px + 28px + 6px gap) */
           top: 50%;
           transform: translateY(-50%);
           width: 22px;

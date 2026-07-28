@@ -838,8 +838,12 @@ export const BlockEditor = {
         var dragHandle = document.createElement('div');
         dragHandle.className = 'block-drag-handle';
         dragHandle.setAttribute('title', 'Drag to reorder');
-        // SVG removed for legacy CSS support
-        dragHandle.textContent = '';
+        var gripDots = document.createElement('span');
+        gripDots.className = 'grip-dots';
+        dragHandle.appendChild(gripDots);
+        var gripExpander = document.createElement('span');
+        gripExpander.className = 'grip-expander';
+        dragHandle.appendChild(gripExpander);
 
         // Block-type badge (shows 'H1', 'P', '•', etc. on hover)
         var typeBadge = document.createElement('span');
