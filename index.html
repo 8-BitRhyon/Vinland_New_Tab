@@ -4117,7 +4117,13 @@
         display: inline;
       }
 
+      @keyframes config-hl-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+
       .config-hl {
+        animation: config-hl-in 0.2s ease-out;
         background: color-mix(in srgb, var(--main-color) 30%, transparent);
         color: var(--main-color);
         padding: 0 2px;
