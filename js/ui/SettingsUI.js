@@ -1691,6 +1691,10 @@ export const SettingsUI = {
                 if (totalCount > 0) {
                     matchCount.textContent = totalCount + ' match' + (totalCount !== 1 ? 'es' : '');
                     matchCount.classList.add('visible');
+                    // Trigger pop animation
+                    matchCount.classList.remove('pop');
+                    void matchCount.offsetWidth;
+                    matchCount.classList.add('pop');
                 } else {
                     matchCount.classList.remove('visible');
                 }
@@ -1707,6 +1711,10 @@ export const SettingsUI = {
                     if (tabCount > 0) {
                         badge.textContent = tabCount.toString();
                         badge.classList.add('visible');
+                        // Trigger pop animation
+                        badge.classList.remove('pop');
+                        void badge.offsetWidth;
+                        badge.classList.add('pop');
                     } else {
                         badge.classList.remove('visible');
                     }
