@@ -9136,10 +9136,54 @@
         top: 4px;
         right: 10px;
         font-size: 0.6rem;
-        color: #444;
+        color: #555;
         text-transform: uppercase;
         letter-spacing: 1px;
-        pointer-events: none;
+        cursor: pointer;
+        padding: 1px 5px;
+        border-radius: 3px;
+        transition: all 0.12s ease;
+      }
+      .code-lang-label:hover {
+        color: var(--main-color, #00ff41);
+        background: rgba(0, 255, 65, 0.08);
+      }
+      .code-lang-picker {
+        background: rgba(8, 8, 8, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 5px;
+        padding: 3px 0;
+        min-width: 120px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        animation: langPickerIn 0.1s ease;
+      }
+      @keyframes langPickerIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .code-lang-picker .lang-opt {
+        padding: 4px 12px;
+        font-size: 0.7rem;
+        color: #aaa;
+        cursor: pointer;
+        transition: all 0.08s ease;
+      }
+      .code-lang-picker .lang-opt:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+      }
+      .code-lang-picker .lang-opt.active {
+        color: var(--main-color, #00ff41);
+        background: rgba(0, 255, 65, 0.06);
+      }
+      .code-lang-picker::-webkit-scrollbar {
+        width: 3px;
+      }
+      .code-lang-picker::-webkit-scrollbar-thumb {
+        background: var(--main-color, #00ff41);
+        border-radius: 2px;
       }
 
       .block-divider {
