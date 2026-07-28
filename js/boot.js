@@ -242,6 +242,16 @@ function bindGlobals() {
       window.SettingsUI.toggleHelp();
     };
 
+  // 3b. Backup Download Button
+  const downloadBtn = document.getElementById("download-btn");
+  if (downloadBtn) {
+    downloadBtn.onclick = function () {
+      if (window.SettingsUI && window.SettingsUI.exportAllData) {
+        window.SettingsUI.exportAllData();
+      }
+    };
+  }
+
   // 4. Modals (Close Buttons)
   window.closeSettingsModal = function () {
     if (window.SettingsUI) window.SettingsUI.close();

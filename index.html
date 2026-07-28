@@ -687,6 +687,35 @@
         opacity: 1;
       }
 
+      /* BACKUP DOWNLOAD BUTTON */
+      #download-btn {
+        position: absolute;
+        top: 30px;
+        left: 100px;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        z-index: 22000;
+        opacity: 0.5;
+        transition: all 0.3s;
+        color: var(--main-color);
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--main-color);
+        border-radius: 50%;
+        filter: drop-shadow(var(--text-shadow));
+        user-select: none;
+        -webkit-user-select: none;
+        pointer-events: auto;
+        font-family: var(--font-main);
+      }
+      #download-btn:hover {
+        opacity: 1;
+        background: rgba(0, 255, 65, 0.1);
+      }
+
       /* TOP STATUS BAR */
       #status-bar {
         position: absolute;
@@ -11391,6 +11420,9 @@
 
     <!-- HELP BUTTON -->
     <div id="help-btn">?</div>
+
+    <!-- BACKUP DOWNLOAD BUTTON -->
+    <div id="download-btn" title="Download Backup">&#x2B07;</div>
 
     <!-- WEATHER WIDGET -->
     <div id="weather-widget">
