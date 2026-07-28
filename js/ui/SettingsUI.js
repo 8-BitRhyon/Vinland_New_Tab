@@ -475,7 +475,7 @@ export const SettingsUI = {
         resetSaveButtonState();
 
         // Restore persisted search query
-        var savedQuery = sessionStorage.getItem('vinland_settings_search');
+        var savedQuery = localStorage.getItem('vinland_settings_search');
         if (savedQuery) {
             var searchInput = document.getElementById('config-search-input');
             var clearBtn = document.getElementById('config-search-clear');
@@ -1567,7 +1567,7 @@ export const SettingsUI = {
             clearBtn.addEventListener('click', function() {
                 searchInput.value = '';
                 updateClearButton();
-                sessionStorage.removeItem('vinland_settings_search');
+                localStorage.removeItem('vinland_settings_search');
                 self._applySearchFilter('');
                 searchInput.focus();
             });
@@ -1576,7 +1576,7 @@ export const SettingsUI = {
 
     _applySearchFilter: function(query) {
         var self = this;
-        sessionStorage.setItem('vinland_settings_search', query);
+        localStorage.setItem('vinland_settings_search', query);
         var tabs = document.querySelectorAll('.config-tab');
         var navItems = document.querySelectorAll('.config-nav-item');
         var searchInput = document.getElementById('config-search-input');
