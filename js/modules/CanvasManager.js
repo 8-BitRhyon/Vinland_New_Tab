@@ -715,7 +715,7 @@ export const CanvasManager = {
                 this.renderEdge(edge);
             });
         }
-        setTimeout(function() { self.updateUI(); }, 50);
+        setTimeout(() => { this.updateUI(); }, 50);
 
         // Update backlinks badges for all file nodes
         setTimeout(() => {
@@ -1940,7 +1940,7 @@ export const CanvasManager = {
                     if (nodeData.title !== newTitle) {
                         this._saveHistoryState();
                         nodeData.title = newTitle;
-                        if (window.saveData) window.saveData();
+                        this._saveData();
                     }
                 });
             }
@@ -1962,7 +1962,7 @@ export const CanvasManager = {
                 if (nodeData.label !== labelInput.value) {
                     this._saveHistoryState();
                     nodeData.label = labelInput.value;
-                    if (window.saveData) window.saveData();
+                    this._saveData();
                 }
             });
         }
@@ -2005,7 +2005,7 @@ export const CanvasManager = {
                     if (nodeData.type === 'embed') {
                         card.classList.remove('is-dragging');
                     }
-                    if (window.saveData) window.saveData();
+                    this._saveData();
                 };
 
                 window.addEventListener('mousemove', onResizeMove);
@@ -2042,7 +2042,7 @@ export const CanvasManager = {
                     this._saveHistoryState();
                     nodeData.title = newTitle;
                     nodeData.preview = newPreview;
-                    if (window.saveData) window.saveData();
+                    this._saveData();
                     this._routeWikiLinks(nodeData.id);
                 }
             });
@@ -2158,7 +2158,7 @@ export const CanvasManager = {
 
             // Build set of nodes to move
             const nodesToMove = new Set();
-            const noteDataObj = window.State.NOTES.find(n => n.id === this.activeNoteId);
+            const noteDataObj = this._getActiveNote();
             
             if (this.selectedNodeIds.has(nodeData.id)) {
                 this.selectedNodeIds.forEach(id => {
@@ -2259,7 +2259,7 @@ export const CanvasManager = {
                     if (el) el.classList.remove('is-dragging');
                 });
 
-                if (window.saveData) window.saveData();
+                this._saveData();
                 this._updateMinimap();
             };
 
@@ -2346,11 +2346,11 @@ export const CanvasManager = {
                     label: '',
                     color: 'var(--main-color, #00ff41)'
                 };
-                const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+                var note = this._getActiveNote();
                 if (note && note.canvasData) {
                     if (!note.canvasData.edges) note.canvasData.edges = [];
                     note.canvasData.edges.push(newEdge);
-                    if (window.saveData) window.saveData();
+                    this._saveData();
                     this.renderEdge(newEdge);
                 }
             }
@@ -2419,7 +2419,7 @@ export const CanvasManager = {
 
     renderEdge: function(edge) {
         if (!window.State.NOTES) return;
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.nodes) return;
 
         const fromNode = note.canvasData.nodes.find(n => n.id === edge.fromNode);
@@ -2562,7 +2562,7 @@ export const CanvasManager = {
         const save = () => {
             edge.label = input.value.trim();
             input.remove();
-            if (window.saveData) window.saveData();
+            this._saveData();
             this.renderEdge(edge);
         };
 
@@ -2575,7 +2575,7 @@ export const CanvasManager = {
 
     _deleteEdge: function(edgeId) {
         this._saveHistoryState();
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         note.canvasData.edges = note.canvasData.edges.filter(e => e.id !== edgeId);
@@ -2586,18 +2586,15 @@ export const CanvasManager = {
         const label = document.getElementById(`edge-label-${edgeId}`);
         if (label) label.remove();
 
-        if (window.saveData) window.saveData();
+        this._saveData();
     },
 
-    // ==========================================
-    // WIKI-LINK AUTO-ROUTING
-    // ==========================================
+    // ─── WIKI-LINK AUTO-ROUTING ───
 
     _routeWikiLinks: function(textNodeId, createFileNodes) {
-        // createFileNodes defaults to true if not specified
         if (createFileNodes === undefined) createFileNodes = true;
 
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.nodes) return;
 
         const textNode = note.canvasData.nodes.find(n => n.id === textNodeId);
@@ -2679,12 +2676,12 @@ export const CanvasManager = {
                 }
             });
             this.updateUI();
-            if (window.saveData) window.saveData();
+            this._saveData();
         }
     },
 
     _refreshEdges: function() {
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.edges) return;
         // Fix: clear existing lines first so deleted ones disappear
         this.svgLayer.innerHTML = '';
@@ -2743,7 +2740,7 @@ export const CanvasManager = {
                     if (color === 'default') card.removeAttribute('data-color');
                     else card.setAttribute('data-color', color);
                 }
-                if (window.saveData) window.saveData();
+                this._saveData();
                 menu.remove();
             };
         });
@@ -2760,16 +2757,14 @@ export const CanvasManager = {
         }, 50);
     },
 
-    // ==========================================
-    // BACKLINKS PANEL
-    // ==========================================
+    // ─── BACKLINKS ───
 
     _updateBacklinks: function() {
         this._closeBacklinks();
 
         if (this.selectedNodeIds.size !== 1) return;
 
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         const selectedNodeData = note.canvasData.nodes.find(n => n.id === this.selectedNodeId);
@@ -2779,12 +2774,11 @@ export const CanvasManager = {
     },
 
     _showBacklinks: function(fileNodeId) {
-        // Local escape for safe HTML
         function esc(str) {
             return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        const note = window.State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.edges) return;
 
         const fileNode = note.canvasData.nodes.find(n => n.id === fileNodeId);
@@ -2927,7 +2921,7 @@ export const CanvasManager = {
     },
 
     _convertTextNodeToFile: function(nodeData) {
-        const note = window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
+        var note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
         this._saveHistoryState();
@@ -2961,7 +2955,7 @@ export const CanvasManager = {
         this.selectNode(nodeData.id, false);
 
         // Save and update
-        if (window.saveData) window.saveData();
+        this._saveData();
         this._refreshEdges();
         this.updateUI();
 
@@ -2970,7 +2964,7 @@ export const CanvasManager = {
     },
 
     _updateBacklinksBadge: function(fileNodeId) {
-        var note = window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
+        var note = this._getActiveNote();
         if (!note || !note.canvasData) return;
         var count = (note.canvasData.edges || []).filter(function(e) {
             return e.toNode === fileNodeId;
