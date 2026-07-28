@@ -106,6 +106,19 @@ export const BlockEditor = {
         return icons[type.toLowerCase()] || 'ℹ️';
     },
 
+    // Helper for block-type badge labels
+    _getTypeLabel: function(type) {
+        var labels = {
+            h1: 'H1', h2: 'H2', h3: 'H3',
+            p: 'P', bullet: '∘', numbered: '1.',
+            task: '☐', quote: '"', code: '</>',
+            divider: '—', image: 'IMG', callout: '!!',
+            kanban_ref: '≡', table: '#', query: '◇',
+            embed: '📎'
+        };
+        return labels[type] || '?';
+    },
+
     getCalcPreviewHtml: function(text) {
         var parts = (text || '').split('//');
         var expr = parts[0].trim();
@@ -831,6 +844,12 @@ export const BlockEditor = {
         dragHandle.setAttribute('title', 'Drag to reorder');
         // SVG removed for legacy CSS support
         dragHandle.textContent = '';
+
+        // Block-type badge (shows 'H1', 'P', '•', etc. on hover)
+        var typeBadge = document.createElement('span');
+        typeBadge.className = 'block-type-badge';
+        typeBadge.textContent = this._getTypeLabel(block.type);
+        wrapper.appendChild(typeBadge);
         
         if (block.level) wrapper.style.paddingLeft = (block.level * 24) + 'px';
         
