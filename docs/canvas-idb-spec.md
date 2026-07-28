@@ -1,6 +1,6 @@
 # Spec: Canvas data offloaded to IndexedDB
 
-Status: proposed
+Status: shipped (code + e2e test verified 2026-07-28)
 Source limitation: `docs/design.md` §11 - `CanvasManager` stores everything in
 `note.canvasData` (localStorage); large canvas data may hit quota and is lost.
 

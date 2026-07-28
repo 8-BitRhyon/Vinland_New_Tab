@@ -1,6 +1,6 @@
 # Spec: P0 Accessibility Baseline
 
-Status: proposed
+Status: shipped (code + e2e test verified 2026-07-28)
 Source: UI/UX audit (Web Interface Guidelines) - Vinland New Tab.
 
 ## Goal
