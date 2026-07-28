@@ -1585,6 +1585,8 @@ export const SettingsUI = {
         // Remove previous highlights before re-applying
         this._removeHighlights();
 
+        var matchCount = document.getElementById('config-match-count');
+
         if (!query) {
             // Reset: restore nav, click active tab to refresh display
             navItems.forEach(function(n) { n.style.opacity = ''; });
@@ -1592,6 +1594,7 @@ export const SettingsUI = {
             if (activeNav) activeNav.click();
             if (noResults) noResults.style.display = 'none';
             searchInput.classList.remove('has-results');
+            if (matchCount) matchCount.classList.remove('visible');
             return;
         }
 
@@ -1663,13 +1666,12 @@ export const SettingsUI = {
                 noResults.style.display = 'block';
             }
             searchInput.classList.remove('has-results');
+            if (matchCount) matchCount.classList.remove('visible');
         } else {
             if (noResults) noResults.style.display = 'none';
             searchInput.classList.add('has-results');
-        }
 
-        // Highlight matching text in visible tabs and nav items
-        if (query) {
+            // Highlight matching text in visible tabs and nav items
             tabs.forEach(function(tab) {
                 if (tab.style.display !== 'none') {
                     self._highlightText(tab, query);
@@ -1678,6 +1680,17 @@ export const SettingsUI = {
             navItems.forEach(function(nav) {
                 self._highlightText(nav, query);
             });
+
+            // Update match count badge (only when there are matching tabs)
+            if (matchCount) {
+                var count = document.querySelectorAll('.config-hl').length;
+                if (count > 0) {
+                    matchCount.textContent = count + ' match' + (count !== 1 ? 'es' : '');
+                    matchCount.classList.add('visible');
+                } else {
+                    matchCount.classList.remove('visible');
+                }
+            }
         }
     },
 

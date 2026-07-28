@@ -4098,6 +4098,25 @@
         display: flex;
       }
 
+      .config-match-count {
+        position: absolute;
+        right: 35px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.5rem;
+        color: var(--main-color);
+        background: color-mix(in srgb, var(--main-color) 15%, transparent);
+        padding: 1px 5px;
+        border-radius: 8px;
+        line-height: 1.4;
+        pointer-events: none;
+        display: none;
+        white-space: nowrap;
+      }
+      .config-match-count.visible {
+        display: inline;
+      }
+
       .config-hl {
         background: color-mix(in srgb, var(--main-color) 30%, transparent);
         color: var(--main-color);
@@ -10449,6 +10468,7 @@
               id="config-search-input"
               placeholder="Search settings..."
             />
+            <span class="config-match-count" id="config-match-count"></span>
             <button class="search-clear" id="config-search-clear" aria-label="Clear search">✕</button>
           </div>
           <!-- V19.32: Removed Quick Access, Interface is now first/default -->
