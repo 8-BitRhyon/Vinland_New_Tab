@@ -230,6 +230,20 @@
         border: 1px dashed var(--main-color);
       }
 
+      /* ── Block placeholder text ── */
+      .block-content[contenteditable]:empty:not(:focus)::before,
+      .task-text:empty:not(:focus)::before,
+      .code-inner:empty:not(:focus)::before,
+      .image-caption:empty:not(:focus)::before {
+          content: attr(data-placeholder);
+          display: block;
+          color: var(--dim-color, rgba(255,255,255,0.25));
+          font-style: italic;
+          pointer-events: none;
+          user-select: none;
+          opacity: 0.6;
+      }
+
       #shortcut-hint kbd {
         border: 1px solid var(--secondary-color);
         border-radius: 3px;

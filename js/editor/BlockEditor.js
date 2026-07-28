@@ -882,6 +882,7 @@ export const BlockEditor = {
                 content.contentEditable = 'true';
                 content.innerHTML = this.markdownToHtml(block.content || '');
                 content.className = 'block-content block-' + block.type;
+                content.setAttribute('data-placeholder', block.type === 'h1' ? 'Heading 1' : block.type === 'h2' ? 'Heading 2' : 'Heading 3');
                 break;
             case 'task':
                 content = document.createElement('div');
@@ -906,6 +907,7 @@ export const BlockEditor = {
                 taskText.className = 'task-text';
                 taskText.contentEditable = 'true';
                 taskText.innerHTML = this.markdownToHtml(block.content || '');
+                taskText.setAttribute('data-placeholder', 'To-do');
                 if (block.checked) wrapper.classList.add('completed');
                 content.appendChild(checkbox);
                 content.appendChild(taskText);
@@ -917,6 +919,7 @@ export const BlockEditor = {
                 var inner = document.createElement('div');
                 inner.className = 'code-inner';
                 inner.contentEditable = true;
+                inner.setAttribute('data-placeholder', 'Code...');
                 
                 var rawCode = block.content || '';
                 var lang = block.language || 'javascript';
@@ -971,12 +974,14 @@ export const BlockEditor = {
                 content.classList.add('block-content', 'block-' + block.type);
                 content.contentEditable = 'true';
                 content.innerHTML = this.markdownToHtml(block.content || '');
+                content.setAttribute('data-placeholder', 'List item');
                 break;
             case 'quote':
                 content = document.createElement('div');
                 content.classList.add('block-content', 'block-quote');
                 content.contentEditable = 'true';
                 content.innerHTML = this.markdownToHtml(block.content || '');
+                content.setAttribute('data-placeholder', 'Quote');
                 break;
             case 'callout':
                 content = document.createElement('div');
@@ -1098,6 +1103,7 @@ export const BlockEditor = {
                 caption.className = 'image-caption';
                 caption.contentEditable = 'true';
                 caption.innerHTML = this.markdownToHtml(block.caption || '');
+                caption.setAttribute('data-placeholder', 'Add caption…');
                 content.appendChild(innerWrapper);
                 content.appendChild(caption);
                 content.appendChild(imgDeleteBtn);
@@ -1782,6 +1788,7 @@ export const BlockEditor = {
                 // Process markdown into visual HTML tags for WYSIWYG editor
                 content.innerHTML = this.markdownToHtml(block.content || '');
                 content.classList.add('block-content', 'block-p');
+                content.setAttribute('data-placeholder', 'Type / for commands');
         }
         wrapper.appendChild(dragHandle);
         wrapper.appendChild(content);
