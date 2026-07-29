@@ -378,6 +378,103 @@ export const Notes = {
         }
     },
 
+    // Show or hide the trash banner + read-only mode for notes in /Trash
+    _renderTrashBanner: function(note, _modalEl) {
+        var isTrash = note.path && note.path.indexOf('/.trash') === 0;
+        var bannerContainer = document.getElementById('trash-banner-container');
+        
+        // Ensure banner container exists
+        if (!bannerContainer && _modalEl) {
+            bannerContainer = document.createElement('div');
+            bannerContainer.id = 'trash-banner-container';
+            var editorContainer = document.querySelector('.modal-body') || _modalEl;
+            var blockEditor = document.getElementById('block-editor');
+            if (blockEditor) {
+                blockEditor.parentNode.insertBefore(bannerContainer, blockEditor);
+            } else {
+                editorContainer.prepend(bannerContainer);
+            }
+        }
+
+        if (isTrash) {
+            bannerContainer.innerHTML = 
+                '<div style="background: rgba(255,0,85,0.1); border: 1px solid var(--danger-color); padding: 10px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">' +
+                    '<span style="color: var(--danger-color); font-size: 0.85rem;">⚠️ This note is in the Trash.</span>' +
+                    '<div>' +
+                        '<button id="btn-restore-note" style="background:var(--main-color); color:#000; border:none; padding:4px 8px; cursor:pointer; margin-right:5px; font-weight:bold;">RESTORE</button>' +
+                        '<button id="btn-delete-forever" style="background:var(--danger-color); color:#fff; border:none; padding:4px 8px; cursor:pointer; font-weight:bold;">DELETE FOREVER</button>' +
+                    '</div>' +
+                '</div>';
+            bannerContainer.style.display = 'block';
+
+            // Disable editor
+            var blockEditorEl = document.getElementById('block-editor');
+            var textarea = document.getElementById('active-note-content');
+            if (blockEditorEl) {
+                blockEditorEl.style.pointerEvents = 'none';
+                blockEditorEl.style.opacity = '0.6';
+            }
+            if (textarea) {
+                textarea.style.pointerEvents = 'none';
+                textarea.style.opacity = '0.6';
+            }
+            
+            // Disable path edit to prevent moving
+            var pathEditEl = document.getElementById('note-path-edit');
+            if (pathEditEl) pathEditEl.disabled = true;
+
+            // Bind Actions
+            setTimeout(function() {
+                var restoreBtn = document.getElementById('btn-restore-note');
+                if (restoreBtn) {
+                    restoreBtn.onclick = function() {
+                        note.path = note.originalPath || '/';
+                        delete note.originalPath;
+                        saveData();
+                        Notes.open(note.id);
+                        Notes.renderSidebar();
+                        Notes.renderNotes();
+                    };
+                }
+                var deleteBtn = document.getElementById('btn-delete-forever');
+                if (deleteBtn) {
+                    deleteBtn.onclick = function() {
+                        if (typeof PageActions !== 'undefined' && PageActions.deleteNotePermanently) {
+                            PageActions.deleteNotePermanently(note.id);
+                        } else if (window.PageActions && window.PageActions.deleteNotePermanently) {
+                             window.PageActions.deleteNotePermanently(note.id);
+                        } else {
+                            if (confirm('Permanently delete?')) {
+                                var idx = State.NOTES.indexOf(note);
+                                if (idx !== -1) State.NOTES.splice(idx, 1);
+                                if (window.MetadataCache) window.MetadataCache.removeNote(note.id);
+                                saveData();
+                                Notes.activeNoteId = null;
+                                document.getElementById('note-editor-close').click(); 
+                                Notes.renderSidebar();
+                                if (window.Sidebar && window.Sidebar.renderTrashView) window.Sidebar.renderTrashView();
+                            }
+                        }
+                    };
+                }
+            }, 0);
+        } else {
+            if (bannerContainer) bannerContainer.style.display = 'none';
+            var blockEditorEl = document.getElementById('block-editor');
+            var textarea = document.getElementById('active-note-content');
+            if (blockEditorEl) {
+                blockEditorEl.style.pointerEvents = 'auto';
+                blockEditorEl.style.opacity = '1';
+            }
+            if (textarea) {
+                textarea.style.pointerEvents = 'auto';
+                textarea.style.opacity = '1';
+            }
+            var pathEditEl = document.getElementById('note-path-edit');
+            if (pathEditEl) pathEditEl.disabled = false;
+        }
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -930,100 +1027,8 @@ export const Notes = {
         }
         this._renderBreadcrumb(note);
 
-        // TRASH BANNER & READ-ONLY MODE
-        var isTrash = note.path && note.path.indexOf('/.trash') === 0;
-        var bannerContainer = document.getElementById('trash-banner-container');
-        
-        // Ensure banner container exists (use cached _modalEl from open() start)
-        if (!bannerContainer && _modalEl) {
-            bannerContainer = document.createElement('div');
-            bannerContainer.id = 'trash-banner-container';
-            // Insert before block-editor
-            var editorContainer = document.querySelector('.modal-body') || editorModal;
-            var blockEditor = document.getElementById('block-editor');
-            if (blockEditor) {
-                blockEditor.parentNode.insertBefore(bannerContainer, blockEditor);
-            } else {
-                editorContainer.prepend(bannerContainer);
-            }
-        }
-
-        if (isTrash) {
-            bannerContainer.innerHTML = 
-                '<div style="background: rgba(255,0,85,0.1); border: 1px solid var(--danger-color); padding: 10px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">' +
-                    '<span style="color: var(--danger-color); font-size: 0.85rem;">⚠️ This note is in the Trash.</span>' +
-                    '<div>' +
-                        '<button id="btn-restore-note" style="background:var(--main-color); color:#000; border:none; padding:4px 8px; cursor:pointer; margin-right:5px; font-weight:bold;">RESTORE</button>' +
-                        '<button id="btn-delete-forever" style="background:var(--danger-color); color:#fff; border:none; padding:4px 8px; cursor:pointer; font-weight:bold;">DELETE FOREVER</button>' +
-                    '</div>' +
-                '</div>';
-            bannerContainer.style.display = 'block';
-
-            // Disable editor
-            if (blockEditorEl) {
-                blockEditorEl.style.pointerEvents = 'none';
-                blockEditorEl.style.opacity = '0.6';
-            }
-            if (textarea) {
-                textarea.style.pointerEvents = 'none';
-                textarea.style.opacity = '0.6';
-            }
-            
-            // Hide path edit too to prevent moving
-            var pathEditEl = document.getElementById('note-path-edit');
-            if (pathEditEl) pathEditEl.disabled = true;
-
-            // Bind Actions
-            setTimeout(function() {
-                var restoreBtn = document.getElementById('btn-restore-note');
-                if (restoreBtn) {
-                    restoreBtn.onclick = function() {
-                        note.path = note.originalPath || '/'; // Restore to original folder
-                        delete note.originalPath;
-                        saveData();
-                        Notes.open(note.id); // Reload to reset state
-                        Notes.renderSidebar(); // Refresh sidebar to remove from trash count
-                        Notes.renderNotes(); // Refresh Quick Notes panel
-                    };
-                }
-                var deleteBtn = document.getElementById('btn-delete-forever');
-                if (deleteBtn) {
-                    deleteBtn.onclick = function() {
-                        // Use PageActions global if available
-                        if (typeof PageActions !== 'undefined' && PageActions.deleteNotePermanently) {
-                            PageActions.deleteNotePermanently(note.id);
-                        } else if (window.PageActions && window.PageActions.deleteNotePermanently) {
-                             window.PageActions.deleteNotePermanently(note.id);
-                        } else {
-                            // Fallback if PageActions not yet updated
-                            if (confirm('Permanently delete?')) {
-                                var idx = State.NOTES.indexOf(note);
-                                if (idx !== -1) State.NOTES.splice(idx, 1);
-                                if (window.MetadataCache) window.MetadataCache.removeNote(note.id);
-                                saveData();
-                                Notes.activeNoteId = null;
-                                document.getElementById('note-editor-close').click(); 
-                                Notes.renderSidebar();
-                                if (window.Sidebar && window.Sidebar.renderTrashView) window.Sidebar.renderTrashView();
-                            }
-                        }
-                    };
-                }
-            }, 0);
-
-        } else {
-            if (bannerContainer) bannerContainer.style.display = 'none';
-            if (blockEditorEl) {
-                blockEditorEl.style.pointerEvents = 'auto';
-                blockEditorEl.style.opacity = '1';
-            }
-            if (textarea) {
-                textarea.style.pointerEvents = 'auto';
-                textarea.style.opacity = '1';
-            }
-            var pathEditEl = document.getElementById('note-path-edit');
-            if (pathEditEl) pathEditEl.disabled = false;
-        }
+        // Show or hide the trash banner + read-only mode
+        this._renderTrashBanner(note, _modalEl);
 
         var timestamp = document.getElementById('note-timestamp');
         if (timestamp) {
