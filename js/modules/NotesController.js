@@ -34,7 +34,24 @@ export const Notes = {
 
     // ─── Browser History Navigation (pushState/popstate) ───
 
-    // ─── Private Helpers (extracted from open() for readability) ───
+    // ─── Private Helpers ───
+
+    _bindSidebarSearch: function() {
+        var search = document.getElementById('notes-search');
+        if (search) {
+            search.addEventListener('input', (e) => {
+                this.renderSidebar(e.target.value);
+            });
+        }
+
+        var tagSearch = document.getElementById('tags-search-input');
+        if (tagSearch) {
+            var self = this;
+            tagSearch.addEventListener('input', function(e) {
+                self.updateAllTags(e.target.value.trim().toLowerCase());
+            });
+        }
+    },
 
     // Clean up auto-created empty notes when switching to a different note
     _cleanupAutoNote: function(noteId) {
@@ -474,25 +491,7 @@ export const Notes = {
         // Note: Extensive event binding logic logic extracted from vinland.js
         // Ideally this should be reduced and delegated, but preserving logic for now.
         
-        // Sidebar Search
-        var search = document.getElementById('notes-search');
-        if (search) {
-            search.addEventListener('input', (e) => {
-                this.renderSidebar(e.target.value);
-            });
-        }
-
-        // Tag Filter Search
-        var tagSearch = document.getElementById('tags-search-input');
-        if (tagSearch) {
-            tagSearch.addEventListener('input', function(e) {
-                self.updateAllTags(e.target.value.trim().toLowerCase());
-            });
-        }
-        
-        // ... (Many other event listeners are in the original code. 
-        // For refactoring, we assume some are handled by UI components or we'd move them here.)
-        // Due to the size, I will include the critical ones involved in controller logic.
+        this._bindSidebarSearch();
         
         // Editor Inputs (Auto-Save + Tags)
         var titleInput = document.getElementById('active-note-title');
