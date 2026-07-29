@@ -475,6 +475,43 @@ export const Notes = {
         }
     },
 
+    // Refresh sidebar, tags, word count, pin, backlinks, and version history
+    _refreshSidebar: function(note) {
+        var timestamp = document.getElementById('note-timestamp');
+        if (timestamp) {
+            var d = new Date(note.modified || Date.now());
+            timestamp.textContent = 'LAST EDITED: ' + d.toLocaleString();
+        }
+
+        this.renderSidebar();
+        this.updateWordCount();
+        this.updateTags();
+
+        // Render properties panel
+        if (window.PropertiesPanel && window.PropertiesPanel.render) {
+            window.PropertiesPanel.render(note.id);
+        }
+
+        var pinBtn = document.getElementById('pin-note-btn');
+        if (pinBtn) {
+            if (note.pinned) {
+                pinBtn.classList.add('active');
+                pinBtn.textContent = 'UNPIN';
+            } else {
+                pinBtn.classList.remove('active');
+                pinBtn.textContent = 'PIN';
+            }
+        }
+
+        // Render backlinks panel
+        this.renderBacklinks();
+
+        // Render version history panel (async, fire-and-forget)
+        if (window.VersionHistoryManager && window.VersionHistoryManager.renderPanel) {
+            window.VersionHistoryManager.renderPanel(note.id);
+        }
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -1030,41 +1067,8 @@ export const Notes = {
         // Show or hide the trash banner + read-only mode
         this._renderTrashBanner(note, _modalEl);
 
-        var timestamp = document.getElementById('note-timestamp');
-        if (timestamp) {
-            var d = new Date(note.modified || Date.now());
-            timestamp.textContent = 'LAST EDITED: ' + d.toLocaleString();
-        }
-
-        this.renderSidebar();
-        this.updateWordCount();
-        this.updateTags();
-
-        // Render properties panel
-        if (window.PropertiesPanel && window.PropertiesPanel.render) {
-            window.PropertiesPanel.render(note.id);
-        }
-
-        var pinBtn = document.getElementById('pin-note-btn');
-        if (pinBtn) {
-            if (note.pinned) {
-                pinBtn.classList.add('active');
-                pinBtn.textContent = 'UNPIN';
-            } else {
-                pinBtn.classList.remove('active');
-                pinBtn.textContent = 'PIN';
-            }
-        }
-
-        // Modal opened at this.open() start (line ~843) — no redundant re-open needed
-
-        // Render backlinks panel
-        this.renderBacklinks();
-
-        // Render version history panel (async, fire-and-forget)
-        if (window.VersionHistoryManager && window.VersionHistoryManager.renderPanel) {
-            window.VersionHistoryManager.renderPanel(note.id);
-        }
+        // Refresh sidebar, tags, word count, pin, backlinks, and version history
+        this._refreshSidebar(note);
 
         // Push to browser history (replaceState on first open, pushState on subsequent)
         // _modalWasActive is captured at the top of open() before the modal is opened
