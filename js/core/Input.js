@@ -217,8 +217,10 @@ export function initKeyboardShortcuts() {
                 return;
             }
             
-            // CMD+S: Save (handled in NotesController, but adding fallback)
+            // CMD+S: Save note (skip if Settings modal is open to avoid double-save
+            // with SettingsUI's own Cmd+S handler)
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+                if (ModalManager.stack.includes('config-modal')) return;
                 e.preventDefault();
                 Notes = window.Notes;
                 if (Notes && Notes.save) {

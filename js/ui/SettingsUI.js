@@ -243,7 +243,7 @@ export const SettingsUI = {
                      // Debounce slightly to ensure value is propogated
                      setTimeout(function() { 
                         if (window.SettingsUI && window.SettingsUI.checkDirty) {
-                            window.SettingsUI.checkDirty(); 
+                            window.SettingsUI.checkDirty();
                         } else {
                             markDirty();
                         }
@@ -257,7 +257,8 @@ export const SettingsUI = {
         // Bind settings search filter
         this.bindSearchFilter();
 
-        // Keyboard shortcuts
+        // Keyboard shortcuts (capture-phase: fires before Input.js capture handlers
+        // because SettingsUI.init() is called before initKeyboardShortcuts() in boot.js)
         document.addEventListener('keydown', function(e) {
             // Only active if config modal is showing
             var configModal = document.getElementById('config-modal');
@@ -285,6 +286,7 @@ export const SettingsUI = {
             // Cmd/Ctrl + W: close settings (works even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'w') {
                 e.preventDefault();
+                e.stopPropagation();
                 if (self.close) self.close();
                 return;
             }
@@ -292,6 +294,7 @@ export const SettingsUI = {
             // Cmd/Ctrl + S: save config (allowed even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
                 e.preventDefault();
+                e.stopPropagation();
                 if (CONFIG_DIRTY) {
                     if (self.saveConfigFromUI) {
                         self.saveConfigFromUI();
@@ -305,6 +308,7 @@ export const SettingsUI = {
             // Cmd/Ctrl + 1-6: switch to tab by index (allowed even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '6') {
                 e.preventDefault();
+                e.stopPropagation();
                 var idx = parseInt(e.key) - 1;
                 var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
                 if (idx >= 0 && idx < navItems.length) {
@@ -316,6 +320,7 @@ export const SettingsUI = {
             // Cmd/Ctrl + F: focus search input (allowed even when focused on an input)
             if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
                 e.preventDefault();
+                e.stopPropagation();
                 var searchInput = document.getElementById('config-search-input');
                 if (searchInput) {
                     searchInput.focus();
@@ -328,6 +333,8 @@ export const SettingsUI = {
             if (isInput) return;
 
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
                 var navItems = Array.from(document.querySelectorAll('.config-nav-item'));
                 var activeIndex = navItems.findIndex(n => n.classList.contains('active'));
                 
@@ -336,14 +343,12 @@ export const SettingsUI = {
                 if (e.key === 'ArrowDown') {
                     var nextIndex = (activeIndex + 1) % navItems.length;
                     navItems[nextIndex].click();
-                    e.preventDefault();
                 } else if (e.key === 'ArrowUp') {
                     var prevIndex = (activeIndex - 1 + navItems.length) % navItems.length;
                     navItems[prevIndex].click();
-                    e.preventDefault();
                 }
             }
-        });
+        }, true);
     },
 
     toggleConfig: function() {
