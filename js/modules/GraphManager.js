@@ -378,6 +378,82 @@ export const GraphManager = {
         }
     },
 
+    // ─── Tooltip ────────────────────────────────────────────────
+
+    /** Get preview text from a note (strip HTML, truncate) */
+    _getNotePreview: function(noteId) {
+        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        if (!note) return '';
+        var text = note.content || '';
+        // Strip HTML tags
+        text = text.replace(/<[^>]*>/g, '');
+        // Truncate to ~150 chars at word boundary
+        if (text.length > 150) {
+            text = text.substring(0, 147).replace(/\s+\S*$/, '') + '...';
+        }
+        return text.trim();
+    },
+
+    _showTooltip: function(event, d) {
+        var tooltip = document.getElementById('graph-tooltip');
+        if (!tooltip) return;
+
+        // Connection count
+        var connectedIds = this._getConnectedNodeIds(d.id);
+        var connCount = connectedIds.size - 1; // exclude self
+
+        // Preview text
+        var preview = (d.type === 'note') ? this._getNotePreview(d.id) : '';
+
+        tooltip.innerHTML =
+            '<div class="tt-title">' + this._escapeHtml(d.name || 'Untitled') + '</div>' +
+            '<div>' +
+                '<span class="tt-badge">' + this._escapeHtml(d.type || 'note') + '</span>' +
+                '<span class="tt-meta">' + connCount + ' connection' + (connCount !== 1 ? 's' : '') + '</span>' +
+            '</div>' +
+            (preview ? '<div class="tt-preview">' + this._escapeHtml(preview) + '</div>' : '');
+
+        tooltip.style.display = 'block';
+        this._positionTooltip(event);
+    },
+
+    _positionTooltip: function(event) {
+        var tooltip = document.getElementById('graph-tooltip');
+        var container = document.getElementById(this.containerId);
+        if (!tooltip || !container) return;
+
+        var rect = container.getBoundingClientRect();
+        var offsetX = event.clientX - rect.left;
+        var offsetY = event.clientY - rect.top;
+
+        // Default: right of cursor
+        var left = offsetX + 16;
+        var top = offsetY - 10;
+
+        // Flip to left if too close to right edge
+        var tooltipW = tooltip.offsetWidth || 240;
+        if (left + tooltipW + 10 > rect.width) {
+            left = offsetX - tooltipW - 16;
+        }
+        // Clamp top to prevent going off-screen
+        var tooltipH = tooltip.offsetHeight || 100;
+        if (top + tooltipH + 10 > rect.height) {
+            top = rect.height - tooltipH - 10;
+        }
+        if (top < 5) top = 5;
+        if (left < 5) left = 5;
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+    },
+
+    _hideTooltip: function() {
+        var tooltip = document.getElementById('graph-tooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
+    },
+
     // Toggle between Global and Local (1-degree neighbor) view
     toggleLocalMode: function() {
         this.isLocalMode = !this.isLocalMode;
@@ -704,23 +780,25 @@ export const GraphManager = {
             });
         }
 
-        node.on('mouseover', (event, d) => {
-            // 1. BFS to find all connected nodes (Full Chain)
+        // ─── Tooltip: show on mouseover, position on mousemove, hide on mouseout ───
+        node.on('mouseover', function(event, d) {
+            self._showTooltip(event, d);
+
             var connectedNodeIds = self._getConnectedNodeIds(d.id);
 
-            // 2. Highlight Nodes (Full Chain)
+            // Highlight Nodes (Full Chain)
             node.classed('highlighted', n => connectedNodeIds.has(n.id));
             node.select('circle').classed('highlighted', n => connectedNodeIds.has(n.id));
             node.select('text').classed('highlighted', n => connectedNodeIds.has(n.id));
 
-            // 3. Highlight Links (Between any highlighted nodes)
+            // Highlight Links (Between any highlighted nodes)
             link.classed('highlighted', l => {
                 const s = l.source.id || l.source;
                 const t = l.target.id || l.target;
                 return connectedNodeIds.has(s) && connectedNodeIds.has(t);
             });
             
-            // 4. Dim the Rest
+            // Dim the Rest
             node.classed('dimmed', n => !connectedNodeIds.has(n.id));
             link.classed('dimmed', l => {
                 const s = l.source.id || l.source;
@@ -728,7 +806,12 @@ export const GraphManager = {
                 return !(connectedNodeIds.has(s) && connectedNodeIds.has(t));
             });
 
+        }).on('mousemove', function(event, d) {
+            self._positionTooltip(event);
+
         }).on('mouseout', function () {
+            self._hideTooltip();
+
             // Reset All
             node.classed('highlighted', false).classed('dimmed', false);
             node.select('circle').classed('highlighted', false);
