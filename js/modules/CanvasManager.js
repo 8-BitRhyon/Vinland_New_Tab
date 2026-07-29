@@ -441,6 +441,9 @@ export const CanvasManager = {
         console.log('[CanvasManager] Redo complete.');
     },
 
+    // Active tag filter
+    activeTagFilter: null, // null = show all, string = only show nodes with this tag
+
     init: function() {
         try {
         this.container = document.getElementById('canvas-container');
@@ -519,6 +522,13 @@ export const CanvasManager = {
                     aria-label="Toggle toolbar">${isCollapsed ? '\u25B6' : '\u25C0'}</button>
         `;
         this.container.appendChild(this.toolbar);
+
+        // === TAG FILTER BAR (appended to toolbar for correct positioning) ===
+        this.tagFilterBar = document.createElement('div');
+        this.tagFilterBar.className = 'canvas-tag-filter-bar';
+        this.tagFilterBar.id = 'canvas-tag-filter-bar';
+        this.tagFilterBar.style.display = 'none';
+        this.toolbar.appendChild(this.tagFilterBar);
 
         // === EMPTY STATE HINT ===
         this.hintOverlay = document.createElement('div');
@@ -1139,6 +1149,70 @@ export const CanvasManager = {
                 .canvas-zoom-slider:active::-webkit-slider-thumb {
                     transform: scale(1.3);
                 }
+
+                /* ── Canvas tag filter bar ── */
+                .canvas-tag-filter-bar {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 4px 10px;
+                    background: rgba(0,0,0,0.4);
+                    border-bottom: 1px solid rgba(255,255,255,0.06);
+                    flex-wrap: wrap;
+                    min-height: 28px;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    z-index: 5000;
+                }
+                .ctf-btn {
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    color: #999;
+                    cursor: pointer;
+                    font-size: 0.6rem;
+                    font-family: inherit;
+                    padding: 2px 8px;
+                    transition: all 0.12s ease;
+                    letter-spacing: 0.3px;
+                    white-space: nowrap;
+                }
+                .ctf-btn:hover {
+                    background: rgba(255,255,255,0.1);
+                    color: #ddd;
+                    border-color: rgba(255,255,255,0.2);
+                }
+                .ctf-btn-active {
+                    background: rgba(0, 255, 65, 0.15);
+                    border-color: rgba(0, 255, 65, 0.4);
+                    color: #00ff41;
+                }
+                .ctf-btn-active:hover {
+                    background: rgba(0, 255, 65, 0.25);
+                }
+                .ctf-count {
+                    display: inline-block;
+                    font-size: 0.5rem;
+                    opacity: 0.5;
+                    margin-left: 2px;
+                }
+                .ctf-label {
+                    color: #666;
+                    font-size: 0.55rem;
+                    margin-right: 2px;
+                    letter-spacing: 0.5px;
+                }
+                .canvas-card.filtered-out {
+                    opacity: 0.2;
+                    pointer-events: none;
+                    transition: opacity 0.2s ease;
+                }
+                .canvas-edge.filtered-out {
+                    opacity: 0.1 !important;
+                    pointer-events: none;
+                }
             `;
             document.head.appendChild(fbStyle);
         }
@@ -1236,6 +1310,9 @@ export const CanvasManager = {
         // ─── Auto-save & crash recovery ───
         this._startAutoSave();
 
+        // ─── Tag filter bar ───
+        this._renderTagFilter();
+
         // Check for a recovery snapshot (unsaved changes from a crash)
         var recovery = this._checkRecovery(noteId);
         if (recovery && recovery.savedAt > (this._lastSaveTime || 0)) {
@@ -1304,6 +1381,11 @@ export const CanvasManager = {
 
         // Update Minimap
         this._updateMinimap();
+
+        // Re-apply tag filter if active
+        if (this.activeTagFilter) {
+            this._applyTagFilter();
+        }
     },
 
     bindToolbar: function() {
@@ -2839,9 +2921,18 @@ export const CanvasManager = {
         }
         
         if (nodeData.type !== 'file' && nodeData.type !== 'embed' && nodeData.type !== 'group') {
+            // Extract tags from body (#tag patterns)
+            var tags = [];
+            var bodyText = nodeData.preview || '';
+            var tagMatches = bodyText.match(/#[a-zA-Z0-9_-]+/g);
+            if (tagMatches) {
+                tags = tagMatches.map(function(t) { return t.toLowerCase(); });
+                tags = tags.filter(function(t, i) { return tags.indexOf(t) === i; });
+            }
+            nodeData.tags = tags;
+
             // Standard text node
             const titleText = nodeData.title || '';
-            const bodyText = nodeData.preview || '';
             // Transform wiki-links into clickable spans (preserves innerText for correct save)
             var styledBody = bodyText.replace(
                 /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g,
@@ -4091,6 +4182,88 @@ export const CanvasManager = {
         // Inline code: `text` → <code>text</code>
         result = result.replace(/`(.+?)`/g, '<code>$1</code>');
         return result;
+    },
+
+    // ─── TAG FILTER BAR ───
+
+    _collectTags: function() {
+        var note = this._getActiveNote();
+        if (!note || !note.canvasData || !note.canvasData.nodes) return [];
+        var tagSet = {};
+        note.canvasData.nodes.forEach(function(node) {
+            if (node.tags && node.tags.length > 0) {
+                node.tags.forEach(function(t) { tagSet[t] = (tagSet[t] || 0) + 1; });
+            }
+        });
+        return Object.keys(tagSet).sort().map(function(t) { return { name: t, count: tagSet[t] }; });
+    },
+
+    _renderTagFilter: function() {
+        if (!this.tagFilterBar) return;
+        var tags = this._collectTags();
+        if (tags.length === 0) {
+            this.tagFilterBar.style.display = 'none';
+            return;
+        }
+        this.tagFilterBar.style.display = 'flex';
+
+        var html = '<span class="ctf-label">' + (this.activeTagFilter ? '#filter' : '\u2630') + '</span>';
+
+        // "All" button (active when no filter)
+        var allClass = !this.activeTagFilter ? ' ctf-btn-active' : '';
+        html += '<button class="ctf-btn' + allClass + '" data-tag="">ALL</button>';
+
+        var self = this;
+        tags.forEach(function(tag) {
+            var activeClass = self.activeTagFilter === tag.name ? ' ctf-btn-active' : '';
+            html += '<button class="ctf-btn' + activeClass + '" data-tag="' + tag.name + '">' +
+                tag.name.replace('#', '') + ' <span class="ctf-count">' + tag.count + '</span></button>';
+        });
+
+        this.tagFilterBar.innerHTML = html;
+
+        // Bind click handlers
+        var self2 = this;
+        this.tagFilterBar.querySelectorAll('.ctf-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var tag = this.getAttribute('data-tag');
+                self2.activeTagFilter = tag || null;
+                self2._renderTagFilter();
+                self2._applyTagFilter();
+            });
+        });
+    },
+
+    _applyTagFilter: function() {
+        var note = this._getActiveNote();
+        if (!note || !note.canvasData || !note.canvasData.nodes) return;
+
+        // Build set of filtered-out node IDs
+        var filteredIds = new Set();
+        if (this.activeTagFilter) {
+            note.canvasData.nodes.forEach(function(node) {
+                if (!(node.tags && node.tags.indexOf(this.activeTagFilter) !== -1)) {
+                    filteredIds.add(node.id);
+                }
+            }, this);
+        }
+
+        // Toggle class on nodes
+        note.canvasData.nodes.forEach(function(node) {
+            var el = document.getElementById('canvas-node-' + node.id);
+            if (!el) return;
+            el.classList.toggle('filtered-out', filteredIds.has(node.id));
+        });
+
+        // Toggle class on edges connected to filtered nodes
+        if (note.canvasData.edges) {
+            note.canvasData.edges.forEach(function(edge) {
+                var edgeEl = document.getElementById('edge-' + edge.id);
+                if (!edgeEl) return;
+                var edgeFiltered = filteredIds.has(edge.fromNode) || filteredIds.has(edge.toNode);
+                edgeEl.classList.toggle('filtered-out', edgeFiltered);
+            });
+        }
     },
 
     // ─── WIKI-LINK AUTO-ROUTING ───
