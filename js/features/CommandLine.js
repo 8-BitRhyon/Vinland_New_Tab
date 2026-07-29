@@ -62,14 +62,21 @@ export const CommandLine = {
             return;
         }
 
-        // 1. Search Registry
+        // 1. Search Registry (now returns scored results)
         const matches = CommandRegistry.search(val);
         
         // 2. Render Suggestions
         this.renderSuggestions(matches, val);
 
         // 3. Render Hint (if exact trigger match found)
-        const exactMatch = matches.find(m => val.toLowerCase().startsWith(m.trigger));
+        // matches is now array of { command, score, ... }
+        var exactMatch = null;
+        for (var i = 0; i < matches.length; i++) {
+            if (val.toLowerCase().startsWith(matches[i].command.trigger)) {
+                exactMatch = matches[i].command;
+                break;
+            }
+        }
         if (exactMatch && exactMatch.hint && hintBox) {
             hintBox.innerHTML = `<span class="hint-syntax">${safeText(exactMatch.trigger)} ${safeText(exactMatch.hint)}</span>`;
             hintBox.style.display = 'block';
@@ -117,10 +124,10 @@ export const CommandLine = {
              });
         }
 
-        // 2. Add Command suggestions
-        matches.slice(0, 5).forEach(cmd => {
-            allSuggestions.push({ type: 'command', data: cmd });
-        });
+        // 2. Add Command suggestions (up to 5, already scored & sorted by CommandRegistry)
+        for (var mi = 0; mi < Math.min(matches.length, 5); mi++) {
+            allSuggestions.push({ type: 'command', data: matches[mi] });
+        }
 
         if (allSuggestions.length === 0) {
             box.style.display = 'none';
@@ -129,44 +136,85 @@ export const CommandLine = {
         }
 
         // 3. Render unified list
-        allSuggestions.forEach((s, idx) => {
-            const div = document.createElement('div');
+        for (var idx = 0; idx < allSuggestions.length; idx++) {
+            var s = allSuggestions[idx];
+            var div = document.createElement('div');
             div.className = 'suggestion-item';
             
             if (s.type === 'bookmark') {
-                const isFolder = s.data.type === 'folder';
-                const badge = isFolder ? 'FOLDER' : 'BOOKMARK';
-                const icon = isFolder ? '📁 ' : '';
-                div.innerHTML = `<span>${icon}${safeText(s.data.title)}</span><span class="type-badge">${badge}</span>`;
+                var isFolder = s.data.type === 'folder';
+                var badge = isFolder ? 'FOLDER' : 'BOOKMARK';
+                var icon = isFolder ? '📁 ' : '';
+                div.innerHTML = '<span>' + icon + safeText(s.data.title) + '</span><span class="type-badge">' + badge + '</span>';
                 
-                div.onclick = () => { 
-                    if (isFolder) {
-                        const input = document.getElementById('cmd-input');
-                        input.value = `b ${s.data.title}/`;
-                        input.focus();
-                        this.handleInput({ target: input }); // Refresh suggestions
-                    } else {
-                        window.location.href = s.data.url; 
-                    }
-                };
+                div.onclick = (function(data) {
+                    return function() {
+                        if (data.type === 'folder') {
+                            var input = document.getElementById('cmd-input');
+                            input.value = 'b ' + data.title + '/';
+                            input.focus();
+                            CommandLine.handleInput({ target: input });
+                        } else {
+                            window.location.href = data.url;
+                        }
+                    };
+                })(s.data);
             } else {
-                const cmd = s.data;
-                div.innerHTML = `
-                    <span class="cmd-trigger" style="color:#fff; font-weight:bold;">${cmd.trigger}</span>
-                    <span class="cmd-title" style="color:#888;"> - ${cmd.title}</span>
-                `;
-                div.onclick = () => {
-                    if (cmd.hint) {
-                        const input = document.getElementById('cmd-input');
-                        input.value = cmd.trigger + ' ';
-                        input.focus();
-                    } else {
-                        this.execute(cmd, '');
+                var result = s.data; // { command, score, matchField, matchedIndices, isExactArg }
+                var cmd = result.command;
+                var displayText = result.matchField === 'trigger' ? cmd.trigger : cmd.title;
+                
+                // Build trigger title with matched character highlighting
+                var triggerHtml = '';
+                var fieldText = cmd.trigger;
+                if (result.matchedIndices && result.matchedIndices.length > 0 && result.matchField === 'trigger') {
+                    for (var ci = 0; ci < fieldText.length; ci++) {
+                        if (result.matchedIndices[ci]) {
+                            triggerHtml += '<span class="match-highlight">' + safeText(fieldText[ci]) + '</span>';
+                        } else {
+                            triggerHtml += safeText(fieldText[ci]);
+                        }
                     }
-                };
+                } else {
+                    triggerHtml = safeText(fieldText);
+                }
+                
+                // Build title with matched character highlighting
+                var titleHtml = '';
+                var titleText = cmd.title;
+                if (result.matchedIndices && result.matchedIndices.length > 0 && result.matchField === 'title') {
+                    for (var ci2 = 0; ci2 < titleText.length; ci2++) {
+                        if (result.matchedIndices[ci2]) {
+                            titleHtml += '<span class="match-highlight">' + safeText(titleText[ci2]) + '</span>';
+                        } else {
+                            titleHtml += safeText(titleText[ci2]);
+                        }
+                    }
+                } else {
+                    titleHtml = safeText(titleText);
+                }
+                
+                // Match quality label (color-coded, numbers are internal and opaque to users)
+                var scoreLabel = result.score >= 70 ? 'BEST' : result.score >= 40 ? 'CLOSE' : 'WEAK';
+                var scoreClass = 'score-' + (result.score >= 70 ? 'high' : result.score >= 40 ? 'med' : 'low');
+                div.innerHTML = '<span class="cmd-trigger" style="color:#fff;font-weight:bold;">' + triggerHtml + '</span>' +
+                    '<span class="cmd-title" style="color:#888;"> - ' + titleHtml + '</span>' +
+                    '<span class="type-badge score-badge ' + scoreClass + '">' + scoreLabel + '</span>';
+                
+                div.onclick = (function(cmd, result) {
+                    return function() {
+                        if (cmd.hint && !result.isExactArg) {
+                            var input = document.getElementById('cmd-input');
+                            input.value = cmd.trigger + ' ';
+                            input.focus();
+                        } else {
+                            CommandLine.execute(cmd, '');
+                        }
+                    };
+                })(cmd, result);
             }
             box.appendChild(div);
-        });
+        }
         
         box.style.display = 'block';
         currentSuggestions = allSuggestions; 
@@ -229,7 +277,7 @@ export const CommandLine = {
                     window.location.href = s.data.url;
                     return;
                 }
-                const cmd = s.data;
+                const cmd = s.data.command;
                 if (cmd.hint && !input.value.includes(' ')) {
                      input.value = cmd.trigger + ' '; // Autocomplete trigger
                      return;
