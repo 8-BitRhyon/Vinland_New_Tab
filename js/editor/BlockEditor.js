@@ -1634,6 +1634,9 @@ export const BlockEditor = {
                     };
                 }
                 var tableData = block.tableData;
+                // Guard: ensure columnWidths exists (old data may lack this field)
+                if (!tableData.columnWidths) tableData.columnWidths = [];
+                if (!tableData.headers) tableData.headers = [];
                 // Ensure columnWidths array matches column count
                 while (tableData.columnWidths.length < tableData.headers.length) {
                     tableData.columnWidths.push('');
