@@ -14,6 +14,7 @@ export const GraphManager = {
     filterQuery: '', // Search/filter query
     zoomBehavior: null, // D3 zoom behavior (stored for zoom-to-fit)
     svgSelection: null, // D3 SVG selection (parent of zoom)
+    _clickTimer: null, // Timer for click/dblclick separation
 
     // .38: Persist graph node positions to localStorage
     saveLayout: function() {
@@ -335,6 +336,46 @@ export const GraphManager = {
             self._zoomToFit(nodes, 500);
             self._zoomFitTimer = null;
         }, delay || 350);
+    },
+
+    /**
+     * BFS to find all nodes connected to the given node (full chain).
+     */
+    _getConnectedNodeIds: function(nodeId) {
+        var connected = new Set();
+        if (!this.adjacencyList) return connected;
+        connected.add(nodeId);
+        var queue = [nodeId];
+        while (queue.length > 0) {
+            var currentId = queue.shift();
+            var neighbors = this.adjacencyList.get(currentId) || [];
+            neighbors.forEach(function(neighborId) {
+                if (!connected.has(neighborId)) {
+                    connected.add(neighborId);
+                    queue.push(neighborId);
+                }
+            });
+        }
+        return connected;
+    },
+
+    /**
+     * On single-click: zoom camera to fit the clicked node's connected subgraph.
+     */
+    _zoomToFitConnected: function(event, d) {
+        var connectedIds = this._getConnectedNodeIds(d.id);
+        if (connectedIds.size <= 0) return;
+
+        // Gather node objects (from simulation) that are in the connected set
+        var connectedNodes = [];
+        var allNodes = this.simulation ? this.simulation.nodes() : [];
+        allNodes.forEach(function(n) {
+            if (connectedIds.has(n.id)) connectedNodes.push(n);
+        });
+
+        if (connectedNodes.length > 0) {
+            this._zoomToFit(connectedNodes, 500);
+        }
     },
 
     // Toggle between Global and Local (1-degree neighbor) view
@@ -665,21 +706,7 @@ export const GraphManager = {
 
         node.on('mouseover', (event, d) => {
             // 1. BFS to find all connected nodes (Full Chain)
-            var connectedNodeIds = new Set();
-            var queue = [d.id];
-            connectedNodeIds.add(d.id);
-
-            while (queue.length > 0) {
-                var currentId = queue.shift();
-                var neighbors = self.adjacencyList.get(currentId) || [];
-                
-                neighbors.forEach(neighborId => {
-                    if (!connectedNodeIds.has(neighborId)) {
-                        connectedNodeIds.add(neighborId);
-                        queue.push(neighborId);
-                    }
-                });
-            }
+            var connectedNodeIds = self._getConnectedNodeIds(d.id);
 
             // 2. Highlight Nodes (Full Chain)
             node.classed('highlighted', n => connectedNodeIds.has(n.id));
@@ -708,7 +735,23 @@ export const GraphManager = {
             node.select('text').classed('highlighted', false);
             link.classed('highlighted', false).classed('dimmed', false);
         }).on('click', function(event, d) {
-            // .38: Save layout before navigating away
+            // Click: zoom-to-fit connected subgraph; dblclick: open note
+            // Use a timer to distinguish single-click from double-click
+            if (self._clickTimer) {
+                clearTimeout(self._clickTimer);
+                self._clickTimer = null;
+                return; // Let dblclick handler fire
+            }
+            self._clickTimer = setTimeout(function() {
+                self._clickTimer = null;
+                self._zoomToFitConnected(event, d);
+            }, 250);
+        }).on('dblclick', function(event, d) {
+            // Double-click: navigate to note/board (existing behavior)
+            if (self._clickTimer) {
+                clearTimeout(self._clickTimer);
+                self._clickTimer = null;
+            }
             self.saveLayout();
             if (d.type === 'board') {
                  if (window.KanbanManager) {
