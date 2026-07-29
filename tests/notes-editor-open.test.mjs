@@ -58,7 +58,7 @@ test('ModalManager.open must be called BEFORE BlockEditor.render in Notes.open()
   );
   const lines = src.split('\n');
 
-  // Scope to the open() function: from "open: function" to "create: function"
+  // Scope: only open() — _renderEditor is defined before open() so it must be excluded
   const openStart = lines.findIndex(l => /^\s+open:\s*function/.test(l));
   const openEnd = lines.findIndex((l, i) => i > openStart && /^\s+create:\s*function/.test(l));
   const openLines = lines.slice(openStart, openEnd);
@@ -68,26 +68,26 @@ test('ModalManager.open must be called BEFORE BlockEditor.render in Notes.open()
   openLines.forEach((l, i) => {
     if (/ModalManager\.open\(["']note-editor-modal["']\)/.test(l)) modalOpenIndices.push(i);
   });
-  // Find the FIRST BlockEditor.render( in open()
-  const renderCall = findLine(openLines, /BlockEditor\.render\(/);
+  // Find this._renderEditor( as proxy for BlockEditor.render (extracted helper)
+  const renderCall = findLine(openLines, /this\._renderEditor\(/);
 
   // The canvas-specific one (usually first, inside `if (note.type === 'canvas')`) returns
   // early - it only runs for canvas notes. For non-canvas notes we need at least one
-  // ModalManager.open BEFORE BlockEditor.render.
+  // ModalManager.open BEFORE the _renderEditor call (which invokes BlockEditor.render).
   const openBeforeRender = modalOpenIndices.some(idx => idx < renderCall.idx);
 
   assert.ok(modalOpenIndices.length > 0, 'At least one ModalManager.open must exist in Notes.open()');
-  assert.ok(renderCall, 'BlockEditor.render must exist in Notes.open()');
+  assert.ok(renderCall, 'this._renderEditor() must be called in open() (proxies BlockEditor.render)');
 
-  // RED: without the fix, every ModalManager.open comes AFTER BlockEditor.render.
-  // GREEN: an early ModalManager.open before the render call makes this pass.
+  // RED: without the fix, every ModalManager.open comes AFTER the render call.
+  // GREEN: an early ModalManager.open before _renderEditor makes this pass.
   assert.ok(
     openBeforeRender,
-    `FAIL: All ${modalOpenIndices.length} ModalManager.open calls (${modalOpenIndices.map(i => i + openStart + 1).join(', ')}) come AFTER ` +
-    `BlockEditor.render (line ${openStart + renderCall.idx + 1}) in open() - ` +
+    `FAIL: All ${modalOpenIndices.length} ModalManager.open calls (lines ${modalOpenIndices.map(i => i + openStart + 1).join(', ')}) come AFTER ` +
+    `this._renderEditor() (line ${openStart + renderCall.idx + 1}) in open() - ` +
     'a render error silently prevents the modal from opening.\n' +
-    'Fix: add a ModalManager.open before BlockEditor.render and ' +
-    'wrap render in try/catch.'
+    'Fix: add a ModalManager.open before the _renderEditor call and ' +
+    'wrap BlockEditor.render in try/catch inside _renderEditor.'
   );
 });
 

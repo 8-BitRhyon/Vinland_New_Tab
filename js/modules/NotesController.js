@@ -186,6 +186,49 @@ export const Notes = {
         return false;
     },
 
+    // Render the editor in preview or edit mode for standard (non-canvas) notes
+    _renderEditor: function(note, skipFocus) {
+        var textarea = document.getElementById('active-note-content');
+        var blockEditorEl = document.getElementById('block-editor');
+        var preview = document.getElementById('note-preview');
+        var toggleBtn = document.getElementById('preview-toggle');
+
+        this.isPreviewMode = (note.viewMode === 'preview');
+
+        if (this.isPreviewMode) {
+            if (textarea) textarea.style.display = 'none';
+            if (blockEditorEl) blockEditorEl.style.display = 'none';
+            if (preview) {
+                if (PageManager) PageManager.syncContent(note.id);
+                try {
+                    preview.innerHTML = Notes.renderMarkdown(note.content || '');
+                } catch (e) {
+                    console.error('[Notes] renderMarkdown failed:', e);
+                    preview.innerHTML = '<div style="color:var(--danger-color,#ff3355);padding:20px;text-align:center;">⚠ Preview Error: ' + e.message + '</div>';
+                }
+                preview.classList.add('active');
+                preview.style.display = 'block';
+            }
+            if (toggleBtn) { toggleBtn.textContent = 'EDIT'; toggleBtn.classList.add('active'); }
+        } else {
+            if (preview) {
+                preview.classList.remove('active');
+                preview.style.display = 'none';
+            }
+            if (textarea) textarea.style.display = 'none'; 
+            if (blockEditorEl) blockEditorEl.style.display = 'block';
+
+            if (toggleBtn) { toggleBtn.textContent = 'PREVIEW'; toggleBtn.classList.remove('active'); }
+
+            try {
+                if (BlockEditor) BlockEditor.render(note.id, skipFocus);
+            } catch (e) {
+                console.error('[Notes] BlockEditor.render failed:', e);
+                if (window.showNotification) window.showNotification('Editor render error: ' + e.message, 'error');
+            }
+        }
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -865,49 +908,11 @@ export const Notes = {
         // Route to canvas or standard editor containers
         if (this._setupEditorContainers(note, _modalWasActive)) return;
 
-        // DOM references needed for preview/edit mode below
-        var textarea = document.getElementById('active-note-content');
-        var blockEditorEl = document.getElementById('block-editor');
-        var preview = document.getElementById('note-preview');
-        // toggleBtn already declared at open() start — reuse existing reference
-
         // .37: Open modal BEFORE rendering so a render error can't prevent the editor from showing.
         if (window.ModalManager) window.ModalManager.open('note-editor-modal');
 
-        this.isPreviewMode = (note.viewMode === 'preview');
-
-        if (this.isPreviewMode) {
-            if (textarea) textarea.style.display = 'none';
-            if (blockEditorEl) blockEditorEl.style.display = 'none';
-            if (preview) {
-                if (PageManager) PageManager.syncContent(note.id);
-                try {
-                    preview.innerHTML = Notes.renderMarkdown(note.content || '');
-                } catch (e) {
-                    console.error('[Notes] renderMarkdown failed:', e);
-                    preview.innerHTML = '<div style="color:var(--danger-color,#ff3355);padding:20px;text-align:center;">⚠ Preview Error: ' + e.message + '</div>';
-                }
-                preview.classList.add('active');
-                preview.style.display = 'block';
-            }
-            if (toggleBtn) { toggleBtn.textContent = 'EDIT'; toggleBtn.classList.add('active'); }
-        } else {
-            if (preview) {
-                preview.classList.remove('active');
-                preview.style.display = 'none';
-            }
-            if (textarea) textarea.style.display = 'none'; 
-            if (blockEditorEl) blockEditorEl.style.display = 'block';
-            
-            if (toggleBtn) { toggleBtn.textContent = 'PREVIEW'; toggleBtn.classList.remove('active'); }
-            
-            try {
-                if (BlockEditor) BlockEditor.render(note.id, skipFocus);
-            } catch (e) {
-                console.error('[Notes] BlockEditor.render failed:', e);
-                if (window.showNotification) window.showNotification('Editor render error: ' + e.message, 'error');
-            }
-        }
+        // Render the editor in preview or edit mode
+        this._renderEditor(note, skipFocus);
 
         var pathEdit = document.getElementById('note-path-edit');
         if (pathEdit) {
