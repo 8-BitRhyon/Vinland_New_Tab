@@ -8107,6 +8107,69 @@
         border-bottom: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
       }
 
+      /* ── Breadcrumb navigation ── */
+      .note-breadcrumb {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.65rem;
+        font-family: var(--font-primary);
+        color: #555;
+        white-space: nowrap;
+        overflow: hidden;
+        max-width: 380px;
+        flex-shrink: 0;
+      }
+      .breadcrumb-segment {
+        cursor: pointer;
+        padding: 2px 5px;
+        border-radius: 3px;
+        color: #777;
+        transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        text-decoration: none;
+      }
+      .breadcrumb-segment:hover {
+        color: var(--main-color);
+        background: rgba(var(--main-color-rgb, 0,255,65), 0.08);
+        box-shadow: 0 0 0 1px rgba(var(--main-color-rgb, 0,255,65), 0.15);
+      }
+      .breadcrumb-segment:active {
+        transform: translateY(1px);
+      }
+      .breadcrumb-segment.current {
+        color: #999;
+        cursor: default;
+        text-decoration: none;
+      }
+      .breadcrumb-segment.current:hover {
+        background: none;
+        box-shadow: none;
+      }
+      .breadcrumb-sep {
+        color: #444;
+        user-select: none;
+        font-size: 0.55rem;
+      }
+      .breadcrumb-toggle-btn {
+        background: none;
+        border: none;
+        color: #555;
+        cursor: pointer;
+        font-size: 0.6rem;
+        padding: 2px 4px;
+        opacity: 0;
+        transition: opacity 0.15s ease, color 0.15s ease;
+        line-height: 1;
+        font-family: var(--font-primary);
+      }
+      .editor-header-left:hover .breadcrumb-toggle-btn {
+        opacity: 0.6;
+      }
+      .breadcrumb-toggle-btn:hover {
+        color: var(--main-color);
+        opacity: 1 !important;
+      }
+
       /* Title uses flex to share space with path input */
       #active-note-title {
         background: transparent;
@@ -12948,14 +13011,19 @@
                 placeholder="ENTER_ENTRY_TITLE..."
                 autocomplete="off"
               />
+              <div id="note-breadcrumb" class="note-breadcrumb">
+                <span class="breadcrumb-segment" data-path="/">Root</span>
+              </div>
               <input
                 type="text"
-                id="note-current-path"
+                id="note-path-edit"
                 class="note-path-input"
+                style="display:none"
                 value="/root"
                 placeholder="/path"
                 autocomplete="off"
               />
+              <button id="breadcrumb-toggle-btn" class="breadcrumb-toggle-btn" title="Edit path">✎</button>
             </div>
             <div class="editor-header-right">
               <span id="note-timestamp">--</span>

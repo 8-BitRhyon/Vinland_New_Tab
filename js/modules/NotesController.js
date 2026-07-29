@@ -108,6 +108,90 @@ export const Notes = {
         return t.trim().substring(0, 150);
     },
 
+    // ─── Breadcrumb Navigation ───
+
+    // Filter sidebar to show only notes in a specific folder
+    _filterSidebarByPath: function(path) {
+        // Focus the sidebar search with the folder name
+        var searchEl = document.getElementById('notes-search');
+        if (searchEl) {
+            var folderName = path === '/' ? '' : path.split('/').pop();
+            searchEl.value = folderName;
+            this.renderSidebar(folderName);
+        }
+    },
+
+    _renderBreadcrumb: function(note) {
+        var container = document.getElementById('note-breadcrumb');
+        if (!container) return;
+
+        var parts = [];
+        var path = note.path || '/';
+        if (path === '/' || !path) {
+            // Root: parts stays empty — standalone Root is rendered below
+        } else {
+            // Split path into segments: /Journal/Subfolder → ['Journal', 'Subfolder']
+            var segments = path.split('/').filter(function(p) { return p.length > 0; });
+            var accumulated = '';
+            for (var i = 0; i < segments.length; i++) {
+                accumulated += '/' + segments[i];
+                parts.push({
+                    label: segments[i],
+                    path: accumulated
+                });
+            }
+        }
+
+        container.innerHTML = '';
+
+        // Root is always first
+        var rootSpan = document.createElement('span');
+        rootSpan.className = 'breadcrumb-segment';
+        rootSpan.textContent = 'Root';
+        rootSpan.dataset.path = '/';
+        rootSpan.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof self._filterSidebarByPath === 'function') {
+                self._filterSidebarByPath('/');
+            } else {
+                self.renderSidebar('');
+            }
+        });
+        container.appendChild(rootSpan);
+
+        var self = this;
+        for (var i = 0; i < parts.length; i++) {
+            // Separator
+            var sep = document.createElement('span');
+            sep.className = 'breadcrumb-sep';
+            sep.textContent = '»';
+            container.appendChild(sep);
+
+            var span = document.createElement('span');
+            span.className = 'breadcrumb-segment';
+            span.textContent = parts[i].label;
+
+            if (i === parts.length - 1) {
+                // Last segment = current folder, not clickable
+                span.classList.add('current');
+            } else {
+                span.dataset.path = parts[i].path;
+                span.addEventListener('click', function(p) {
+                    return function(e) {
+                        e.stopPropagation();
+                        if (typeof self._filterSidebarByPath === 'function') {
+                            self._filterSidebarByPath(p);
+                        } else {
+                            self.renderSidebar('');
+                        }
+                    };
+                }(parts[i].path));
+            }
+
+            container.appendChild(span);
+        }
+    },
+
     renderNotes: function() {
         console.log('[Notes] renderNotes called. Note count:', State.NOTES ? State.NOTES.length : 'NULL');
         var list = document.getElementById('notes-list');
@@ -321,12 +405,30 @@ export const Notes = {
              };
         }
 
-        // Path input change listener - persist path when user edits it
-        var pathInput = document.getElementById('note-current-path');
-        if (pathInput) {
-            pathInput.addEventListener('change', function() {
+        // Breadcrumb toggle button - switch between breadcrumb and editable path
+        var bcToggle = document.getElementById('breadcrumb-toggle-btn');
+        var bcContainer = document.getElementById('note-breadcrumb');
+        var pathEdit = document.getElementById('note-path-edit');
+        if (bcToggle && bcContainer && pathEdit) {
+            bcToggle.addEventListener('click', function() {
+                var isHidden = pathEdit.style.display === 'none';
+                bcContainer.style.display = isHidden ? 'none' : 'inline-flex';
+                pathEdit.style.display = isHidden ? 'inline-block' : 'none';
+                bcToggle.textContent = isHidden ? '✎' : '✖';
+                bcToggle.title = isHidden ? 'Done editing' : 'Edit path';
+                if (isHidden) {
+                    pathEdit.focus();
+                    pathEdit.select();
+                }
+            });
+        }
+
+        // Path edit input change listener - persist path when user edits it
+        var pathEditInput = document.getElementById('note-path-edit');
+        if (pathEditInput) {
+            pathEditInput.addEventListener('change', function() {
                 if (!self.activeNoteId) return;
-                var newPath = pathInput.value.trim();
+                var newPath = pathEditInput.value.trim();
                 if (!newPath) newPath = '/';
                 // Ensure leading slash
                 if (!newPath.startsWith('/')) newPath = '/' + newPath;
@@ -337,10 +439,10 @@ export const Notes = {
                 self.moveNote(self.activeNoteId, newPath);
             });
             // Also commit on Enter key
-            pathInput.addEventListener('keydown', function(e) {
+            pathEditInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    pathInput.blur(); // triggers change event
+                    pathEditInput.blur(); // triggers change event
                 }
             });
         }
@@ -680,11 +782,11 @@ export const Notes = {
             }
         }
 
-        var pathDisplay = document.getElementById('note-current-path');
-        if (pathDisplay) {
-            var displayPath = note.path === '/' ? '/root' : note.path;
-            pathDisplay.value = displayPath;
+        var pathEdit = document.getElementById('note-path-edit');
+        if (pathEdit) {
+            pathEdit.value = note.path === '/' ? '/root' : note.path;
         }
+        this._renderBreadcrumb(note);
 
         // TRASH BANNER & READ-ONLY MODE
         var isTrash = note.path && note.path.indexOf('/.trash') === 0;
@@ -726,8 +828,9 @@ export const Notes = {
                 textarea.style.opacity = '0.6';
             }
             
-            // Hide path input too to prevent moving
-            if (pathDisplay) pathDisplay.disabled = true;
+            // Hide path edit too to prevent moving
+            var pathEditEl = document.getElementById('note-path-edit');
+            if (pathEditEl) pathEditEl.disabled = true;
 
             // Bind Actions
             setTimeout(function() {
@@ -777,7 +880,8 @@ export const Notes = {
                 textarea.style.pointerEvents = 'auto';
                 textarea.style.opacity = '1';
             }
-            if (pathDisplay) pathDisplay.disabled = false;
+            var pathEditEl = document.getElementById('note-path-edit');
+            if (pathEditEl) pathEditEl.disabled = false;
         }
 
         var timestamp = document.getElementById('note-timestamp');
@@ -1072,8 +1176,9 @@ export const Notes = {
 
         // Update path display if this is the active note
         if (this.activeNoteId === noteId) {
-            var pathEl = document.getElementById('note-current-path');
+            var pathEl = document.getElementById('note-path-edit');
             if (pathEl) pathEl.value = newPath === '/' ? '/root' : newPath;
+            this._renderBreadcrumb(note);
         }
 
         if (window.showNotification) {
