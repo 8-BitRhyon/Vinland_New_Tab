@@ -121,6 +121,104 @@ export const Notes = {
         });
     },
 
+    _bindSidebarButtons: function() {
+        var dailyBtn = document.getElementById('daily-note-btn');
+        var self = this;
+        if(dailyBtn) {
+            dailyBtn.onclick = function() {
+                var today = new Date().toLocaleDateString(); // Simple Format
+                var title = 'Daily Note: ' + today;
+                if(!self.openByTitle(title)) {
+                    self.create(title, '/Daily');
+                }
+            };
+        }
+        
+        var addNoteBtn = document.getElementById('add-note-btn-sidebar');
+        if(addNoteBtn) addNoteBtn.onclick = function() { self.create(); };
+        
+        var addFolderBtn = document.getElementById('add-folder-btn-sidebar');
+        if(addFolderBtn) {
+            addFolderBtn.onclick = function() {
+                // Use existing folder-create-modal from index.html
+                var modal = document.getElementById('folder-create-modal');
+                var input = document.getElementById('folder-name-input');
+                var confirmBtn = document.getElementById('folder-modal-confirm');
+                var cancelBtn = document.getElementById('folder-modal-cancel');
+                var closeBtn = document.getElementById('folder-modal-close');
+                
+                if (modal && input && ModalManager) {
+                    input.value = '';
+                    ModalManager.open('folder-create-modal');
+                    setTimeout(function() { input.focus(); }, 50);
+                    
+                    confirmBtn.onclick = function() {
+                        var name = input.value.trim();
+                        if (name) {
+                            var folderPath = '/' + sanitizePath(name);
+                            self.registerFolder(folderPath); // Persist empty folder
+                            self.create('README', folderPath);
+                            ModalManager.close('folder-create-modal');
+                        }
+                    };
+                    cancelBtn.onclick = function() {
+                        ModalManager.close('folder-create-modal');
+                    };
+                    if (closeBtn) closeBtn.onclick = function() {
+                        ModalManager.close('folder-create-modal');
+                    };
+                    input.onkeydown = function(e) {
+                        if (e.key === 'Enter') confirmBtn.click();
+                        if (e.key === 'Escape') cancelBtn.click();
+                    };
+                }
+            };
+        }
+        
+        var addBoardBtn = document.getElementById('add-board-btn-sidebar');
+        if(addBoardBtn) {
+             addBoardBtn.onclick = function() {
+                 if(window.KanbanManager) {
+                     if (window.ModalManager && window.ModalManager.openInput) {
+                         window.ModalManager.openInput('NEW_BOARD //', 'board_name', function(name) {
+                             var board = window.KanbanManager.createBoard(name);
+                             window.KanbanManager.open(board.id);
+                             self.renderSidebar();
+                         });
+                     } else {
+                         // Fallback: use native prompt
+                         var name = prompt('Board Name:');
+                         if (name) {
+                             var board = window.KanbanManager.createBoard(name);
+                             window.KanbanManager.open(board.id);
+                             self.renderSidebar();
+                         }
+                     }
+                 }
+             };
+        }
+        
+        // PREVIEW Toggle Button
+        var previewBtn = document.getElementById('preview-toggle');
+        if (previewBtn) {
+            previewBtn.onclick = function() {
+                self.togglePreview();
+            };
+        }
+        
+        // Quick Notes Panel Header -> Opens Editor
+        var quickNotesHeader = document.getElementById('quick-notes-panel-header');
+        if (quickNotesHeader) {
+            quickNotesHeader.onclick = function() {
+                if (self.activeNoteId) {
+                    self.open(self.activeNoteId);
+                } else {
+                    self.open(); // Open most recent or create
+                }
+            };
+        }
+    },
+
     _bindSidebarSearch: function() {
         var search = document.getElementById('notes-search');
         if (search) {
@@ -774,100 +872,7 @@ export const Notes = {
              };
         }
 
-        var dailyBtn = document.getElementById('daily-note-btn');
-        if(dailyBtn) {
-            dailyBtn.onclick = function() {
-                var today = new Date().toLocaleDateString(); // Simple Format
-                var title = 'Daily Note: ' + today;
-                if(!self.openByTitle(title)) {
-                    self.create(title, '/Daily');
-                }
-            };
-        }
-        
-        var addNoteBtn = document.getElementById('add-note-btn-sidebar');
-        if(addNoteBtn) addNoteBtn.onclick = function() { self.create(); };
-        
-        var addFolderBtn = document.getElementById('add-folder-btn-sidebar');
-        if(addFolderBtn) {
-            addFolderBtn.onclick = function() {
-                // Use existing folder-create-modal from index.html
-                var modal = document.getElementById('folder-create-modal');
-                var input = document.getElementById('folder-name-input');
-                var confirmBtn = document.getElementById('folder-modal-confirm');
-                var cancelBtn = document.getElementById('folder-modal-cancel');
-                var closeBtn = document.getElementById('folder-modal-close');
-                
-                if (modal && input && ModalManager) {
-                    input.value = '';
-                    ModalManager.open('folder-create-modal');
-                    setTimeout(function() { input.focus(); }, 50);
-                    
-                    confirmBtn.onclick = function() {
-                        var name = input.value.trim();
-                        if (name) {
-                            var folderPath = '/' + sanitizePath(name);
-                            self.registerFolder(folderPath); // Persist empty folder
-                            self.create('README', folderPath);
-                            ModalManager.close('folder-create-modal');
-                        }
-                    };
-                    cancelBtn.onclick = function() {
-                        ModalManager.close('folder-create-modal');
-                    };
-                    if (closeBtn) closeBtn.onclick = function() {
-                        ModalManager.close('folder-create-modal');
-                    };
-                    input.onkeydown = function(e) {
-                        if (e.key === 'Enter') confirmBtn.click();
-                        if (e.key === 'Escape') cancelBtn.click();
-                    };
-                }
-            };
-        }
-        
-        var addBoardBtn = document.getElementById('add-board-btn-sidebar');
-        if(addBoardBtn) {
-             addBoardBtn.onclick = function() {
-                 if(window.KanbanManager) {
-                     if (window.ModalManager && window.ModalManager.openInput) {
-                         window.ModalManager.openInput('NEW_BOARD //', 'board_name', function(name) {
-                             var board = window.KanbanManager.createBoard(name);
-                             window.KanbanManager.open(board.id);
-                             self.renderSidebar();
-                         });
-                     } else {
-                         // Fallback: use native prompt
-                         var name = prompt('Board Name:');
-                         if (name) {
-                             var board = window.KanbanManager.createBoard(name);
-                             window.KanbanManager.open(board.id);
-                             self.renderSidebar();
-                         }
-                     }
-                 }
-             };
-        }
-        
-        // PREVIEW Toggle Button
-        var previewBtn = document.getElementById('preview-toggle');
-        if (previewBtn) {
-            previewBtn.onclick = function() {
-                self.togglePreview();
-            };
-        }
-        
-        // Quick Notes Panel Header -> Opens Editor
-        var quickNotesHeader = document.getElementById('quick-notes-panel-header');
-        if (quickNotesHeader) {
-            quickNotesHeader.onclick = function() {
-                if (self.activeNoteId) {
-                    self.open(self.activeNoteId);
-                } else {
-                    self.open(); // Open most recent or create
-                }
-            };
-        }
+        this._bindSidebarButtons();
         
         this._bindShortcuts();
         this._bindPreviewClicks();
