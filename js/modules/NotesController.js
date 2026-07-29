@@ -70,6 +70,38 @@ export const Notes = {
         });
     },
 
+    _bindPreviewClicks: function() {
+        var self = this;
+        var preview = document.getElementById('note-preview');
+        if (preview) {
+            preview.addEventListener('click', function (e) {
+                // Internal WikiLink click
+                if (e.target.classList.contains('internal-link')) {
+                    var title = e.target.getAttribute('data-link');
+                    self.openByTitle(title);
+                }
+
+                // Kanban Preview HUD click
+                var kanbanHud = e.target.closest('.kanban-hud-wrapper');
+                if (kanbanHud) {
+                    var boardId = kanbanHud.getAttribute('data-board-id');
+                    if (boardId && typeof KanbanManager !== 'undefined') {
+                        KanbanManager.open(boardId);
+                    }
+                }
+
+                // Kanban Preview Embed click
+                var kanbanEmbed = e.target.closest('.kanban-preview-embed');
+                if (kanbanEmbed) {
+                    var boardId = kanbanEmbed.getAttribute('data-board-id');
+                    if (boardId && typeof KanbanManager !== 'undefined') {
+                        KanbanManager.open(boardId);
+                    }
+                }
+            });
+        }
+    },
+
     _bindSidebarSearch: function() {
         var search = document.getElementById('notes-search');
         if (search) {
@@ -836,36 +868,7 @@ export const Notes = {
         }
         
         this._bindShortcuts();
-        
-        // WikiLink Click Handling in Preview
-        var preview = document.getElementById('note-preview');
-        if (preview) {
-            preview.addEventListener('click', function (e) {
-                // Internal WikiLink click
-                if (e.target.classList.contains('internal-link')) {
-                    var title = e.target.getAttribute('data-link');
-                    self.openByTitle(title);
-                }
-                
-                // Kanban Preview HUD click
-                var kanbanHud = e.target.closest('.kanban-hud-wrapper');
-                if (kanbanHud) {
-                    var boardId = kanbanHud.getAttribute('data-board-id');
-                    if (boardId && typeof KanbanManager !== 'undefined') {
-                        KanbanManager.open(boardId);
-                    }
-                }
-                
-                // Kanban Preview Embed click
-                var kanbanEmbed = e.target.closest('.kanban-preview-embed');
-                if (kanbanEmbed) {
-                    var boardId = kanbanEmbed.getAttribute('data-board-id');
-                    if (boardId && typeof KanbanManager !== 'undefined') {
-                        KanbanManager.open(boardId);
-                    }
-                }
-            });
-        }
+        this._bindPreviewClicks();
     },
 
     // Alias for external calls (imported from Sidebar.js)
