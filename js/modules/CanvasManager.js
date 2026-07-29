@@ -1953,6 +1953,73 @@ export const CanvasManager = {
             clearTimeout(self._wheelSaveTimeout);
             self._wheelSaveTimeout = setTimeout(function() { self._saveViewport(); }, 300);
         }, { passive: false });
+
+        // === RIGHT-CLICK ON EMPTY AREA ===
+        self.container.addEventListener('contextmenu', function(e) {
+            // Only on empty canvas space (not on cards, toolbar, or SVG)
+            if (e.target.closest('.canvas-card') || e.target.closest('.canvas-toolbar') || e.target.closest('svg')) return;
+            e.preventDefault();
+
+            // Remove any existing context menu
+            var old = document.getElementById('canvas-empty-ctx');
+            if (old) old.remove();
+
+            var menu = document.createElement('div');
+            menu.id = 'canvas-empty-ctx';
+            menu.className = 'canvas-context-menu';
+            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;z-index:45000;';
+
+            var note = self._getActiveNote();
+            var hasClipboard = self.clipboard && self.clipboard.nodes && self.clipboard.nodes.length > 0;
+            var hasNodes = note && note.canvasData && note.canvasData.nodes && note.canvasData.nodes.length >= 2;
+
+            menu.innerHTML = `
+                <div class="canvas-context-item" data-action="add-node">+ Add Node</div>
+                <div class="canvas-context-item" data-action="auto-layout" style="${hasNodes ? '' : 'opacity:0.4;pointer-events:none;'}">⟳ Auto-Layout <span style="float:right;color:#555;margin-left:20px;font-size:0.6rem;">⌥⇧A</span></div>
+                <div class="canvas-context-divider" style="height:1px;background:rgba(255,255,255,0.08);margin:4px 8px;"></div>
+                <div class="canvas-context-item" data-action="paste" style="${hasClipboard ? '' : 'opacity:0.4;pointer-events:none;'}">Paste ${hasClipboard ? '(' + self.clipboard.nodes.length + ' node' + (self.clipboard.nodes.length !== 1 ? 's' : '') + ')' : ''}</div>
+                <div class="canvas-context-divider" style="height:1px;background:rgba(255,255,255,0.08);margin:4px 8px;"></div>
+                <div class="canvas-context-item" data-action="reset-view">⌂ Reset View</div>
+            `;
+            document.body.appendChild(menu);
+
+            // Handle clicks
+            menu.addEventListener('click', function(ce) {
+                var item = ce.target.closest('[data-action]');
+                if (!item) return;
+                var action = item.getAttribute('data-action');
+                menu.remove();
+
+                switch (action) {
+                    case 'add-node':
+                        var addBtn = document.getElementById('canvas-add-node');
+                        if (addBtn) addBtn.click();
+                        break;
+                    case 'auto-layout':
+                        if (hasNodes) self._autoLayout();
+                        break;
+                    case 'paste':
+                        self.pasteCopiedNodes();
+                        break;
+                    case 'reset-view':
+                        self.transform = { x: 0, y: 0, scale: 1 };
+                        self.updateTransform();
+                        self.updateUI();
+                        break;
+                }
+            });
+
+            // Close on outside click
+            setTimeout(function() {
+                function closeHandler(ce) {
+                    if (!menu.contains(ce.target)) {
+                        menu.remove();
+                        document.removeEventListener('mousedown', closeHandler);
+                    }
+                }
+                document.addEventListener('mousedown', closeHandler);
+            }, 0);
+        });
     },
 
     // ─── VIEWPORT ───
