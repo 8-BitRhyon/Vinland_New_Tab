@@ -528,7 +528,6 @@ export const GraphManager = {
 
     render: function() {
         console.log('[Graph] Render called');
-        console.log('[Graph] Render called');
         var container = document.getElementById(this.containerId);
         if (!container) return;
         
