@@ -392,29 +392,38 @@ export const CanvasManager = {
 
         // === FLOATING TOOLBAR ===
         this.toolbar = document.createElement('div');
-        this.toolbar.className = 'canvas-toolbar';
+        // Restore collapsed state from localStorage
+        var isCollapsed = false;
+        try { isCollapsed = localStorage.getItem('vinland_canvas_toolbar_collapsed') === 'true'; } catch (e) { /* ignore */ }
+
+        this.toolbar.className = 'canvas-toolbar' + (isCollapsed ? ' collapsed' : '');
         this.toolbar.innerHTML = `
-            <button class="canvas-tb-btn" id="canvas-add-node" title="Add Text Node">+ NODE</button>
-            <button class="canvas-tb-btn" id="canvas-add-file" title="Embed Existing Note">+ FILE</button>
-            <button class="canvas-tb-btn" id="canvas-add-url" title="Embed URL/Video">+ URL</button>
-            <button class="canvas-tb-btn" id="canvas-add-group" title="Create Spatial Group">+ GROUP</button>
-            <span class="canvas-tb-divider">|</span>
-            <button class="canvas-tb-btn" id="canvas-reset-view" title="Reset View">⌂ RESET</button>
-            <span class="canvas-tb-divider">|</span>
-            <span class="canvas-tb-info" id="canvas-node-count">0 nodes</span>
-            <span class="canvas-tb-divider">|</span>
-            <span class="canvas-tb-info" id="canvas-zoom-label">100%</span>
-            <input type="range" class="canvas-zoom-slider" id="canvas-zoom-slider"
-                   min="10" max="500" value="100"
-                   title="Zoom level" aria-label="Canvas zoom level">
-            <span class="canvas-tb-divider">|</span>
-            <button class="canvas-tb-btn" id="canvas-snap-toggle" title="Toggle Snap to Grid (nodes align to 30px grid)">⧉</button>
-            <span class="canvas-tb-divider">|</span>
-            <button class="canvas-tb-btn" id="canvas-auto-layout" title="Auto-layout nodes (force-directed)">⟳</button>
-            <span class="canvas-tb-divider">|</span>
-            <button class="canvas-tb-btn" id="canvas-align-btn" title="Align selected nodes">≐</button>
-            <span class="canvas-tb-divider">|</span>
-            <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
+            <span class="canvas-tb-items" id="canvas-tb-items">
+                <button class="canvas-tb-btn" id="canvas-add-node" title="Add Text Node">+ NODE</button>
+                <button class="canvas-tb-btn" id="canvas-add-file" title="Embed Existing Note">+ FILE</button>
+                <button class="canvas-tb-btn" id="canvas-add-url" title="Embed URL/Video">+ URL</button>
+                <button class="canvas-tb-btn" id="canvas-add-group" title="Create Spatial Group">+ GROUP</button>
+                <span class="canvas-tb-divider">|</span>
+                <button class="canvas-tb-btn" id="canvas-reset-view" title="Reset View">⌂ RESET</button>
+                <span class="canvas-tb-divider">|</span>
+                <span class="canvas-tb-info" id="canvas-node-count">0 nodes</span>
+                <span class="canvas-tb-divider">|</span>
+                <span class="canvas-tb-info" id="canvas-zoom-label">100%</span>
+                <input type="range" class="canvas-zoom-slider" id="canvas-zoom-slider"
+                       min="10" max="500" value="100"
+                       title="Zoom level" aria-label="Canvas zoom level">
+                <span class="canvas-tb-divider">|</span>
+                <button class="canvas-tb-btn" id="canvas-snap-toggle" title="Toggle Snap to Grid (nodes align to 30px grid)">⧉</button>
+                <span class="canvas-tb-divider">|</span>
+                <button class="canvas-tb-btn" id="canvas-auto-layout" title="Auto-layout nodes (force-directed)">⟳</button>
+                <span class="canvas-tb-divider">|</span>
+                <button class="canvas-tb-btn" id="canvas-align-btn" title="Align selected nodes">≐</button>
+                <span class="canvas-tb-divider">|</span>
+                <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
+            </span>
+            <button class="canvas-tb-toggle" id="canvas-tb-toggle"
+                    title="${isCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}"
+                    aria-label="Toggle toolbar">${isCollapsed ? '\u25B6' : '\u25C0'}</button>
         `;
         this.container.appendChild(this.toolbar);
 
@@ -926,6 +935,31 @@ export const CanvasManager = {
                     opacity: 1;
                 }
 
+                /* ── Toolbar collapse toggle ── */
+                .canvas-tb-toggle {
+                    background: transparent;
+                    border: none;
+                    color: var(--secondary-color, #888);
+                    font-size: 0.65rem;
+                    cursor: pointer;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    transition: color 0.12s ease, background 0.12s ease;
+                    line-height: 1;
+                    flex-shrink: 0;
+                }
+                .canvas-tb-toggle:hover {
+                    color: var(--main-color, #00ff41);
+                    background: rgba(0, 255, 65, 0.1);
+                }
+                .canvas-toolbar.collapsed .canvas-tb-items {
+                    display: none;
+                }
+                .canvas-toolbar.collapsed {
+                    padding: 6px 8px;
+                    gap: 0;
+                }
+
                 /* ── Canvas zoom slider ── */
                 .canvas-zoom-slider {
                     -webkit-appearance: none;
@@ -1154,6 +1188,17 @@ export const CanvasManager = {
             this.updateUI();
             this._saveViewport();
         });
+
+        // Toolbar collapse toggle
+        var toggleBtn = this.toolbar.querySelector('#canvas-tb-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                var isCollapsed = this.toolbar.classList.toggle('collapsed');
+                toggleBtn.textContent = isCollapsed ? '\u25B6' : '\u25C0';
+                toggleBtn.title = isCollapsed ? 'Expand toolbar' : 'Collapse toolbar';
+                try { localStorage.setItem('vinland_canvas_toolbar_collapsed', isCollapsed ? 'true' : 'false'); } catch (e) { /* ignore */ }
+            });
+        }
 
         // ≐ ALIGN button
         this.toolbar.querySelector('#canvas-align-btn').addEventListener('click', (e) => {
