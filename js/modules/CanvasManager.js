@@ -3493,194 +3493,141 @@ export const CanvasManager = {
         return best;
     },
 
-    renderEdge: function(edge) {
-        if (!window.State.NOTES) return;
-        const note = this._getActiveNote();
-        if (!note || !note.canvasData || !note.canvasData.nodes) return;
-
-        const fromNode = note.canvasData.nodes.find(n => n.id === edge.fromNode);
-        const toNode = note.canvasData.nodes.find(n => n.id === edge.toNode);
-        if (!fromNode || !toNode) return;
-
-        // Auto-port: find nearest pair of sides
-        const ports = this._getAutoPorts(fromNode, toNode);
-        const x1 = ports.from.x, y1 = ports.from.y;
-        const x2 = ports.to.x, y2 = ports.to.y;
-
-        // ── Smarter bezier control points (perpendicular offset method) ──
+    // === BEZIER CONTROL POINTS ===
+    _calcBezierControlPoints: function(x1, y1, x2, y2) {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const dist = Math.hypot(dx, dy);
 
-        // Compute perpendicular unit vector (rotates 90° clockwise from direction)
         var perpX = 0, perpY = 1;
         if (dist > 1) {
             perpX = -dy / dist;
             perpY = dx / dist;
         }
 
-        // Offset: proportional to distance, clamped between 60-200px
         const rawOffset = dist * 0.4;
         const offset = Math.max(60, Math.min(rawOffset, 200));
 
-        // Control points at 25% and 75% along the line, offset perpendicularly
         const cp1x = x1 + dx * 0.25 + perpX * offset;
         const cp1y = y1 + dy * 0.25 + perpY * offset;
         const cp2x = x2 - dx * 0.25 + perpX * offset;
         const cp2y = y2 - dy * 0.25 + perpY * offset;
 
         // True midpoint of cubic bezier at t=0.5: ⅛P0 + ⅜P1 + ⅜P2 + ⅛P3
-        var bezierMidX = 0.125 * x1 + 0.375 * cp1x + 0.375 * cp2x + 0.125 * x2;
-        var bezierMidY = 0.125 * y1 + 0.375 * cp1y + 0.375 * cp2y + 0.125 * y2;
+        var midX = 0.125 * x1 + 0.375 * cp1x + 0.375 * cp2x + 0.125 * x2;
+        var midY = 0.125 * y1 + 0.375 * cp1y + 0.375 * cp2y + 0.125 * y2;
 
-        // Update stroke style on existing paths (needed after style change via context menu)
-        path.setAttribute('stroke', strokeColor);
-        path.setAttribute('stroke-width', strokeWidth);
-        if (isDashed) {
-            path.setAttribute('stroke-dasharray', '5,3');
-            path.setAttribute('marker-end', 'url(#canvas-arrowhead-dim)');
-        } else {
-            path.removeAttribute('stroke-dasharray');
-            path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
-        }
+        return {
+            cp1x: cp1x, cp1y: cp1y,
+            cp2x: cp2x, cp2y: cp2y,
+            midX: midX, midY: midY
+        };
+    },
 
-        // Build path string — through waypoints if any, else auto-bezier
-        let d;
-        const wps = edge.waypoints;
+    // === EDGE PATH STRING ===
+    _buildEdgePathString: function(x1, y1, x2, y2, cp1x, cp1y, cp2x, cp2y, waypoints) {
+        const wps = waypoints;
         if (wps && wps.length > 0) {
-            d = `M ${x1} ${y1}`;
-            wps.forEach(function(wp) { d += ` L ${wp.x} ${wp.y}`; });
-            d += ` L ${x2} ${y2}`;
-        } else {
-            d = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+            var d = 'M ' + x1 + ' ' + y1;
+            wps.forEach(function(wp) { d += ' L ' + wp.x + ' ' + wp.y; });
+            d += ' L ' + x2 + ' ' + y2;
+            return d;
         }
+        return 'M ' + x1 + ' ' + y1 + ' C ' + cp1x + ' ' + cp1y + ', ' + cp2x + ' ' + cp2y + ', ' + x2 + ' ' + y2;
+    },
 
-        var self = this;
-
-        // Resolve style properties (with defaults)
+    // === EDGE STYLE RESOLUTION ===
+    _resolveEdgeStyles: function(edge) {
         var strokeColor = edge.color || 'var(--main-color, #00ff41)';
         var strokeWidth = edge.styleWidth || (edge.isWikiLink ? 1.5 : 2);
         var isDashed = edge.styleDashed === true || edge.isWikiLink === true;
+        return { strokeColor: strokeColor, strokeWidth: strokeWidth, isDashed: isDashed };
+    },
 
-        // Create or update path
-        let path = document.getElementById(`edge-${edge.id}`);
-        if (!path) {
-            path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.id = `edge-${edge.id}`;
-            path.classList.add('canvas-edge');
-            path.setAttribute('stroke', strokeColor);
-            path.setAttribute('fill', 'none');
-
-            path.setAttribute('stroke-width', strokeWidth);
-            if (isDashed) {
-                path.setAttribute('opacity', '0.5');
-                path.setAttribute('stroke-dasharray', '5,3');
-                path.setAttribute('marker-end', 'url(#canvas-arrowhead-dim)');
-            } else {
-                path.setAttribute('opacity', '0.7');
-                path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
-            }
-            path.style.pointerEvents = 'stroke';
-            path.style.cursor = 'pointer';
-            this.svgLayer.appendChild(path);
-
-            // Right-click: edge context menu (delete + add waypoint)
-            path.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                self._showEdgeContextMenu(e.clientX, e.clientY, edge, fromNode, toNode);
-            });
-
-            // Double-click on path: add waypoint at click position
-            path.addEventListener('dblclick', function(e) {
-                e.stopPropagation();
-                var rect = self.container.getBoundingClientRect();
-                var wx = (e.clientX - rect.left - self.transform.x) / self.transform.scale;
-                var wy = (e.clientY - rect.top - self.transform.y) / self.transform.scale;
-                if (!edge.waypoints) edge.waypoints = [];
-                edge.waypoints.push({ x: wx, y: wy });
-                self._saveData();
-                self.renderEdge(edge);
-            });
-        }
-        path.setAttribute('d', d);
-
-        // ── RENDER / UPDATE WAYPOINT HANDLES ──
-        if (wps && wps.length > 0) {
-            var existingHandles = {};
-            self.svgLayer.querySelectorAll('[id^="edge-wp-' + edge.id + '-"]').forEach(function(el) {
-                existingHandles[el.id] = el;
-            });
-            wps.forEach(function(wp, i) {
-                var handleId = 'edge-wp-' + edge.id + '-' + i;
-                var circle = existingHandles[handleId];
-                if (!circle) {
-                    circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.id = handleId;
-                    circle.classList.add('edge-waypoint-handle');
-                    circle.setAttribute('r', '5');
-                    circle.setAttribute('fill', 'var(--main-color, #00ff41)');
-                    circle.setAttribute('stroke', '#000');
-                    circle.setAttribute('stroke-width', '1.5');
-                    circle.style.cursor = 'move';
-                    circle.style.pointerEvents = 'all';
-                    self.svgLayer.appendChild(circle);
-
-                    // ── Drag waypoint ──
-                    circle.addEventListener('mousedown', function(downE) {
-                        downE.stopPropagation();
-                        downE.preventDefault();
-                        var wpIdx = parseInt(this.id.split('-').pop());
-                        var startX = downE.clientX;
-                        var startY = downE.clientY;
-                        var origWp = { x: wps[wpIdx].x, y: wps[wpIdx].y };
-
-                        var onMove = function(moveE) {
-                            var rect = self.container.getBoundingClientRect();
-                            var dx2 = (moveE.clientX - startX) / self.transform.scale;
-                            var dy2 = (moveE.clientY - startY) / self.transform.scale;
-                            wps[wpIdx].x = origWp.x + dx2;
-                            wps[wpIdx].y = origWp.y + dy2;
-                            self.renderEdge(edge);
-                        };
-                        var onUp = function() {
-                            window.removeEventListener('mousemove', onMove);
-                            window.removeEventListener('mouseup', onUp);
-                            self._saveData();
-                        };
-                        window.addEventListener('mousemove', onMove);
-                        window.addEventListener('mouseup', onUp);
-                    });
-
-                    // ── Right-click waypoint: delete ──
-                    circle.addEventListener('contextmenu', function(ce) {
-                        ce.preventDefault();
-                        ce.stopPropagation();
-                        var wpIdx = parseInt(this.id.split('-').pop());
-                        if (confirm('Delete this waypoint?')) {
-                            edge.waypoints.splice(wpIdx, 1);
-                            if (edge.waypoints.length === 0) delete edge.waypoints;
-                            self._saveData();
-                            self.renderEdge(edge);
-                        }
-                    });
-                }
-                circle.setAttribute('cx', wp.x);
-                circle.setAttribute('cy', wp.y);
-                delete existingHandles[handleId];
-            });
-            // Remove stale handles
-            Object.keys(existingHandles).forEach(function(id) { existingHandles[id].remove(); });
-        } else {
+    // === WAYPOINT HANDLE RENDERING ===
+    _renderWaypointHandles: function(edge) {
+        var wps = edge.waypoints;
+        if (!wps || wps.length === 0) {
             // No waypoints — remove any leftover handles
-            self.svgLayer.querySelectorAll('[id^="edge-wp-' + edge.id + '-"]').forEach(function(el) { el.remove(); });
+            var stale = this.svgLayer.querySelectorAll('[id^="edge-wp-' + edge.id + '-"]');
+            stale.forEach(function(el) { el.remove(); });
+            return;
         }
 
-        // ── Hover hint: show "+" on edge when no label exists ──
+        var self = this;
+        var existingHandles = {};
+        this.svgLayer.querySelectorAll('[id^="edge-wp-' + edge.id + '-"]').forEach(function(el) {
+            existingHandles[el.id] = el;
+        });
+
+        wps.forEach(function(wp, i) {
+            var handleId = 'edge-wp-' + edge.id + '-' + i;
+            var circle = existingHandles[handleId];
+            if (!circle) {
+                circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.id = handleId;
+                circle.classList.add('edge-waypoint-handle');
+                circle.setAttribute('r', '5');
+                circle.setAttribute('fill', 'var(--main-color, #00ff41)');
+                circle.setAttribute('stroke', '#000');
+                circle.setAttribute('stroke-width', '1.5');
+                circle.style.cursor = 'move';
+                circle.style.pointerEvents = 'all';
+                self.svgLayer.appendChild(circle);
+
+                // Drag waypoint
+                circle.addEventListener('mousedown', function(downE) {
+                    downE.stopPropagation();
+                    downE.preventDefault();
+                    var wpIdx = parseInt(this.id.split('-').pop());
+                    var startX = downE.clientX;
+                    var startY = downE.clientY;
+                    var origWp = { x: wps[wpIdx].x, y: wps[wpIdx].y };
+
+                    var onMove = function(moveE) {
+                        var rect = self.container.getBoundingClientRect();
+                        var dx2 = (moveE.clientX - startX) / self.transform.scale;
+                        var dy2 = (moveE.clientY - startY) / self.transform.scale;
+                        wps[wpIdx].x = origWp.x + dx2;
+                        wps[wpIdx].y = origWp.y + dy2;
+                        self.renderEdge(edge);
+                    };
+                    var onUp = function() {
+                        window.removeEventListener('mousemove', onMove);
+                        window.removeEventListener('mouseup', onUp);
+                        self._saveData();
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                });
+
+                // Right-click waypoint: delete
+                circle.addEventListener('contextmenu', function(ce) {
+                    ce.preventDefault();
+                    ce.stopPropagation();
+                    var wpIdx = parseInt(this.id.split('-').pop());
+                    if (confirm('Delete this waypoint?')) {
+                        edge.waypoints.splice(wpIdx, 1);
+                        if (edge.waypoints.length === 0) delete edge.waypoints;
+                        self._saveData();
+                        self.renderEdge(edge);
+                    }
+                });
+            }
+            circle.setAttribute('cx', wp.x);
+            circle.setAttribute('cy', wp.y);
+            delete existingHandles[handleId];
+        });
+
+        // Remove stale handles
+        Object.keys(existingHandles).forEach(function(id) { existingHandles[id].remove(); });
+    },
+
+    // === EDGE HOVER HINT ===
+    _renderEdgeHoverHint: function(edge, path, bezierMidX, bezierMidY, wps, x1, y1, x2, y2) {
         // Position hint at bezier midpoint (or longest waypoint segment midpoint)
         let hintX = bezierMidX, hintY = bezierMidY;
         if (wps && wps.length > 0) {
-            // Place hint at midpoint of longest waypoint segment
             var segments = [{ sx: x1, sy: y1, ex: wps[0].x, ey: wps[0].y }];
             for (var si = 1; si < wps.length; si++) {
                 segments.push({ sx: wps[si-1].x, sy: wps[si-1].y, ex: wps[si].x, ey: wps[si].y });
@@ -3695,7 +3642,8 @@ export const CanvasManager = {
             hintX = (longest.sx + longest.ex) / 2;
             hintY = (longest.sy + longest.ey) / 2;
         }
-        const hintId = `edge-label-hint-${edge.id}`;
+
+        const hintId = 'edge-label-hint-' + edge.id;
         let hintEl = document.getElementById(hintId);
         if (!hintEl) {
             hintEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -3704,20 +3652,93 @@ export const CanvasManager = {
             hintEl.textContent = '+';
             this.svgLayer.appendChild(hintEl);
 
-            const showHint = () => {
-                if (!edge.label) hintEl.classList.add('visible');
-            };
-            const hideHint = () => {
-                hintEl.classList.remove('visible');
-            };
+            const showHint = function() { if (!edge.label) hintEl.classList.add('visible'); };
+            const hideHint = function() { hintEl.classList.remove('visible'); };
             path.addEventListener('mouseenter', showHint);
             path.addEventListener('mouseleave', hideHint);
         }
         hintEl.setAttribute('x', hintX);
         hintEl.setAttribute('y', hintY);
+    },
 
-        // Render label at bezier midpoint
-        this._renderEdgeLabel(edge, bezierMidX, bezierMidY);
+    renderEdge: function(edge) {
+        if (!window.State.NOTES) return;
+        const note = this._getActiveNote();
+        if (!note || !note.canvasData || !note.canvasData.nodes) return;
+
+        const fromNode = note.canvasData.nodes.find(function(n) { return n.id === edge.fromNode; });
+        const toNode = note.canvasData.nodes.find(function(n) { return n.id === edge.toNode; });
+        if (!fromNode || !toNode) return;
+
+        // Auto-port: find nearest pair of sides
+        const ports = this._getAutoPorts(fromNode, toNode);
+        const x1 = ports.from.x, y1 = ports.from.y;
+        const x2 = ports.to.x, y2 = ports.to.y;
+
+        // Bezier control points + midpoint
+        var bp = this._calcBezierControlPoints(x1, y1, x2, y2);
+
+        // Resolve edge styles
+        var styles = this._resolveEdgeStyles(edge);
+
+        // Build SVG path string
+        var d = this._buildEdgePathString(x1, y1, x2, y2, bp.cp1x, bp.cp1y, bp.cp2x, bp.cp2y, edge.waypoints);
+        var wps = edge.waypoints;
+
+        // Create or update SVG path element
+        var self = this;
+        let path = document.getElementById('edge-' + edge.id);
+        if (!path) {
+            path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.id = 'edge-' + edge.id;
+            path.classList.add('canvas-edge');
+            path.setAttribute('fill', 'none');
+            path.style.pointerEvents = 'stroke';
+            path.style.cursor = 'pointer';
+            this.svgLayer.appendChild(path);
+
+            // Right-click: edge context menu
+            path.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                self._showEdgeContextMenu(e.clientX, e.clientY, edge, fromNode, toNode);
+            });
+
+            // Double-click: add waypoint
+            path.addEventListener('dblclick', function(e) {
+                e.stopPropagation();
+                var rect = self.container.getBoundingClientRect();
+                var wx = (e.clientX - rect.left - self.transform.x) / self.transform.scale;
+                var wy = (e.clientY - rect.top - self.transform.y) / self.transform.scale;
+                if (!edge.waypoints) edge.waypoints = [];
+                edge.waypoints.push({ x: wx, y: wy });
+                self._saveData();
+                self.renderEdge(edge);
+            });
+        }
+
+        // Apply styles and path data
+        path.setAttribute('stroke', styles.strokeColor);
+        path.setAttribute('stroke-width', styles.strokeWidth);
+        if (styles.isDashed) {
+            path.setAttribute('opacity', '0.5');
+            path.setAttribute('stroke-dasharray', '5,3');
+            path.setAttribute('marker-end', 'url(#canvas-arrowhead-dim)');
+        } else {
+            path.setAttribute('opacity', '0.7');
+            path.removeAttribute('stroke-dasharray');
+            path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
+        }
+        path.setAttribute('d', d);
+
+        // Render waypoint handles
+        this._renderWaypointHandles(edge);
+
+        // Render hover hint (+ button when no label)
+        this._renderEdgeHoverHint(edge, path, bp.midX, bp.midY, wps, x1, y1, x2, y2);
+
+        // Render edge label at bezier midpoint
+        this._renderEdgeLabel(edge, bp.midX, bp.midY);
     },
 
     _renderEdgeLabel: function(edge, mx, my) {
