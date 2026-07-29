@@ -19,6 +19,7 @@ const suites = [
   'table-column-unit-tests.mjs',
   'fuzzy-unit-tests.mjs',
   'missions-unit-tests.mjs',
+  'quickopen-unit-tests.mjs',
 ];
 
 let exitCode = 0;
