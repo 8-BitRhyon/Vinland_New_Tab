@@ -172,6 +172,16 @@ export function renderMissions() {
             div.appendChild(catBadge);
         }
 
+        // Recurrence badge
+        if (task.recurrence && task.recurrence !== 'none') {
+            var recBadge = document.createElement('span');
+            recBadge.className = 'rec-badge';
+            var recLabels = { daily: '↻ daily', weekly: '↻ weekly', monthly: '↻ monthly' };
+            recBadge.textContent = recLabels[task.recurrence] || task.recurrence;
+            recBadge.title = 'Recurring ' + task.recurrence + ' task';
+            div.appendChild(recBadge);
+        }
+
         fragment.appendChild(div);
     });
     list.appendChild(fragment);
@@ -203,6 +213,14 @@ export function addTask(rawText, timeOverride) {
         text = text.substring(1).trim();
     }
 
+    // Recurrence logic: parse +daily, +weekly, +monthly prefix
+    var recurrence = 'none';
+    var recMatch = text.match(/^\+(daily|weekly|monthly)\b/i);
+    if (recMatch) {
+        recurrence = recMatch[1];
+        text = text.substring(recMatch[0].length).trim();
+    }
+
     // Category logic
     var category = null;
     var catMatch = text.match(/@(\w+)/);
@@ -216,7 +234,9 @@ export function addTask(rawText, timeOverride) {
         completed: false,
         time: time,
         priority: priority,
-        category: category
+        category: category,
+        recurrence: recurrence,
+        recurrence_created: new Date().toDateString()
     });
 
     saveData();
@@ -227,7 +247,23 @@ export function addTask(rawText, timeOverride) {
 export function toggleTaskComplete(index) {
     if (!State.TASKS[index]) return;
 
-    State.TASKS[index].completed = !State.TASKS[index].completed;
+    var task = State.TASKS[index];
+    task.completed = !task.completed;
+
+    // If completing a recurring task, auto-create the next instance
+    if (task.completed && task.recurrence && task.recurrence !== 'none') {
+        var nextDate = _getNextRecurrenceDate(task.recurrence);
+        State.TASKS.push({
+            text: task.text,
+            completed: false,
+            time: task.time,
+            priority: task.priority,
+            category: task.category,
+            recurrence: task.recurrence,
+            recurrence_created: nextDate.toDateString()
+        });
+    }
+
     saveData();
 
     // Animate the DOM element in-place (no full re-render during animation)
@@ -337,4 +373,52 @@ export function checkStreakReset() {
 
     var streakEl = document.getElementById('streak-count');
     if (streakEl) streakEl.textContent = State.CONFIG.streak_count || 0;
+}
+
+// ─── RECURRENCE HELPERS ──────────────────────────────────────
+
+/**
+ * Calculate the next occurrence date for a recurring task.
+ * @param {string} recurrence - 'daily', 'weekly', or 'monthly'
+ * @returns {Date} The next occurrence date
+ */
+export function _getNextRecurrenceDate(recurrence) {
+    var now = new Date();
+    switch (recurrence) {
+        case 'daily':
+            // Next occurrence is tomorrow
+            var next = new Date(now);
+            next.setDate(next.getDate() + 1);
+            return next;
+        case 'weekly':
+            // Next occurrence is next week (same day of week)
+            var next = new Date(now);
+            next.setDate(next.getDate() + 7);
+            return next;
+        case 'monthly':
+            // Next occurrence is next month (same day of month)
+            var next = new Date(now);
+            next.setMonth(next.getMonth() + 1);
+            return next;
+        default:
+            return now;
+    }
+}
+
+/**
+ * Parse recurrence prefix from a raw task text string.
+ * Extracted for unit testing.
+ * @param {string} text - Raw task text
+ * @returns {{ text: string, recurrence: string }} Parsed text and recurrence type
+ */
+export function parseRecurrence(text) {
+    if (!text) return { text: '', recurrence: 'none' };
+    var cleaned = text.trim();
+    var recurrence = 'none';
+    var recMatch = cleaned.match(/^\+(daily|weekly|monthly)\b/i);
+    if (recMatch) {
+        recurrence = recMatch[1];
+        cleaned = cleaned.substring(recMatch[0].length).trim();
+    }
+    return { text: cleaned, recurrence: recurrence };
 }

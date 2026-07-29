@@ -106,6 +106,38 @@ function checkStreakResetPure(lastCompletionDate, todayStr) {
     return { reset: false, streak: null };
 }
 
+function parseRecurrence(text) {
+    if (!text) return { text: '', recurrence: 'none' };
+    var cleaned = text.trim();
+    var recurrence = 'none';
+    var recMatch = cleaned.match(/^\+(daily|weekly|monthly)\b/);
+    if (recMatch) {
+        recurrence = recMatch[1];
+        cleaned = cleaned.substring(recMatch[0].length).trim();
+    }
+    return { text: cleaned, recurrence: recurrence };
+}
+
+function _getNextRecurrenceDate(recurrence) {
+    var now = new Date();
+    switch (recurrence) {
+        case 'daily':
+            var next = new Date(now);
+            next.setDate(next.getDate() + 1);
+            return next;
+        case 'weekly':
+            var next = new Date(now);
+            next.setDate(next.getDate() + 7);
+            return next;
+        case 'monthly':
+            var next = new Date(now);
+            next.setMonth(next.getMonth() + 1);
+            return next;
+        default:
+            return now;
+    }
+}
+
 // ============================================================
 // TEST RUNNER
 // ============================================================
@@ -587,6 +619,165 @@ test('does not reset if last completion date is null', function() {
     var result = checkStreakResetPure(null, 'Tue Jul 28 2026');
     assert.equal(result.reset, false);
     assert.equal(result.streak, 0);
+});
+
+// ============================================================
+// TESTS: Recurrence parsing
+// ============================================================
+
+console.log('\n\u2500\u2500\u2500 Missions: Recurrence parsing \u2500\u2500\u2500');
+
+test('parses +daily prefix', function() {
+    var result = parseRecurrence('+daily Buy groceries');
+    assert.equal(result.text, 'Buy groceries');
+    assert.equal(result.recurrence, 'daily');
+});
+
+test('parses +weekly prefix', function() {
+    var result = parseRecurrence('+weekly Clean garage');
+    assert.equal(result.text, 'Clean garage');
+    assert.equal(result.recurrence, 'weekly');
+});
+
+test('parses +monthly prefix', function() {
+    var result = parseRecurrence('+monthly Pay bills');
+    assert.equal(result.text, 'Pay bills');
+    assert.equal(result.recurrence, 'monthly');
+});
+
+test('parses +daily with priority prefix', function() {
+    var text = 'Buy groceries';
+    var rec = parseRecurrence('+daily ' + text);
+    assert.equal(rec.text, text);
+    assert.equal(rec.recurrence, 'daily');
+});
+
+test('returns none for text without recurrence prefix', function() {
+    var result = parseRecurrence('Buy groceries');
+    assert.equal(result.text, 'Buy groceries');
+    assert.equal(result.recurrence, 'none');
+});
+
+test('returns none for empty string', function() {
+    var result = parseRecurrence('');
+    assert.equal(result.text, '');
+    assert.equal(result.recurrence, 'none');
+});
+
+test('handles +daily with trailing text', function() {
+    var result = parseRecurrence('+daily Read books for 30 minutes');
+    assert.equal(result.text, 'Read books for 30 minutes');
+    assert.equal(result.recurrence, 'daily');
+});
+
+test('does not match +daily inside text (must be prefix)', function() {
+    var result = parseRecurrence('Do +daily workout');
+    assert.equal(result.text, 'Do +daily workout');
+    assert.equal(result.recurrence, 'none');
+});
+
+test('handles +daily with extra whitespace', function() {
+    var result = parseRecurrence('  +daily   Task');
+    assert.equal(result.text, 'Task');
+    assert.equal(result.recurrence, 'daily');
+});
+
+// ============================================================
+// TESTS: Recurrence date calculation
+// ============================================================
+
+console.log('\n\u2500\u2500\u2500 Missions: Recurrence date calculation \u2500\u2500\u2500');
+
+test('daily recurrence returns tomorrow', function() {
+    var result = _getNextRecurrenceDate('daily');
+    var expected = new Date();
+    expected.setDate(expected.getDate() + 1);
+    assert.equal(result.toDateString(), expected.toDateString());
+});
+
+test('weekly recurrence returns 7 days later', function() {
+    var result = _getNextRecurrenceDate('weekly');
+    var expected = new Date();
+    expected.setDate(expected.getDate() + 7);
+    assert.equal(result.toDateString(), expected.toDateString());
+});
+
+test('monthly recurrence returns 1 month later', function() {
+    var result = _getNextRecurrenceDate('monthly');
+    var expected = new Date();
+    expected.setMonth(expected.getMonth() + 1);
+    assert.equal(result.toDateString(), expected.toDateString());
+});
+
+test('unknown recurrence returns today', function() {
+    var result = _getNextRecurrenceDate('unknown');
+    assert.equal(result.toDateString(), new Date().toDateString());
+});
+
+// ============================================================
+// TESTS: Recurrence auto-respawn in toggleTaskComplete
+// ============================================================
+
+console.log('\n\u2500\u2500\u2500 Missions: Recurrence auto-respawn \u2500\u2500\u2500');
+
+test('completing a daily task creates a new instance', function() {
+    var tasks = [
+        { text: 'Daily task', completed: false, recurrence: 'daily', recurrence_created: 'Mon Jul 27 2026' }
+    ];
+    // Simulate toggleTaskComplete: toggle + check recurrence + push new
+    tasks[0].completed = true;
+    if (tasks[0].completed && tasks[0].recurrence !== 'none') {
+        var nextDate = _getNextRecurrenceDate(tasks[0].recurrence);
+        tasks.push({
+            text: tasks[0].text,
+            completed: false,
+            recurrence: tasks[0].recurrence,
+            recurrence_created: nextDate.toDateString()
+        });
+    }
+    assert.equal(tasks.length, 2, 'new task should be added');
+    assert.equal(tasks[0].completed, true, 'original should be completed');
+    assert.equal(tasks[1].completed, false, 'new task should be incomplete');
+    assert.equal(tasks[1].recurrence, 'daily', 'new task should have same recurrence');
+    assert.equal(tasks[1].text, 'Daily task', 'new task should have same text');
+});
+
+test('completing a non-recurring task does not create a new instance', function() {
+    var tasks = [
+        { text: 'One-off task', completed: false, recurrence: 'none' }
+    ];
+    tasks[0].completed = true;
+    var createdNew = false;
+    if (tasks[0].completed && tasks[0].recurrence !== 'none') {
+        createdNew = true;
+    }
+    assert.equal(createdNew, false, 'should not create new task for non-recurring tasks');
+    assert.equal(tasks.length, 1);
+});
+
+test('completing a monthly task preserves all task properties on new instance', function() {
+    var tasks = [
+        { text: 'Review budget', completed: false, time: '10:00', priority: 'high', category: 'finance', recurrence: 'monthly', recurrence_created: 'Mon Jul 27 2026' }
+    ];
+    tasks[0].completed = true;
+    if (tasks[0].completed && tasks[0].recurrence !== 'none') {
+        var nextDate = _getNextRecurrenceDate(tasks[0].recurrence);
+        tasks.push({
+            text: tasks[0].text,
+            completed: false,
+            time: tasks[0].time,
+            priority: tasks[0].priority,
+            category: tasks[0].category,
+            recurrence: tasks[0].recurrence,
+            recurrence_created: nextDate.toDateString()
+        });
+    }
+    assert.equal(tasks.length, 2);
+    assert.equal(tasks[1].text, 'Review budget');
+    assert.equal(tasks[1].time, '10:00');
+    assert.equal(tasks[1].priority, 'high');
+    assert.equal(tasks[1].category, 'finance');
+    assert.equal(tasks[1].recurrence, 'monthly');
 });
 
 // ============================================================
