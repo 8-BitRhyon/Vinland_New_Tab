@@ -1968,22 +1968,19 @@ export const CanvasManager = {
         }
     },
 
-    // ─── EVENT BINDING ───
-    bindEvents: function() {
-        if (!this.container) return;
-
-        // === KEYBOARD SHORTCUTS & PAN STATE ===
-        var isSpacePressed = false;
+    // ─── KEYBOARD SHORTCUTS ───
+    _bindKeyboardShortcuts: function() {
         var self = this;
+        this._isSpacePressed = false;
+
         window.addEventListener('keydown', function(e) {
             var isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
             var isCmdOrCtrl = e.metaKey || e.ctrlKey;
-            
+
             // Cmd+F / Ctrl+F = Find in canvas
             if (isCmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'f') {
                 if (!isInput || e.target.closest('#canvas-container')) {
-                    e.preventDefault();
-                    e.stopPropagation();
+                    e.preventDefault(); e.stopPropagation();
                     if (window.CanvasSearch) window.CanvasSearch.toggle();
                     return;
                 }
@@ -1991,25 +1988,22 @@ export const CanvasManager = {
 
             // Shift + 1 = Zoom to Fit
             if (e.shiftKey && e.key === '!' && !isInput) {
-                e.preventDefault();
-                self.zoomToFit();
-                return;
+                e.preventDefault(); self.zoomToFit(); return;
             }
 
+            // Space = Pan mode
             if (e.code === 'Space' && !isInput) {
-                isSpacePressed = true;
+                self._isSpacePressed = true;
                 self.container.style.cursor = 'grab';
-                e.preventDefault();
-                return;
+                e.preventDefault(); return;
             }
 
+            // ? = Shortcuts panel
             if (e.key === '?' && !isInput) {
-                e.preventDefault();
-                self._showShortcutsPanel();
-                return;
+                e.preventDefault(); self._showShortcutsPanel(); return;
             }
 
-            // Alignment shortcuts: Alt+Shift+[key]
+            // Alt+Shift+[key] = Alignment
             if (e.altKey && e.shiftKey && !isInput) {
                 var alignAction = null;
                 switch (e.key.toLowerCase()) {
@@ -2023,59 +2017,39 @@ export const CanvasManager = {
                     case 'e': alignAction = 'distribute-v'; break;
                 }
                 if (alignAction && self.selectedNodeIds.size >= 2) {
-                    e.preventDefault();
-                    self._alignNodes(alignAction);
-                    return;
+                    e.preventDefault(); self._alignNodes(alignAction); return;
                 }
             }
 
-            // Auto Layout: Alt+Shift+A
+            // Alt+Shift+A = Auto Layout
             if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'a' && !isInput) {
-                e.preventDefault();
-                self._autoLayout();
-                return;
+                e.preventDefault(); self._autoLayout(); return;
             }
 
+            // Delete/Backspace = Delete selected
             if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
-                if (self.selectedNodeIds.size > 0) {
-                    e.preventDefault();
-                    self.deleteSelectedNodes();
-                }
+                if (self.selectedNodeIds.size > 0) { e.preventDefault(); self.deleteSelectedNodes(); }
             }
 
+            // Cmd/Ctrl + clipboard actions
             if (isCmdOrCtrl && !isInput) {
-                if (e.key === 'c' || e.key === 'C') {
-                    e.preventDefault();
-                    self.copySelectedNodes();
-                } else if (e.key === 'v' || e.key === 'V') {
-                    e.preventDefault();
-                    self.pasteCopiedNodes();
-                } else if (e.key === 'd' || e.key === 'D') {
-                    e.preventDefault();
-                    self.duplicateSelectedNodes();
-                } else if (e.key === 'z' || e.key === 'Z') {
-                    e.preventDefault();
-                    if (e.shiftKey) self.redo();
-                    else self.undo();
-                } else if (e.key === 'y' || e.key === 'Y') {
-                    e.preventDefault();
-                    self.redo();
-                }
+                if (e.key === 'c' || e.key === 'C') { e.preventDefault(); self.copySelectedNodes(); }
+                else if (e.key === 'v' || e.key === 'V') { e.preventDefault(); self.pasteCopiedNodes(); }
+                else if (e.key === 'd' || e.key === 'D') { e.preventDefault(); self.duplicateSelectedNodes(); }
+                else if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); if (e.shiftKey) self.redo(); else self.undo(); }
+                else if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); self.redo(); }
             }
 
-            // Arrow key nudging (move selected nodes 1px, or 10px with Shift)
+            // Arrow keys = nudge selected nodes
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !isInput) {
                 if (self.selectedNodeIds.size > 0) {
                     e.preventDefault();
-                    var dx = 0, dy = 0;
-                    var step = e.shiftKey ? 10 : 1;
+                    var dx = 0, dy = 0, step = e.shiftKey ? 10 : 1;
                     if (e.key === 'ArrowUp') dy = -step;
                     else if (e.key === 'ArrowDown') dy = step;
                     else if (e.key === 'ArrowLeft') dx = -step;
                     else if (e.key === 'ArrowRight') dx = step;
-
                     self._saveHistoryState();
-
                     var note = self._getActiveNote();
                     if (note && note.canvasData && note.canvasData.nodes) {
                         note.canvasData.nodes.forEach(function(n) {
@@ -2083,31 +2057,21 @@ export const CanvasManager = {
                                 n.x += dx / self.transform.scale;
                                 n.y += dy / self.transform.scale;
                                 var el = document.getElementById('canvas-node-' + n.id);
-                                if (el) {
-                                    el.style.left = n.x + 'px';
-                                    el.style.top = n.y + 'px';
-                                }
+                                if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
                             }
                         });
                     }
-
-                    self._refreshEdges();
-                    self._updateMinimap();
-                    self._saveData();
+                    self._refreshEdges(); self._updateMinimap(); self._saveData();
                     return;
                 }
             }
 
-            // Zoom to selection (Alt+Z)
+            // Alt+Z = Zoom to selection
             if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'z' && !isInput) {
-                if (self.selectedNodeIds.size > 0) {
-                    e.preventDefault();
-                    self._zoomToSelection();
-                    return;
-                }
+                if (self.selectedNodeIds.size > 0) { e.preventDefault(); self._zoomToSelection(); return; }
             }
 
-            // Keyboard Spawning (Tab / Enter)
+            // Tab / Enter = spawn new node
             if (self.selectedNodeId && (e.key === 'Tab' || (!e.shiftKey && e.key === 'Enter'))) {
                 if (isInput) {
                     var activeCard = e.target.closest('.canvas-card, .canvas-group');
@@ -2115,22 +2079,12 @@ export const CanvasManager = {
                 }
                 e.preventDefault();
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-
                 var note = self._getActiveNote();
                 if (!note || !note.canvasData) return;
-
                 var parentNode = note.canvasData.nodes.find(function(n) { return n.id === self.selectedNodeId; });
                 if (!parentNode) return;
-
                 self._saveHistoryState();
-                var newNode = {
-                    id: 'node_' + Date.now(),
-                    title: '',
-                    preview: '',
-                    width: 200,
-                    height: 80
-                };
-
+                var newNode = { id: 'node_' + Date.now(), title: '', preview: '', width: 200, height: 80 };
                 if (e.key === 'Tab') {
                     newNode.x = parentNode.x + (parentNode.width || 200) + 60;
                     newNode.y = parentNode.y;
@@ -2138,25 +2092,15 @@ export const CanvasManager = {
                     newNode.x = parentNode.x;
                     newNode.y = parentNode.y + (parentNode.height || 80) + 60;
                 }
-
                 note.canvasData.nodes.push(newNode);
-
                 if (e.key === 'Tab') {
                     if (!note.canvasData.edges) note.canvasData.edges = [];
-                    note.canvasData.edges.push({
-                        fromNode: parentNode.id,
-                        toNode: newNode.id,
-                        fromPort: 'right',
-                        toPort: 'left',
-                        label: ''
-                    });
+                    note.canvasData.edges.push({ fromNode: parentNode.id, toNode: newNode.id, fromPort: 'right', toPort: 'left', label: '' });
                 }
-
                 self.selectedNodeId = newNode.id;
                 self.addCard(newNode);
                 if (e.key === 'Tab') self._refreshEdges();
                 self._saveData();
-
                 document.querySelectorAll('.canvas-card.selected-node, .canvas-group.selected-node').forEach(function(el) { el.classList.remove('selected-node'); });
                 var newCard = document.getElementById('canvas-node-' + newNode.id);
                 if (newCard) {
@@ -2168,18 +2112,24 @@ export const CanvasManager = {
                 }
             }
         });
+
         window.addEventListener('keyup', function(e) {
             if (e.code === 'Space') {
-                isSpacePressed = false;
+                self._isSpacePressed = false;
                 self.container.style.cursor = '';
             }
         });
+    },
 
-        // === PAN OR LASSO SELECT ===
+    // ─── CANVAS MOUSE EVENTS (pan, lasso, double-click create) ───
+    _bindCanvasMouseEvents: function() {
+        var self = this;
+
+        // Pan or lasso select on mousedown
         self.container.addEventListener('mousedown', function(e) {
             var isBgClick = !e.target.closest('.canvas-card') && !e.target.closest('.canvas-toolbar') && !e.target.closest('#canvas-note-picker') && !e.target.closest('#canvas-url-picker');
             if (!isBgClick) return;
-            var isPanCmd = isSpacePressed || e.button === 1;
+            var isPanCmd = self._isSpacePressed || e.button === 1;
             if (isPanCmd) {
                 e.preventDefault();
                 self.isPanning = true;
@@ -2195,24 +2145,14 @@ export const CanvasManager = {
             }
         });
 
-        // === DOUBLE CLICK: Create node ===
+        // Double-click to create node
         self.container.addEventListener('dblclick', function(e) {
             if (e.target.closest('.canvas-card') || e.target.closest('.canvas-toolbar')) return;
             self._saveHistoryState();
             var rect = self.container.getBoundingClientRect();
             var x = (e.clientX - rect.left - self.transform.x) / self.transform.scale;
             var y = (e.clientY - rect.top - self.transform.y) / self.transform.scale;
-
-            var newNode = {
-                id: 'node_' + Date.now(),
-                title: '',
-                preview: '',
-                x: x - 100,
-                y: y - 40,
-                width: 200,
-                height: 80
-            };
-
+            var newNode = { id: 'node_' + Date.now(), title: '', preview: '', x: x - 100, y: y - 40, width: 200, height: 80 };
             var note = self._getActiveNote();
             if (note && note.canvasData) {
                 if (!note.canvasData.nodes) note.canvasData.nodes = [];
@@ -2222,8 +2162,12 @@ export const CanvasManager = {
                 self.updateUI();
             }
         });
+    },
 
-        // === GLOBAL MOUSE MOVE ===
+    // ─── GLOBAL MOUSE MOVE / UP (panning, marquee, drag edge refresh) ───
+    _bindGlobalMoveEvents: function() {
+        var self = this;
+
         window.addEventListener('mousemove', function(e) {
             self.lastMouseCoords = { x: e.clientX, y: e.clientY };
             if (self.isPanning) {
@@ -2233,77 +2177,60 @@ export const CanvasManager = {
                 self._updateBacklinksPosition();
                 return;
             }
-
             if (self.isSelectingMarquee && self.marqueeEl) {
-                var currentX = e.clientX;
-                var currentY = e.clientY;
-                var x = Math.min(self.marqueeStart.x, currentX);
-                var y = Math.min(self.marqueeStart.y, currentY);
-                var w = Math.abs(self.marqueeStart.x - currentX);
-                var h = Math.abs(self.marqueeStart.y - currentY);
+                var currentX = e.clientX, currentY = e.clientY;
+                var x = Math.min(self.marqueeStart.x, currentX), y = Math.min(self.marqueeStart.y, currentY);
+                var w = Math.abs(self.marqueeStart.x - currentX), h = Math.abs(self.marqueeStart.y - currentY);
                 var rect = self.container.getBoundingClientRect();
-
                 self.marqueeEl.style.left = (x - rect.left) + 'px';
                 self.marqueeEl.style.top = (y - rect.top) + 'px';
                 self.marqueeEl.style.width = w + 'px';
                 self.marqueeEl.style.height = h + 'px';
-
                 var worldX1 = (x - rect.left - self.transform.x) / self.transform.scale;
                 var worldY1 = (y - rect.top - self.transform.y) / self.transform.scale;
                 var worldX2 = worldX1 + w / self.transform.scale;
                 var worldY2 = worldY1 + h / self.transform.scale;
-
                 var note = self._getActiveNote();
                 if (note && note.canvasData && note.canvasData.nodes) {
                     note.canvasData.nodes.forEach(function(node) {
-                        var wNode = node.width || 200;
-                        var hNode = node.height || 80;
+                        var wNode = node.width || 200, hNode = node.height || 80;
                         var isIntersecting = !(node.x + wNode < worldX1 || node.x > worldX2 || node.y + hNode < worldY1 || node.y > worldY2);
                         var cardEl = document.getElementById('canvas-node-' + node.id);
                         if (cardEl) {
-                            if (isIntersecting) {
-                                cardEl.classList.add('selected-node');
-                                self.selectedNodeIds.add(node.id);
-                            } else {
-                                cardEl.classList.remove('selected-node');
-                                self.selectedNodeIds.delete(node.id);
-                            }
+                            if (isIntersecting) { cardEl.classList.add('selected-node'); self.selectedNodeIds.add(node.id); }
+                            else { cardEl.classList.remove('selected-node'); self.selectedNodeIds.delete(node.id); }
                         }
                     });
                     self.selectedNodeId = self.selectedNodeIds.size > 0 ? Array.from(self.selectedNodeIds)[0] : null;
                 }
                 return;
             }
-
             if (self.draggedNodeId) {
                 var note = self._getActiveNote();
                 if (!note || !note.canvasData || !note.canvasData.edges) return;
                 note.canvasData.edges.forEach(function(edge) {
-                    if (edge.fromNode === self.draggedNodeId || edge.toNode === self.draggedNodeId) {
-                        self.renderEdge(edge);
-                    }
+                    if (edge.fromNode === self.draggedNodeId || edge.toNode === self.draggedNodeId) self.renderEdge(edge);
                 });
             }
         });
 
-        // === GLOBAL MOUSE UP ===
         window.addEventListener('mouseup', function() {
             if (self.isPanning) {
                 self.isPanning = false;
-                self.container.style.cursor = isSpacePressed ? 'grab' : '';
+                self.container.style.cursor = self._isSpacePressed ? 'grab' : '';
                 self._saveViewport();
             }
             if (self.isSelectingMarquee) {
                 self.isSelectingMarquee = false;
-                if (self.marqueeEl) {
-                    self.marqueeEl.remove();
-                    self.marqueeEl = null;
-                }
+                if (self.marqueeEl) { self.marqueeEl.remove(); self.marqueeEl = null; }
             }
             self.draggedNodeId = null;
         });
+    },
 
-        // === ZOOM & PAN (Trackpad / Mouse Wheel) ===
+    // ─── WHEEL ZOOM / PAN ───
+    _bindWheelZoom: function() {
+        var self = this;
         self.container.addEventListener('wheel', function(e) {
             e.preventDefault();
             if (e.ctrlKey || e.metaKey) {
@@ -2325,73 +2252,60 @@ export const CanvasManager = {
             clearTimeout(self._wheelSaveTimeout);
             self._wheelSaveTimeout = setTimeout(function() { self._saveViewport(); }, 300);
         }, { passive: false });
+    },
 
-        // === RIGHT-CLICK ON EMPTY AREA ===
+    // ─── EMPTY CANVAS CONTEXT MENU ───
+    _bindCanvasContextMenu: function() {
+        var self = this;
         self.container.addEventListener('contextmenu', function(e) {
-            // Only on empty canvas space (not on cards, toolbar, or SVG)
             if (e.target.closest('.canvas-card') || e.target.closest('.canvas-toolbar') || e.target.closest('svg')) return;
             e.preventDefault();
-
-            // Remove any existing context menu
             var old = document.getElementById('canvas-empty-ctx');
             if (old) old.remove();
-
             var menu = document.createElement('div');
             menu.id = 'canvas-empty-ctx';
             menu.className = 'canvas-context-menu';
             menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;z-index:45000;';
-
             var note = self._getActiveNote();
             var hasClipboard = self.clipboard && self.clipboard.nodes && self.clipboard.nodes.length > 0;
             var hasNodes = note && note.canvasData && note.canvasData.nodes && note.canvasData.nodes.length >= 2;
-
-            menu.innerHTML = `
-                <div class="canvas-context-item" data-action="add-node">+ Add Node</div>
-                <div class="canvas-context-item" data-action="auto-layout" style="${hasNodes ? '' : 'opacity:0.4;pointer-events:none;'}">⟳ Auto-Layout <span style="float:right;color:#555;margin-left:20px;font-size:0.6rem;">⌥⇧A</span></div>
-                <div class="canvas-context-divider" style="height:1px;background:rgba(255,255,255,0.08);margin:4px 8px;"></div>
-                <div class="canvas-context-item" data-action="paste" style="${hasClipboard ? '' : 'opacity:0.4;pointer-events:none;'}">Paste ${hasClipboard ? '(' + self.clipboard.nodes.length + ' node' + (self.clipboard.nodes.length !== 1 ? 's' : '') + ')' : ''}</div>
-                <div class="canvas-context-divider" style="height:1px;background:rgba(255,255,255,0.08);margin:4px 8px;"></div>
-                <div class="canvas-context-item" data-action="reset-view">⌂ Reset View</div>
-            `;
+            var pasteLabel = hasClipboard ? ' (' + self.clipboard.nodes.length + ' node' + (self.clipboard.nodes.length !== 1 ? 's' : '') + ')' : '';
+            menu.innerHTML = '<div class="canvas-context-item" data-action="add-node">+ Add Node</div>' +
+                '<div class="canvas-context-item" data-action="auto-layout" style="' + (hasNodes ? '' : 'opacity:0.4;pointer-events:none;') + '">⟳ Auto-Layout <span style="float:right;color:#555;margin-left:20px;font-size:0.6rem;">⌥⇧A</span></div>' +
+                '<div class="canvas-context-divider" style="height:1px;background:rgba(255,255,255,0.08);margin:4px 8px;"></div>' +
+                '<div class="canvas-context-item" data-action="paste" style="' + (hasClipboard ? '' : 'opacity:0.4;pointer-events:none;') + '">Paste' + pasteLabel + '</div>' +
+                '<div class="canvas-context-divider" style="height:1px;background:rgba(255,255,255,0.08);margin:4px 8px;"></div>' +
+                '<div class="canvas-context-item" data-action="reset-view">⌂ Reset View</div>';
             document.body.appendChild(menu);
-
-            // Handle clicks
             menu.addEventListener('click', function(ce) {
                 var item = ce.target.closest('[data-action]');
                 if (!item) return;
                 var action = item.getAttribute('data-action');
                 menu.remove();
-
                 switch (action) {
-                    case 'add-node':
-                        var addBtn = document.getElementById('canvas-add-node');
-                        if (addBtn) addBtn.click();
-                        break;
-                    case 'auto-layout':
-                        if (hasNodes) self._autoLayout();
-                        break;
-                    case 'paste':
-                        self.pasteCopiedNodes();
-                        break;
-                    case 'reset-view':
-                        self.transform = { x: 0, y: 0, scale: 1 };
-                        self.updateTransform();
-                        self.updateUI();
-                        break;
+                    case 'add-node': { var addBtn = document.getElementById('canvas-add-node'); if (addBtn) addBtn.click(); break; }
+                    case 'auto-layout': { if (hasNodes) self._autoLayout(); break; }
+                    case 'paste': { self.pasteCopiedNodes(); break; }
+                    case 'reset-view': { self.transform = { x: 0, y: 0, scale: 1 }; self.updateTransform(); self.updateUI(); break; }
                 }
             });
-
-            // Close on outside click
             setTimeout(function() {
                 function closeHandler(ce) {
-                    if (!menu.contains(ce.target)) {
-                        menu.remove();
-                        document.removeEventListener('mousedown', closeHandler);
-                    }
+                    if (!menu.contains(ce.target)) { menu.remove(); document.removeEventListener('mousedown', closeHandler); }
                 }
                 document.addEventListener('mousedown', closeHandler);
             }, 0);
         });
+    },
+
+    // ─── EVENT BINDING ───
+    bindEvents: function() {
+        if (!this.container) return;
+        this._bindKeyboardShortcuts();
+        this._bindCanvasMouseEvents();
+        this._bindGlobalMoveEvents();
+        this._bindWheelZoom();
+        this._bindCanvasContextMenu();
     },
 
     // ─── VIEWPORT ───
