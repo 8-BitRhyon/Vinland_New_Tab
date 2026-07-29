@@ -80,6 +80,35 @@ export const Notes = {
         this.autoCreatedNoteId = null;
     },
 
+    // Save or garbage-collect the previously active note before switching to a new one
+    _savePreviousNote: function(noteId) {
+        if (!this.activeNoteId || this.activeNoteId === noteId) return;
+        var current = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
+        if (!current) return;
+
+        // Canvas notes use canvasData, not content/blocks - never garbage collect them
+        if (current.type === 'canvas') {
+            if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
+            return;
+        }
+
+        // Empty check: garbage-collect notes with no title, content, or blocks
+        var hasNoTitle = !current.title || current.title.trim() === '';
+        var hasNoContent = !current.content || current.content.trim() === '';
+        var hasNoBlocks = !current.blocks || current.blocks.length === 0;
+
+        if (hasNoTitle && hasNoContent && hasNoBlocks) {
+            var deletedId = this.activeNoteId;
+            State.NOTES = State.NOTES.filter(function (n) { return n.id !== deletedId; });
+            saveData();
+            if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; }
+            if (TabManager) TabManager.closeTabById(deletedId);
+            this.renderSidebar();
+        } else {
+            if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
+        }
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -766,32 +795,8 @@ export const Notes = {
         // Cleanup auto-created empty notes when switching
         this._cleanupAutoNote(noteId);
         
-        if (this.activeNoteId && this.activeNoteId !== noteId) {
-            var current = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
-            if (current) {
-                // Canvas notes use canvasData, not content/blocks - never garbage collect them
-                if (current.type === 'canvas') {
-                    // Just save any pending changes
-                    if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
-                } else {
-                // Empty check logic
-                var hasNoTitle = !current.title || current.title.trim() === '';
-                var hasNoContent = !current.content || current.content.trim() === '';
-                var hasNoBlocks = !current.blocks || current.blocks.length === 0;
-                
-                if (hasNoTitle && hasNoContent && hasNoBlocks) {
-                    var deletedId = this.activeNoteId;
-                    State.NOTES = State.NOTES.filter(function (n) { return n.id !== deletedId; });
-                    saveData();
-                    if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; }
-                    if (TabManager) TabManager.closeTabById(deletedId);
-                    this.renderSidebar();
-                } else {
-                    if (this.saveTimeout) { clearTimeout(this.saveTimeout); this.saveTimeout = null; this.save(); }
-                }
-                } // end non-canvas block
-            }
-        }
+        // Save or garbage-collect the previously active note
+        this._savePreviousNote(noteId);
 
         var note = State.NOTES.find(function (n) { return n.id === noteId; });
         if (!note && State.NOTES.length > 0) note = State.NOTES[0];
