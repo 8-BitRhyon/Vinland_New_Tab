@@ -149,16 +149,14 @@ export const TabManager = {
         
         if (this.tabs.length === 0) {
             this.activeIndex = -1;
-            // .2: Auto-create new note when all tabs closed
-            // Re-implemented legacy logic (Always create new note).
-             // Guard: Prevent loop if we are already cleaning up.
+            // Close the editor instead of auto-creating a new note (P1 fix).
+            // The auto-creation behavior was surprising — user closes the last tab
+            // and expects the editor to close, not a new note to appear.
+            // During cleanup (isCleaningUpAutoNote), closeNoteEditor handles it.
             if (typeof Notes !== 'undefined' && !Notes.isCleaningUpAutoNote) {
-                 // Removed: Notes.autoCreatedNoteId = null; (Preserve ID for cleanup)
-                 Notes.activeNoteId = null; 
-                 Notes.create(); 
-                 Notes.autoCreatedNoteId = Notes.activeNoteId;
-                 if (typeof showNotification === 'function') {
-                     showNotification('Created new note');
+                 Notes.activeNoteId = null;
+                 if (typeof window.closeNoteEditor === 'function') {
+                     window.closeNoteEditor();
                  }
             }
         } else if (this.activeIndex >= this.tabs.length) {

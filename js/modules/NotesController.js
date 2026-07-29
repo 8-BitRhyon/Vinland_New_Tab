@@ -849,7 +849,12 @@ export const Notes = {
             if (blockEditorEl) blockEditorEl.style.display = 'none';
             if (preview) {
                 if (PageManager) PageManager.syncContent(note.id);
-                preview.innerHTML = Notes.renderMarkdown(note.content || '');
+                try {
+                    preview.innerHTML = Notes.renderMarkdown(note.content || '');
+                } catch (e) {
+                    console.error('[Notes] renderMarkdown failed:', e);
+                    preview.innerHTML = '<div style="color:var(--danger-color,#ff3355);padding:20px;text-align:center;">⚠ Preview Error: ' + e.message + '</div>';
+                }
                 preview.classList.add('active');
                 preview.style.display = 'block';
             }
@@ -1000,9 +1005,7 @@ export const Notes = {
             }
         }
 
-        if (!document.getElementById('note-editor-modal').classList.contains('active')) {
-            ModalManager.open('note-editor-modal');
-        }
+        // Modal opened at this.open() start (line ~843) — no redundant re-open needed
 
         // Render backlinks panel
         this.renderBacklinks();
