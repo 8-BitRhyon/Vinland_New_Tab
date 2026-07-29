@@ -407,6 +407,8 @@ export const CanvasManager = {
             <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-snap-toggle" title="Toggle Snap to Grid (nodes align to 30px grid)">⧉</button>
             <span class="canvas-tb-divider">|</span>
+            <button class="canvas-tb-btn" id="canvas-auto-layout" title="Auto-layout nodes (force-directed)">⟳</button>
+            <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-align-btn" title="Align selected nodes">≐</button>
             <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
@@ -1099,6 +1101,11 @@ export const CanvasManager = {
             this._showAlignMenu(e.target);
         });
 
+        // ⟳ AUTO-LAYOUT button
+        this.toolbar.querySelector('#canvas-auto-layout').addEventListener('click', () => {
+            this._autoLayout();
+        });
+
         // ⧉ SNAP TOGGLE button
         this.toolbar.querySelector('#canvas-snap-toggle').addEventListener('click', () => {
             this.gridSnapEnabled = !this.gridSnapEnabled;
@@ -1314,6 +1321,10 @@ export const CanvasManager = {
 
             <div class="canvas-shortcuts-section">
                 <div class="canvas-shortcuts-section-title">Node Alignment</div>
+                <div class="canvas-shortcuts-item">
+                    <span class="canvas-shortcuts-label">Auto-Layout (force-directed)</span>
+                    <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>A</kbd></span>
+                </div>
                 <div class="canvas-shortcuts-item">
                     <span class="canvas-shortcuts-label">Align Left</span>
                     <span class="canvas-shortcuts-key"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>L</kbd></span>
@@ -1585,6 +1596,13 @@ export const CanvasManager = {
                     self._alignNodes(alignAction);
                     return;
                 }
+            }
+
+            // Auto Layout: Alt+Shift+A
+            if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'a' && !isInput) {
+                e.preventDefault();
+                self._autoLayout();
+                return;
             }
 
             if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
@@ -3418,6 +3436,165 @@ export const CanvasManager = {
         this._refreshEdges();
         this._updateMinimap();
         this._saveData();
+    },
+
+    // ─── AUTO LAYOUT ───
+
+    _autoLayout: function() {
+        var note = this._getActiveNote();
+        if (!note || !note.canvasData || !note.canvasData.nodes || note.canvasData.nodes.length < 2) {
+            if (window.showNotification) window.showNotification('Need at least 2 nodes for auto-layout', 'warning');
+            return;
+        }
+
+        this._saveHistoryState();
+
+        // Determine nodes to layout: selected nodes, or all nodes if nothing selected
+        var nodesToLayout;
+        if (this.selectedNodeIds.size > 0) {
+            nodesToLayout = [];
+            note.canvasData.nodes.forEach(function(n) {
+                if (this.selectedNodeIds.has(n.id)) nodesToLayout.push(n);
+            }.bind(this));
+            if (nodesToLayout.length < 2) {
+                if (window.showNotification) window.showNotification('Select at least 2 nodes for auto-layout', 'warning');
+                return;
+            }
+        } else {
+            nodesToLayout = note.canvasData.nodes;
+        }
+
+        // Get connected edges that involve target nodes
+        var nodeIds = new Set();
+        nodesToLayout.forEach(function(n) { nodeIds.add(n.id); });
+
+        var edges = (note.canvasData.edges || []).filter(function(e) {
+            return nodeIds.has(e.fromNode) && nodeIds.has(e.toNode);
+        });
+
+        // Compute bounding box for centering
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nodesToLayout.forEach(function(n) {
+            var w = n.width || 200;
+            var h = n.height || 80;
+            if (n.x < minX) minX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.x + w > maxX) maxX = n.x + w;
+            if (n.y + h > maxY) maxY = n.y + h;
+        });
+
+        var cx = minX + (maxX - minX) / 2;
+        var cy = minY + (maxY - minY) / 2;
+        var diameter = Math.max(maxX - minX, maxY - minY) || 400;
+        var centerGravity = diameter * 0.3;
+
+        // Force simulation parameters
+        var repulsionStrength = diameter * 0.08;
+        var attractionStrength = 0.005;
+        var gravityStrength = 0.01;
+        var iterations = 100;
+
+        // Initialize velocity map
+        var vx = {}, vy = {};
+        nodesToLayout.forEach(function(n) {
+            vx[n.id] = 0;
+            vy[n.id] = 0;
+        });
+
+        // Run simulation
+        for (var iter = 0; iter < iterations; iter++) {
+            var cooling = 1 - (iter / iterations);
+
+            // Repulsion: all nodes repel each other
+            for (var i = 0; i < nodesToLayout.length; i++) {
+                for (var j = i + 1; j < nodesToLayout.length; j++) {
+                    var a = nodesToLayout[i];
+                    var b = nodesToLayout[j];
+                    var dx = (a.x || 0) - (b.x || 0);
+                    var dy = (a.y || 0) - (b.y || 0);
+                    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    var force = repulsionStrength / (dist * dist);
+                    var fx = (dx / dist) * force * cooling;
+                    var fy = (dy / dist) * force * cooling;
+                    vx[a.id] += fx;
+                    vy[a.id] += fy;
+                    vx[b.id] -= fx;
+                    vy[b.id] -= fy;
+                }
+            }
+
+            // Attraction: connected nodes attract each other
+            edges.forEach(function(e) {
+                var from = null, to = null;
+                nodesToLayout.forEach(function(n) {
+                    if (n.id === e.fromNode) from = n;
+                    if (n.id === e.toNode) to = n;
+                });
+                if (!from || !to) return;
+
+                var dx = (to.x || 0) - (from.x || 0);
+                var dy = (to.y || 0) - (from.y || 0);
+                var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                var restLength = (from.width || 200) * 1.5;
+                var displacement = dist - restLength;
+                var force = displacement * attractionStrength * cooling;
+                var fx = (dx / dist) * force;
+                var fy = (dy / dist) * force;
+                vx[from.id] += fx;
+                vy[from.id] += fy;
+                vx[to.id] -= fx;
+                vy[to.id] -= fy;
+            });
+
+            // Gravity: pull toward center
+            nodesToLayout.forEach(function(n) {
+                var dx = cx - (n.x || 0);
+                var dy = cy - (n.y || 0);
+                vx[n.id] += dx * gravityStrength * cooling;
+                vy[n.id] += dy * gravityStrength * cooling;
+            });
+
+            // Apply velocities with damping
+            var damping = 0.85;
+            var maxVelocity = diameter * 0.08;
+            nodesToLayout.forEach(function(n) {
+                vx[n.id] *= damping;
+                vy[n.id] *= damping;
+
+                // Clamp velocity
+                var speed = Math.sqrt(vx[n.id] * vx[n.id] + vy[n.id] * vy[n.id]);
+                if (speed > maxVelocity) {
+                    vx[n.id] = (vx[n.id] / speed) * maxVelocity;
+                    vy[n.id] = (vy[n.id] / speed) * maxVelocity;
+                }
+
+                n.x = (n.x || 0) + vx[n.id];
+                n.y = (n.y || 0) + vy[n.id];
+            });
+        }
+
+        // Snap to grid if enabled
+        if (this.gridSnapEnabled) {
+            nodesToLayout.forEach(function(n) { this._snapNodePosition(n); }.bind(this));
+        }
+
+        // Update DOM positions
+        nodesToLayout.forEach(function(n) {
+            var el = document.getElementById('canvas-node-' + n.id);
+            if (el) {
+                el.style.left = n.x + 'px';
+                el.style.top = n.y + 'px';
+            }
+        });
+
+        this._refreshEdges();
+        this._updateMinimap();
+        this._saveData();
+        this.zoomToFit();
+
+        if (window.showNotification) {
+            window.showNotification('Auto-layout: ' + nodesToLayout.length + ' nodes arranged', 'success');
+        }
     },
 
     // ─── EDGE LABELS ───
