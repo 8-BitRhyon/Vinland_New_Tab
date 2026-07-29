@@ -50,6 +50,97 @@ export const CanvasManager = {
     },
     _saveData: function() {
         if (window.saveData) window.saveData();
+        this._lastSaveTime = Date.now();
+        this._autoSaveDirty = false;
+        this._setAutoSaveStatus('saved');
+        this._saveRecoverySnapshot();
+    },
+
+    _autoSaveTimer: null,
+    _autoSaveDirty: false,
+    _lastSaveTime: 0,
+    _autoSaveInterval: 30000, // 30 seconds
+
+    _markDirty: function() {
+        if (!this._autoSaveDirty) {
+            this._autoSaveDirty = true;
+            this._setAutoSaveStatus('unsaved');
+        }
+    },
+
+    _startAutoSave: function() {
+        this._stopAutoSave();
+        var self = this;
+        this._autoSaveTimer = setInterval(function() {
+            self._autoSaveTick();
+        }, this._autoSaveInterval);
+    },
+
+    _stopAutoSave: function() {
+        if (this._autoSaveTimer) {
+            clearInterval(this._autoSaveTimer);
+            this._autoSaveTimer = null;
+        }
+    },
+
+    _autoSaveTick: function() {
+        if (this._autoSaveDirty) {
+            this._setAutoSaveStatus('saving');
+            this._saveData();
+            this._saveRecoverySnapshot();
+        }
+    },
+
+    _setAutoSaveStatus: function(status) {
+        var el = document.getElementById('canvas-auto-save-status');
+        if (!el) return;
+        switch (status) {
+            case 'unsaved':
+                el.innerHTML = '<span class="as-dot unsaved"></span>';
+                el.title = 'Unsaved changes';
+                break;
+            case 'saving':
+                el.innerHTML = '<span class="as-dot saving"></span>';
+                el.title = 'Saving...';
+                break;
+            case 'saved':
+                el.innerHTML = '<span class="as-dot saved"></span>';
+                el.title = 'All changes saved';
+                break;
+            default:
+                el.innerHTML = '';
+        }
+    },
+
+    _saveRecoverySnapshot: function() {
+        var note = this._getActiveNote();
+        if (!note || !note.canvasData) return;
+        try {
+            var snapshot = {
+                noteId: note.id,
+                canvasData: JSON.parse(JSON.stringify(note.canvasData)),
+                savedAt: Date.now()
+            };
+            sessionStorage.setItem('vinland_canvas_recovery_' + note.id, JSON.stringify(snapshot));
+        } catch (e) { /* sessionStorage may be full */ }
+    },
+
+    _checkRecovery: function(noteId) {
+        try {
+            var raw = sessionStorage.getItem('vinland_canvas_recovery_' + noteId);
+            if (!raw) return null;
+            var snapshot = JSON.parse(raw);
+            if (!snapshot || !snapshot.canvasData || !snapshot.savedAt) return null;
+            return snapshot;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    _clearRecoverySnapshot: function(noteId) {
+        try {
+            sessionStorage.removeItem('vinland_canvas_recovery_' + noteId);
+        } catch (e) { /* ignore */ }
     },
     _getWorldCenter: function() {
         const rect = this.container.getBoundingClientRect();
@@ -314,6 +405,7 @@ export const CanvasManager = {
             this.historyStack.shift();
         }
         this.redoStack = [];
+        this._markDirty();
         console.log('[CanvasManager] History saved. Size:', this.historyStack.length);
     },
 
@@ -420,6 +512,7 @@ export const CanvasManager = {
                 <button class="canvas-tb-btn" id="canvas-align-btn" title="Align selected nodes">≐</button>
                 <span class="canvas-tb-divider">|</span>
                 <button class="canvas-tb-btn" id="canvas-shortcuts-btn" title="Keyboard Shortcuts (Shift+?)">?</button>
+                <span class="canvas-auto-save-status" id="canvas-auto-save-status" title="All changes saved"></span>
             </span>
             <button class="canvas-tb-toggle" id="canvas-tb-toggle"
                     title="${isCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}"
@@ -935,6 +1028,49 @@ export const CanvasManager = {
                     opacity: 1;
                 }
 
+                /* ── Auto-save status indicator ── */
+                .canvas-auto-save-status {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 16px;
+                    height: 16px;
+                    margin-left: 4px;
+                    flex-shrink: 0;
+                }
+                .as-dot {
+                    display: inline-block;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    transition: background 0.3s ease, box-shadow 0.3s ease;
+                }
+                .as-dot.saved {
+                    background: rgba(0, 255, 65, 0.4);
+                    box-shadow: 0 0 4px rgba(0, 255, 65, 0.2);
+                }
+                .as-dot.unsaved {
+                    background: #ffb800;
+                    box-shadow: 0 0 6px rgba(255, 184, 0, 0.5);
+                    animation: asPulse 1.5s ease-in-out infinite;
+                }
+                .as-dot.saving {
+                    background: transparent;
+                    border: 2px solid rgba(0, 255, 65, 0.5);
+                    border-top-color: transparent;
+                    border-radius: 50%;
+                    animation: asSpin 0.6s linear infinite;
+                    width: 8px;
+                    height: 8px;
+                }
+                @keyframes asPulse {
+                    0%, 100% { opacity: 0.5; }
+                    50% { opacity: 1; }
+                }
+                @keyframes asSpin {
+                    to { transform: rotate(360deg); }
+                }
+
                 /* ── Toolbar collapse toggle ── */
                 .canvas-tb-toggle {
                     background: transparent;
@@ -1013,6 +1149,14 @@ export const CanvasManager = {
 
         this.bindToolbar();
         this.bindEvents();
+
+        // Auto-save on page close
+        var self = this;
+        window.addEventListener('beforeunload', function() {
+            if (self._autoSaveDirty && self._getActiveNote()) {
+                self._saveData(); // silent save without status animation
+            }
+        });
     } catch (e) {
         console.error('[CanvasManager] init() guard:', e);
     }
@@ -1088,6 +1232,48 @@ export const CanvasManager = {
                 });
             }
         }, 150);
+
+        // ─── Auto-save & crash recovery ───
+        this._startAutoSave();
+
+        // Check for a recovery snapshot (unsaved changes from a crash)
+        var recovery = this._checkRecovery(noteId);
+        if (recovery && recovery.savedAt > (this._lastSaveTime || 0)) {
+            // Only show recovery if there's actually a difference
+            var savedStr = JSON.stringify(note.canvasData || {});
+            var recovStr = JSON.stringify(recovery.canvasData || {});
+            if (savedStr !== recovStr) {
+                var self = this;
+                function doRecover() {
+                    note.canvasData = JSON.parse(JSON.stringify(recovery.canvasData));
+                    self.load(self.activeNoteId);
+                    self._saveData();
+                    self._clearRecoverySnapshot(noteId);
+                    if (window.showNotification) window.showNotification('Canvas recovered from auto-save', 'success');
+                }
+                function doDiscard() {
+                    self._clearRecoverySnapshot(noteId);
+                    if (window.showNotification) window.showNotification('Recovery snapshot discarded', 'warning');
+                }
+                if (window.showConfirmModal) {
+                    window.showConfirmModal(
+                        'UNSAVED CANVAS CHANGES',
+                        'Found unsaved changes from ' + new Date(recovery.savedAt).toLocaleTimeString() +
+                        '. Would you like to recover them?',
+                        doRecover,
+                        doDiscard,
+                        'RECOVER',
+                        'DISCARD'
+                    );
+                } else if (confirm('Unsaved canvas changes from ' + new Date(recovery.savedAt).toLocaleTimeString() + '. Recover?')) {
+                    doRecover();
+                } else {
+                    doDiscard();
+                }
+            } else {
+                this._clearRecoverySnapshot(noteId);
+            }
+        }
 
         // Feature 6: Minimap
         this._initMinimap();
