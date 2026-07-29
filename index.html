@@ -11119,7 +11119,7 @@
         margin: 0 3px;
       }
 
-      /* Downward arrow (toolbar sits above selection) */
+      /* Arrow: toolbar sits above selection (arrow points down) */
       .format-toolbar::after {
         content: '';
         position: absolute;
@@ -11132,6 +11132,14 @@
         border-right: 6px solid transparent;
         border-top: 6px solid #141414;
         pointer-events: none;
+      }
+
+      /* Arrow: toolbar sits below selection (arrow points up) */
+      .format-toolbar.arrow-down::after {
+        bottom: auto;
+        top: -6px;
+        border-top: none;
+        border-bottom: 6px solid #141414;
       }
 
       /* P0 a11y: honor reduced-motion; stop CRT/scanline/glow for users who ask. */
