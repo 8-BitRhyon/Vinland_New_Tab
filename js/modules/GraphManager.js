@@ -12,6 +12,8 @@ export const GraphManager = {
     containerId: 'graph-container',
     isLocalMode: false, // Local Focus Mode state
     filterQuery: '', // Search/filter query
+    zoomBehavior: null, // D3 zoom behavior (stored for zoom-to-fit)
+    svgSelection: null, // D3 SVG selection (parent of zoom)
 
     // .38: Persist graph node positions to localStorage
     saveLayout: function() {
@@ -146,6 +148,7 @@ export const GraphManager = {
         if (this._searchTimer) clearTimeout(this._searchTimer);
         var self = this;
         this._searchTimer = setTimeout(function() {
+            self._pendingZoomFit = true;
             self.render();
         }, 150);
     },
@@ -239,6 +242,7 @@ export const GraphManager = {
 
         // Render after modal animation
         setTimeout(() => {
+            this._pendingZoomFit = true;
             this.render();
         }, 300);
     },
@@ -264,6 +268,75 @@ export const GraphManager = {
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
+    // ─── Zoom-To-Fit ───────────────────────────────────────────
+
+    /**
+     * Smoothly animate the camera to fit all given nodes within the viewport.
+     * Uses D3 zoom transform with a transition (lerp animation).
+     */
+    _zoomToFit: function(nodes, duration) {
+        if (!nodes || nodes.length === 0) return;
+        if (!this.svgSelection || !this.zoomBehavior) return;
+
+        duration = duration || 600;
+
+        // Calculate bounding box of all visible nodes
+        var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        var hasValid = false;
+        nodes.forEach(function(n) {
+            if (n.x == null || n.y == null || !isFinite(n.x) || !isFinite(n.y)) return;
+            if (n.x < minX) minX = n.x;
+            if (n.x > maxX) maxX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.y > maxY) maxY = n.y;
+            hasValid = true;
+        });
+
+        if (!hasValid) return;
+
+        var padding = 80;
+        var boundsWidth = (maxX - minX) + padding * 2;
+        var boundsHeight = (maxY - minY) + padding * 2;
+
+        if (boundsWidth <= 0 || boundsHeight <= 0) return;
+
+        var scale = Math.min(this.width / boundsWidth, this.height / boundsHeight, 2);
+        var centerX = (minX + maxX) / 2;
+        var centerY = (minY + maxY) / 2;
+
+        var translateX = this.width / 2 - centerX * scale;
+        var translateY = this.height / 2 - centerY * scale;
+
+        // Animate via D3 transition (smooth lerp)
+        this.svgSelection.transition().duration(duration).call(
+            this.zoomBehavior.transform,
+            d3.zoomIdentity.translate(translateX, translateY).scale(scale)
+        );
+    },
+
+    /**
+     * Public method: fit the graph view to show all visible nodes.
+     * Called from a "fit view" button.
+     */
+    fitView: function() {
+        if (!this.simulation) return;
+        var nodes = this.simulation.nodes();
+        this._zoomToFit(nodes, 750);
+    },
+
+    /**
+     * Schedule a zoom-to-fit after the force simulation has had time
+     * to arrange nodes (called after render completes).
+     */
+    _scheduleZoomFit: function(nodes, delay) {
+        var self = this;
+        if (this._zoomFitTimer) clearTimeout(this._zoomFitTimer);
+        this._zoomFitTimer = setTimeout(function() {
+            self._zoomToFit(nodes, 500);
+            self._zoomFitTimer = null;
+        }, delay || 350);
+    },
+
     // Toggle between Global and Local (1-degree neighbor) view
     toggleLocalMode: function() {
         this.isLocalMode = !this.isLocalMode;
@@ -272,6 +345,7 @@ export const GraphManager = {
             btn.textContent = this.isLocalMode ? 'LOCAL' : 'GLOBAL';
             btn.classList.toggle('active', this.isLocalMode);
         }
+        this._pendingZoomFit = true;
         this.render();
     },
 
@@ -282,6 +356,7 @@ export const GraphManager = {
     },
 
     render: function() {
+        console.log('[Graph] Render called');
         console.log('[Graph] Render called');
         var container = document.getElementById(this.containerId);
         if (!container) return;
@@ -501,16 +576,22 @@ export const GraphManager = {
             this._filteredNodeIds = new Set(nodes.map(function(n) { return n.id; }));
         }
 
-        this.svg = d3.select('#' + this.containerId).append("svg")
+        // Store zoom behavior for zoom-to-fit animation
+        var zoomBehavior = d3.zoom().on("zoom", function (event) {
+            g.attr("transform", event.transform);
+        });
+        this.zoomBehavior = zoomBehavior;
+
+        var svgSelection = d3.select('#' + this.containerId).append("svg")
             .attr("width", '100%')
             .attr("height", '100%')
-            .attr('viewBox', [0, 0, this.width, this.height])
-            .call(d3.zoom().on("zoom", function (event) {
-                g.attr("transform", event.transform);
-            }))
-            .append("g");
-            
-        var g = this.svg;
+            .attr('viewBox', [0, 0, this.width, this.height]);
+
+        svgSelection.call(zoomBehavior);
+        this.svgSelection = svgSelection;
+
+        var g = svgSelection.append("g");
+        this.svg = g;
 
         this.simulation = d3.forceSimulation(nodes)
             .force("link", d3.forceLink(links).id(d => d.id).distance(100))
@@ -675,6 +756,12 @@ export const GraphManager = {
                 Notes.graphLayout[event.subject.id] = { x: event.subject.x, y: event.subject.y };
                 self.saveLayout();
             }
+        }
+
+        // ─── Zoom-To-Fit after layout settles ─────────────────
+        if (this._pendingZoomFit && nodes.length > 0) {
+            this._scheduleZoomFit(nodes, 350);
+            this._pendingZoomFit = false;
         }
     }
 };
