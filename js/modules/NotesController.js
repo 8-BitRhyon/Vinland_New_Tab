@@ -109,6 +109,17 @@ export const Notes = {
         }
     },
 
+    // Find the note by ID, fallback to first note, or create if empty
+    _resolveNote: function(noteId) {
+        var note = State.NOTES.find(function (n) { return n.id === noteId; });
+        if (!note && State.NOTES.length > 0) note = State.NOTES[0];
+        if (!note) {
+            this.create();
+            return null; // Signal to caller: a new note was created; stop execution
+        }
+        return note;
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -798,9 +809,9 @@ export const Notes = {
         // Save or garbage-collect the previously active note
         this._savePreviousNote(noteId);
 
-        var note = State.NOTES.find(function (n) { return n.id === noteId; });
-        if (!note && State.NOTES.length > 0) note = State.NOTES[0];
-        if (!note) { this.create(); return; }
+        // Resolve target note (find, fallback to first, or create new)
+        var note = this._resolveNote(noteId);
+        if (!note) return;
 
         this.activeNoteId = note.id;
         
