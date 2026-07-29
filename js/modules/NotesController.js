@@ -121,6 +121,89 @@ export const Notes = {
         });
     },
 
+    _bindToolbarHandlers: function() {
+        // Editor shortcuts (Cmd+S, Cmd+E) handled globally in Input.js capture-phase
+        var closeBtn = document.getElementById('note-editor-close');
+        if (closeBtn) closeBtn.onclick = function() { window.closeNoteEditor(); };
+
+        var sidebarToggle = document.getElementById('sidebar-toggle-btn');
+        if (sidebarToggle) {
+             sidebarToggle.onclick = function() {
+                 var sidebar = document.querySelector('.notes-sidebar');
+                 if(sidebar) {
+                     sidebar.classList.toggle('collapsed');
+                 }
+             };
+        }
+
+        // Breadcrumb toggle button - switch between breadcrumb and editable path
+        var bcToggle = document.getElementById('breadcrumb-toggle-btn');
+        var bcContainer = document.getElementById('note-breadcrumb');
+        var pathEdit = document.getElementById('note-path-edit');
+        if (bcToggle && bcContainer && pathEdit) {
+            bcToggle.addEventListener('click', function() {
+                var isHidden = pathEdit.style.display === 'none';
+                bcContainer.style.display = isHidden ? 'none' : 'inline-flex';
+                pathEdit.style.display = isHidden ? 'inline-block' : 'none';
+                bcToggle.textContent = isHidden ? '✎' : '✖';
+                bcToggle.title = isHidden ? 'Done editing' : 'Edit path';
+                if (isHidden) {
+                    pathEdit.focus();
+                    pathEdit.select();
+                }
+            });
+        }
+
+        // Path edit input change listener - persist path when user edits it
+        var self = this;
+        var pathEditInput = document.getElementById('note-path-edit');
+        if (pathEditInput) {
+            pathEditInput.addEventListener('change', function() {
+                if (!self.activeNoteId) return;
+                var newPath = pathEditInput.value.trim();
+                if (!newPath) newPath = '/';
+                // Ensure leading slash
+                if (!newPath.startsWith('/')) newPath = '/' + newPath;
+                // Strip trailing slash (unless root)
+                if (newPath.length > 1 && newPath.endsWith('/')) newPath = newPath.slice(0, -1);
+                // /root is the display name for actual root path /
+                if (newPath === '/root') newPath = '/';
+                self.moveNote(self.activeNoteId, newPath);
+            });
+            // Also commit on Enter key
+            pathEditInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    pathEditInput.blur(); // triggers change event
+                }
+            });
+        }
+
+        var maxBtn = document.getElementById('note-maximize-btn');
+        if (maxBtn) {
+            maxBtn.onclick = function() {
+                var modal = document.getElementById('note-editor-modal');
+                if (modal) {
+                    modal.classList.toggle('maximized');
+                    var isMax = modal.classList.contains('maximized');
+                    // Icon toggled via CSS on #note-editor-modal.maximized
+                    if (self.updateGlobalIconsVisibility) self.updateGlobalIconsVisibility(!isMax);
+                    
+                    // Persist Maximized State
+                    localStorage.setItem('VINLAND_NOTES_MAXIMIZED', isMax ? 'true' : 'false');
+                }
+            };
+        }
+        
+        var helpBtn = document.getElementById('note-help-btn');
+        if (helpBtn) {
+             helpBtn.onclick = function() {
+                 ModalManager.open('help-modal'); // Re-use main help or specific note help?
+                 // Main help modal has a NOTES section
+             };
+        }
+    },
+
     _bindSidebarButtons: function() {
         var dailyBtn = document.getElementById('daily-note-btn');
         var self = this;
@@ -944,86 +1027,7 @@ export const Notes = {
         this._bindSidebarSearch();
         this._bindEditorInputs();
 
-        // Editor shortcuts (Cmd+S, Cmd+E) handled globally in Input.js capture-phase
-        var closeBtn = document.getElementById('note-editor-close');
-        if (closeBtn) closeBtn.onclick = function() { window.closeNoteEditor(); };
-
-        var sidebarToggle = document.getElementById('sidebar-toggle-btn');
-        if (sidebarToggle) {
-             sidebarToggle.onclick = function() {
-                 var sidebar = document.querySelector('.notes-sidebar');
-                 if(sidebar) {
-                     sidebar.classList.toggle('collapsed');
-                 }
-             };
-        }
-
-        // Breadcrumb toggle button - switch between breadcrumb and editable path
-        var bcToggle = document.getElementById('breadcrumb-toggle-btn');
-        var bcContainer = document.getElementById('note-breadcrumb');
-        var pathEdit = document.getElementById('note-path-edit');
-        if (bcToggle && bcContainer && pathEdit) {
-            bcToggle.addEventListener('click', function() {
-                var isHidden = pathEdit.style.display === 'none';
-                bcContainer.style.display = isHidden ? 'none' : 'inline-flex';
-                pathEdit.style.display = isHidden ? 'inline-block' : 'none';
-                bcToggle.textContent = isHidden ? '✎' : '✖';
-                bcToggle.title = isHidden ? 'Done editing' : 'Edit path';
-                if (isHidden) {
-                    pathEdit.focus();
-                    pathEdit.select();
-                }
-            });
-        }
-
-        // Path edit input change listener - persist path when user edits it
-        var pathEditInput = document.getElementById('note-path-edit');
-        if (pathEditInput) {
-            pathEditInput.addEventListener('change', function() {
-                if (!self.activeNoteId) return;
-                var newPath = pathEditInput.value.trim();
-                if (!newPath) newPath = '/';
-                // Ensure leading slash
-                if (!newPath.startsWith('/')) newPath = '/' + newPath;
-                // Strip trailing slash (unless root)
-                if (newPath.length > 1 && newPath.endsWith('/')) newPath = newPath.slice(0, -1);
-                // /root is the display name for actual root path /
-                if (newPath === '/root') newPath = '/';
-                self.moveNote(self.activeNoteId, newPath);
-            });
-            // Also commit on Enter key
-            pathEditInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    pathEditInput.blur(); // triggers change event
-                }
-            });
-        }
-
-        var maxBtn = document.getElementById('note-maximize-btn');
-        if (maxBtn) {
-            maxBtn.onclick = function() {
-                var modal = document.getElementById('note-editor-modal');
-                if (modal) {
-                    modal.classList.toggle('maximized');
-                    var isMax = modal.classList.contains('maximized');
-                    // Icon toggled via CSS on #note-editor-modal.maximized
-                    if (self.updateGlobalIconsVisibility) self.updateGlobalIconsVisibility(!isMax);
-                    
-                    // Persist Maximized State
-                    localStorage.setItem('VINLAND_NOTES_MAXIMIZED', isMax ? 'true' : 'false');
-                }
-            };
-        }
-        
-        var helpBtn = document.getElementById('note-help-btn');
-        if (helpBtn) {
-             helpBtn.onclick = function() {
-                 ModalManager.open('help-modal'); // Re-use main help or specific note help?
-                 // Main help modal has a NOTES section
-             };
-        }
-
+        this._bindToolbarHandlers();
         this._bindSidebarButtons();
         
         this._bindShortcuts();
