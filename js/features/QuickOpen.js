@@ -236,7 +236,8 @@ export const QuickOpen = {
                 path: note.path || '/',
                 excerpt: null,
                 score: 0,
-                recent: true
+                recent: true,
+                modified: note.modified || note.created || null
             });
         });
 
@@ -359,16 +360,17 @@ export const QuickOpen = {
 
             if (score > 0) {
                 seenIds.add(note.id);
-                results.push({
-                    type: 'note',
-                    id: note.id,
-                    title: note.title || 'Untitled',
-                    path: note.path || '/',
-                    excerpt: excerpt,
-                    score: score,
-                    recent: false
-                });
-            }
+            results.push({
+                type: 'note',
+                id: note.id,
+                title: note.title || 'Untitled',
+                path: note.path || '/',
+                excerpt: excerpt,
+                score: score,
+                recent: false,
+                modified: note.modified || note.created || null
+            });
+        }
 
             // ─── 1b. Search Canvas Nodes within this note ───────────
             if (note.canvasData && note.canvasData.nodes && note.canvasData.nodes.length > 0) {
@@ -529,7 +531,11 @@ export const QuickOpen = {
 
                 var meta = document.createElement('div');
                 meta.className = 'qo-result-meta';
-                meta.textContent = result.path || '/';
+                var metaText = result.path || '/';
+                if (result.modified) {
+                    metaText += ' \u00B7 ' + self._formatDate(result.modified);
+                }
+                meta.textContent = metaText;
                 body.appendChild(meta);
 
                 if (result.excerpt) {
@@ -880,6 +886,32 @@ export const QuickOpen = {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    },
+
+    /**
+     * Format a timestamp for display in search results.
+     * Shows 'Today', 'Yesterday', weekday for this week, or short date.
+     */
+    _formatDate: function (ts) {
+        if (!ts) return '';
+        var d = new Date(ts);
+        if (isNaN(d.getTime())) return '';
+        var now = new Date();
+        var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        var dateDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        var diffDays = Math.round((today - dateDay) / 86400000);
+
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays > 1 && diffDays <= 6) {
+            return d.toLocaleDateString('en-US', { weekday: 'short' });
+        }
+        // This year: show 'Jan 5' format
+        if (d.getFullYear() === now.getFullYear()) {
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        // Other year: show 'Jan 5, 2024'
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -1533,7 +1565,11 @@ export const QuickOpen = {
                 var meta = document.createElement('div');
                 meta.className = 'srp-result-meta';
                 if (result.type === 'note') {
-                    meta.textContent = result.path || '/';
+                    var metaText = result.path || '/';
+                    if (result.modified) {
+                        metaText += ' \u00B7 ' + self._formatDate(result.modified);
+                    }
+                    meta.textContent = metaText;
                 } else if (result.type === 'canvas-node') {
                     meta.textContent = 'in ' + (result.path || 'Untitled');
                 } else if (result.type === 'tag') {

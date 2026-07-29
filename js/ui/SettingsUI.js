@@ -768,9 +768,24 @@ export const SettingsUI = {
         if (typeof updateTime === 'function') updateTime();
         
         CONFIG_DIRTY = false;
-        resetSaveButtonState();
-        showNotification('CONFIGURATION SAVED');
-        this.close(true);
+
+        // Show a brief "SAVED ✓" flash on the save button before resetting
+        var savedBtn = document.getElementById('header-save-btn');
+        if (savedBtn) {
+            savedBtn.innerText = 'SAVED \u2714';
+            savedBtn.style.background = 'var(--callout-success, #00ff41)';
+            savedBtn.style.color = '#000';
+            savedBtn.style.boxShadow = '0 0 20px var(--callout-success, #00ff41)';
+            savedBtn.style.border = '1px solid var(--callout-success, #00ff41)';
+        }
+
+        // Short delay so the user sees the confirmation before the modal closes
+        var self = this;
+        setTimeout(function () {
+            resetSaveButtonState();
+            showNotification('CONFIGURATION SAVED');
+            self.close(true);
+        }, 300);
     },
 
     initBackground: function() {
