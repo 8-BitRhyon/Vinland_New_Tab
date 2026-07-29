@@ -512,6 +512,24 @@ export const Notes = {
         }
     },
 
+    // Set up note state: tab, blocks migration, title input
+    _setupNoteState: function(note) {
+        this.activeNoteId = note.id;
+        
+        if (State.CONFIG.notes_tabs_enabled !== false && TabManager) {
+            TabManager.openTab(note.id, note.title || 'Untitled');
+        }
+
+        // Migration: Ensure blocks exist
+        if (!note.blocks || note.blocks.length === 0) {
+            note.blocks = parseContentToBlocks(note.content);
+            if (note.blocks.length === 0) PageManager.addBlock(note, 'p', '');
+        }
+
+        var titleInput = document.getElementById('active-note-title');
+        if (titleInput) titleInput.value = note.title || '';
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -1034,21 +1052,9 @@ export const Notes = {
         var note = this._resolveNote(noteId);
         if (!note) return;
 
-        this.activeNoteId = note.id;
-        
-        if (State.CONFIG.notes_tabs_enabled !== false && TabManager) {
-            TabManager.openTab(note.id, note.title || 'Untitled');
-        }
+        // Set up note state: tab, blocks migration, title input
+        this._setupNoteState(note);
 
-        // Migration: Ensure blocks exist
-        if (!note.blocks || note.blocks.length === 0) {
-            note.blocks = parseContentToBlocks(note.content);
-            if (note.blocks.length === 0) PageManager.addBlock(note, 'p', '');
-        }
-
-        var titleInput = document.getElementById('active-note-title');
-        if (titleInput) titleInput.value = note.title || '';
-        
         // Route to canvas or standard editor containers
         if (this._setupEditorContainers(note, _modalWasActive)) return;
 
