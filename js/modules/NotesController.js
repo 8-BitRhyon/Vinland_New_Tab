@@ -102,6 +102,25 @@ export const Notes = {
         }
     },
 
+    _bindEditorInputs: function() {
+        var titleInput = document.getElementById('active-note-title');
+        var contentInput = document.getElementById('active-note-content');
+
+        var self = this;
+        [titleInput, contentInput].forEach(function (el) {
+            if (el) {
+                el.addEventListener('input', function () {
+                    self.autoSave();
+                    self.updateTags();
+
+                    if (el.id === 'active-note-title' && TabManager) {
+                        TabManager.updateActiveTitle(el.value || 'Untitled');
+                    }
+                });
+            }
+        });
+    },
+
     _bindSidebarSearch: function() {
         var search = document.getElementById('notes-search');
         if (search) {
@@ -673,24 +692,7 @@ export const Notes = {
         // Ideally this should be reduced and delegated, but preserving logic for now.
         
         this._bindSidebarSearch();
-        
-        // Editor Inputs (Auto-Save + Tags)
-        var titleInput = document.getElementById('active-note-title');
-        var contentInput = document.getElementById('active-note-content');
-
-        var self = this;
-        [titleInput, contentInput].forEach(function (el) {
-            if (el) {
-                el.addEventListener('input', function () {
-                    self.autoSave();
-                    self.updateTags();
-                    
-                    if (el.id === 'active-note-title' && TabManager) {
-                        TabManager.updateActiveTitle(el.value || 'Untitled');
-                    }
-                });
-            }
-        });
+        this._bindEditorInputs();
 
         // Editor shortcuts (Cmd+S, Cmd+E) handled globally in Input.js capture-phase
         var closeBtn = document.getElementById('note-editor-close');
