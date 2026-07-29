@@ -4204,20 +4204,9 @@ export const CanvasManager = {
     },
 
     // ─── EDGE CONTEXT MENU ───
-    _showEdgeContextMenu: function(clientX, clientY, edge, fromNode, toNode) {
-        // Remove any existing context menu
-        var existing = document.querySelector('.canvas-edge-context-menu');
-        if (existing) existing.remove();
 
-        var menu = document.createElement('div');
-        menu.className = 'canvas-edge-context-menu';
-        menu.id = 'canvas-edge-context-menu';
-        menu.style.cssText = 'position:fixed;left:' + clientX + 'px;top:' + clientY + 'px;z-index:45000;';
-
-        var currentColor = edge.color || '';
-        var currentWidth = edge.styleWidth || 2;
-        var isDashed = edge.styleDashed === true;
-
+    // Build context menu HTML from current edge state
+    _buildEdgeMenuHTML: function(currentColor, currentWidth, isDashed) {
         var colorSwatches = [
             { name: 'green', val: 'var(--main-color, #00ff41)' },
             { name: 'red', val: '#ff5555' },
@@ -4234,86 +4223,63 @@ export const CanvasManager = {
             return '<span class="ctx-swatch' + active + '" data-val="' + s.val + '" data-action="set-color" title="' + s.name + '" style="' + style + '"></span>';
         }).join('');
 
-        menu.innerHTML = `
-            <div class="ctx-section-header">COLOR</div>
-            <div class="ctx-color-row">${swatchHtml}</div>
-            <div class="ctx-divider"></div>
-            <div class="ctx-section-header">WIDTH</div>
-            <div class="ctx-width-row">
-                <button class="ctx-width-btn${currentWidth === 1 ? ' ctx-active' : ''}" data-val="1" data-action="set-width">─</button>
-                <button class="ctx-width-btn${currentWidth === 2 ? ' ctx-active' : ''}" data-val="2" data-action="set-width">──</button>
-                <button class="ctx-width-btn${currentWidth === 3 ? ' ctx-active' : ''}" data-val="3" data-action="set-width">───</button>
-                <button class="ctx-width-btn${currentWidth === 4 ? ' ctx-active' : ''}" data-val="4" data-action="set-width">────</button>
-            </div>
-            <div class="ctx-divider"></div>
-            <div class="ctx-item" data-action="toggle-dashed">${isDashed ? '✓' : '▢'} Dashed</div>
-            <div class="ctx-divider"></div>
-            <div class="ctx-item" data-action="add-waypoint">+ Add Waypoint</div>
-            <div class="ctx-item" data-action="edit-label">✎ Edit Label</div>
-            <div class="ctx-divider"></div>
-            <div class="ctx-item ctx-danger" data-action="delete-edge">✕ Delete Connection</div>
-        `;
-        document.body.appendChild(menu);
+        return '<div class="ctx-section-header">COLOR</div>' +
+            '<div class="ctx-color-row">' + swatchHtml + '</div>' +
+            '<div class="ctx-divider"></div>' +
+            '<div class="ctx-section-header">WIDTH</div>' +
+            '<div class="ctx-width-row">' +
+                '<button class="ctx-width-btn' + (currentWidth === 1 ? ' ctx-active' : '') + '" data-val="1" data-action="set-width">─</button>' +
+                '<button class="ctx-width-btn' + (currentWidth === 2 ? ' ctx-active' : '') + '" data-val="2" data-action="set-width">──</button>' +
+                '<button class="ctx-width-btn' + (currentWidth === 3 ? ' ctx-active' : '') + '" data-val="3" data-action="set-width">───</button>' +
+                '<button class="ctx-width-btn' + (currentWidth === 4 ? ' ctx-active' : '') + '" data-val="4" data-action="set-width">────</button>' +
+            '</div>' +
+            '<div class="ctx-divider"></div>' +
+            '<div class="ctx-item" data-action="toggle-dashed">' + (isDashed ? '✓' : '▢') + ' Dashed</div>' +
+            '<div class="ctx-divider"></div>' +
+            '<div class="ctx-item" data-action="add-waypoint">+ Add Waypoint</div>' +
+            '<div class="ctx-item" data-action="edit-label">✎ Edit Label</div>' +
+            '<div class="ctx-divider"></div>' +
+            '<div class="ctx-item ctx-danger" data-action="delete-edge">✕ Delete Connection</div>';
+    },
 
-        var self = this;
-        menu.addEventListener('click', function(e) {
-            var item = e.target.closest('[data-action]');
-            if (!item) return;
-            var action = item.getAttribute('data-action');
-            var val = item.getAttribute('data-val');
+    // Handle context menu action
+    _handleEdgeMenuAction: function(action, val, edge, fromNode, toNode, clientX, clientY) {
+        this._saveHistoryState();
 
-            switch (action) {
-                case 'set-color': {
-                    self._saveHistoryState();
-                    edge.color = val === 'var(--main-color, #00ff41)' ? null : val;
-                    self._saveData();
-                    self.renderEdge(edge);
-                    menu.remove();
-                    break;
-                }
-                case 'set-width': {
-                    self._saveHistoryState();
-                    edge.styleWidth = parseInt(val, 10);
-                    self._saveData();
-                    self.renderEdge(edge);
-                    menu.remove();
-                    break;
-                }
-                case 'toggle-dashed': {
-                    self._saveHistoryState();
-                    edge.styleDashed = !edge.styleDashed;
-                    if (edge.styleDashed) edge.isWikiLink = false;
-                    self._saveData();
-                    self.renderEdge(edge);
-                    menu.remove();
-                    break;
-                }
-                case 'add-waypoint': {
-                    var rect = self.container.getBoundingClientRect();
-                    var wx = (clientX - rect.left - self.transform.x) / self.transform.scale;
-                    var wy = (clientY - rect.top - self.transform.y) / self.transform.scale;
-                    if (!edge.waypoints) edge.waypoints = [];
-                    edge.waypoints.push({ x: wx, y: wy });
-                    self._saveData();
-                    self.renderEdge(edge);
-                    menu.remove();
-                    break;
-                }
-                case 'edit-label': {
-                    menu.remove();
-                    const ports = self._getAutoPorts(fromNode, toNode);
-                    self._editEdgeLabel(edge, (ports.from.x + ports.to.x) / 2, (ports.from.y + ports.to.y) / 2);
-                    return;
-                }
-                case 'delete-edge': {
-                    self._deleteEdge(edge.id);
-                    menu.remove();
-                    break;
-                }
+        switch (action) {
+            case 'set-color':
+                edge.color = val === 'var(--main-color, #00ff41)' ? null : val;
+                break;
+            case 'set-width':
+                edge.styleWidth = parseInt(val, 10);
+                break;
+            case 'toggle-dashed':
+                edge.styleDashed = !edge.styleDashed;
+                if (edge.styleDashed) edge.isWikiLink = false;
+                break;
+            case 'add-waypoint': {
+                var rect = this.container.getBoundingClientRect();
+                var wx = (clientX - rect.left - this.transform.x) / this.transform.scale;
+                var wy = (clientY - rect.top - this.transform.y) / this.transform.scale;
+                if (!edge.waypoints) edge.waypoints = [];
+                edge.waypoints.push({ x: wx, y: wy });
+                break;
             }
-        });
+            case 'edit-label':
+                const ports = this._getAutoPorts(fromNode, toNode);
+                this._editEdgeLabel(edge, (ports.from.x + ports.to.x) / 2, (ports.from.y + ports.to.y) / 2);
+                return; // Skip _saveData / renderEdge — edit label manages its own lifecycle
+            case 'delete-edge':
+                this._deleteEdge(edge.id);
+                return; // Skip _saveData / renderEdge — edge was removed entirely
+        }
 
-        // Close on outside click
+        this._saveData();
+        this.renderEdge(edge);
+    },
+
+    // Close context menu on outside click
+    _setupCloseOnOutsideClick: function(menu) {
         setTimeout(function() {
             var closeHandler = function(ce) {
                 if (!menu.contains(ce.target)) {
@@ -4323,6 +4289,36 @@ export const CanvasManager = {
             };
             document.addEventListener('mousedown', closeHandler);
         }, 10);
+    },
+
+    _showEdgeContextMenu: function(clientX, clientY, edge, fromNode, toNode) {
+        // Remove any existing context menu
+        var existing = document.querySelector('.canvas-edge-context-menu');
+        if (existing) existing.remove();
+
+        var menu = document.createElement('div');
+        menu.className = 'canvas-edge-context-menu';
+        menu.id = 'canvas-edge-context-menu';
+        menu.style.cssText = 'position:fixed;left:' + clientX + 'px;top:' + clientY + 'px;z-index:45000;';
+
+        var currentColor = edge.color || '';
+        var currentWidth = edge.styleWidth || 2;
+        var isDashed = edge.styleDashed === true;
+
+        menu.innerHTML = this._buildEdgeMenuHTML(currentColor, currentWidth, isDashed);
+        document.body.appendChild(menu);
+
+        var self = this;
+        menu.addEventListener('click', function(e) {
+            var item = e.target.closest('[data-action]');
+            if (!item) return;
+            var action = item.getAttribute('data-action');
+            var val = item.getAttribute('data-val');
+            self._handleEdgeMenuAction(action, val, edge, fromNode, toNode, clientX, clientY);
+            menu.remove();
+        });
+
+        this._setupCloseOnOutsideClick(menu);
     },
 
     // ─── MARKDOWN TO HTML CONVERSION ───
