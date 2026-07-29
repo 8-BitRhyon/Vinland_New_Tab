@@ -6793,6 +6793,146 @@
         border-radius: 3px;
         border: 1px solid rgba(0, 255, 65, 0.2);
         white-space: nowrap;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease;
+      }
+      .rec-badge:hover {
+        background: rgba(0, 255, 65, 0.2);
+        border-color: rgba(0, 255, 65, 0.5);
+      }
+
+      /* ── Recurrence Config Panel ── */
+      .rec-config-panel {
+        background: rgba(12, 12, 12, 0.97);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 6px;
+        padding: 10px 12px;
+        min-width: 200px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+        font-family: inherit;
+        font-size: 0.7rem;
+        animation: recConfigIn 0.12s ease;
+      }
+      @keyframes recConfigIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .rec-config-header {
+        color: var(--main-color);
+        font-weight: bold;
+        font-size: 0.6rem;
+        letter-spacing: 1.5px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .rec-config-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .rec-config-label {
+        color: #aaa;
+        font-size: 0.65rem;
+        white-space: nowrap;
+      }
+      .rec-config-interval {
+        width: 42px;
+        padding: 3px 4px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 3px;
+        color: #ddd;
+        font-size: 0.7rem;
+        text-align: center;
+        outline: none;
+        font-family: inherit;
+      }
+      .rec-config-interval:focus {
+        border-color: var(--main-color);
+      }
+      .rec-config-type {
+        padding: 3px 4px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 3px;
+        color: #ddd;
+        font-size: 0.65rem;
+        outline: none;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .rec-config-type:focus {
+        border-color: var(--main-color);
+      }
+      .rec-config-days {
+        margin-bottom: 8px;
+        padding: 6px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 4px;
+      }
+      .rec-day-grid {
+        display: flex;
+        gap: 3px;
+        flex-wrap: wrap;
+      }
+      .rec-day-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        color: #aaa;
+        font-size: 0.6rem;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 3px;
+        transition: background 0.1s ease, color 0.1s ease;
+      }
+      .rec-day-label:hover {
+        background: rgba(255,255,255,0.06);
+        color: #fff;
+      }
+      .rec-day-cb {
+        accent-color: var(--main-color, #00ff41);
+        width: 12px;
+        height: 12px;
+        cursor: pointer;
+      }
+      .rec-config-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 8px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+      }
+      .rec-config-btn {
+        padding: 4px 10px;
+        border-radius: 3px;
+        border: 1px solid transparent;
+        font-size: 0.6rem;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        letter-spacing: 1px;
+      }
+      .rec-config-cancel {
+        background: transparent;
+        color: #888;
+        border-color: rgba(255,255,255,0.1);
+      }
+      .rec-config-cancel:hover {
+        background: rgba(255,255,255,0.06);
+        color: #ccc;
+      }
+      .rec-config-apply {
+        background: rgba(0, 255, 65, 0.15);
+        color: var(--main-color, #00ff41);
+        border-color: rgba(0, 255, 65, 0.3);
+      }
+      .rec-config-apply:hover {
+        background: rgba(0, 255, 65, 0.25);
+        box-shadow: 0 0 8px rgba(0,255,65,0.2);
       }
 
       /* .0: Progress Bar */

@@ -189,13 +189,20 @@ export function renderMissions() {
             div.appendChild(catBadge);
         }
 
-        // Recurrence badge
+        // Recurrence badge (clickable — opens config panel)
         if (task.recurrence && task.recurrence !== 'none') {
             var recBadge = document.createElement('span');
             recBadge.className = 'rec-badge';
-            var recLabels = { daily: '↻ daily', weekly: '↻ weekly', monthly: '↻ monthly' };
-            recBadge.textContent = recLabels[task.recurrence] || task.recurrence;
-            recBadge.title = 'Recurring ' + task.recurrence + ' task';
+            var interval = task.recurrenceInterval || 1;
+            var badgeText = '↻ ' + (interval > 1 ? interval : '') + (task.recurrence === 'daily' ? 'd' : task.recurrence === 'weekly' ? 'w' : 'm');
+            recBadge.textContent = badgeText;
+            recBadge.title = 'Recurring ' + (interval > 1 ? 'every ' + interval + ' ' : '') + task.recurrence + ' — click to configure';
+            recBadge.style.cursor = 'pointer';
+            recBadge.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var originalIdx = parseInt(div.getAttribute('data-task-index'));
+                _openRecurrenceConfig(originalIdx, recBadge);
+            });
             div.appendChild(recBadge);
         }
 
@@ -438,4 +445,127 @@ export function parseRecurrence(text) {
         cleaned = cleaned.substring(recMatch[0].length).trim();
     }
     return { text: cleaned, recurrence: recurrence };
+}
+
+// ─── RECURRENCE CONFIG PANEL ────────────────────────────────
+
+/**
+ * Opens an inline config panel near a recurrence badge for editing interval/day settings.
+ */
+var _currentConfigTaskIdx = null;
+var _currentConfigPanel = null;
+
+function _closeRecurrenceConfig() {
+    if (_currentConfigPanel) {
+        _currentConfigPanel.remove();
+        _currentConfigPanel = null;
+    }
+    _currentConfigTaskIdx = null;
+}
+
+export function _openRecurrenceConfig(taskIndex, badgeEl) {
+    // Close any existing panel first
+    _closeRecurrenceConfig();
+
+    var task = State.TASKS[taskIndex];
+    if (!task) return;
+
+    _currentConfigTaskIdx = taskIndex;
+
+    var recType = task.recurrence || 'daily';
+    var interval = task.recurrenceInterval || 1;
+    var days = task.recurrenceDays || [];
+
+    var rect = badgeEl.getBoundingClientRect();
+    // Estimate panel height (~180px) to prevent bottom-edge overflow
+    var panelTop = rect.bottom + 6;
+    if (panelTop + 180 > window.innerHeight) {
+        panelTop = Math.max(4, rect.top - 180);
+    }
+
+    var panel = document.createElement('div');
+    panel.className = 'rec-config-panel';
+    panel.style.cssText = 'position:fixed;left:' + Math.min(rect.left, window.innerWidth - 260) + 'px;top:' + panelTop + 'px;z-index:50000;';
+
+    var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var dayChecks = dayNames.map(function(_, i) {
+        return '<label class="rec-day-label"><input type="checkbox" class="rec-day-cb" value="' + i + '" ' +
+            (days.indexOf(i) !== -1 ? 'checked' : '') + '>' + dayNames[i].substring(0, 2) + '</label>';
+    }).join('');
+
+    panel.innerHTML = '<div class="rec-config-header">RECURRENCE</div>' +
+        '<div class="rec-config-row">' +
+            '<label class="rec-config-label">Every</label>' +
+            '<input type="number" class="rec-config-interval" value="' + interval + '" min="1" max="365">' +
+            '<select class="rec-config-type">' +
+                '<option value="daily"' + (recType === 'daily' ? ' selected' : '') + '>day(s)</option>' +
+                '<option value="weekly"' + (recType === 'weekly' ? ' selected' : '') + '>week(s)</option>' +
+                '<option value="monthly"' + (recType === 'monthly' ? ' selected' : '') + '>month(s)</option>' +
+            '</select>' +
+        '</div>' +
+        '<div class="rec-config-days" id="rec-config-days"' +
+            (recType !== 'weekly' ? ' style="display:none"' : '') + '>' +
+            '<div class="rec-config-label" style="margin-bottom:4px">On</div>' +
+            '<div class="rec-day-grid">' + dayChecks + '</div>' +
+        '</div>' +
+        '<div class="rec-config-actions">' +
+            '<button class="rec-config-btn rec-config-cancel">CANCEL</button>' +
+            '<button class="rec-config-btn rec-config-apply">APPLY</button>' +
+        '</div>';
+
+    document.body.appendChild(panel);
+    _currentConfigPanel = panel;
+
+    // Show/hide day checkboxes when type changes
+    var typeSelect = panel.querySelector('.rec-config-type');
+    var daysDiv = panel.querySelector('.rec-config-days');
+    typeSelect.addEventListener('change', function() {
+        daysDiv.style.display = typeSelect.value === 'weekly' ? '' : 'none';
+    });
+
+    // Cancel
+    panel.querySelector('.rec-config-cancel').addEventListener('click', _closeRecurrenceConfig);
+
+    // Apply
+    panel.querySelector('.rec-config-apply').addEventListener('click', function() {
+        var newType = typeSelect.value;
+        var newInterval = parseInt(panel.querySelector('.rec-config-interval').value) || 1;
+        var newDays = [];
+        panel.querySelectorAll('.rec-day-cb:checked').forEach(function(cb) {
+            newDays.push(parseInt(cb.value));
+        });
+
+        var targetTask = State.TASKS[_currentConfigTaskIdx];
+        if (targetTask) {
+            targetTask.recurrence = newType;
+            targetTask.recurrenceInterval = newInterval;
+            targetTask.recurrenceDays = newDays;
+            saveData();
+            renderMissions();
+        }
+        _closeRecurrenceConfig();
+
+        getShowNotification()('Recurrence updated: every ' + (newInterval > 1 ? newInterval + ' ' : '') + newType);
+    });
+
+    // Close on Escape key
+    var escHandler = function(e) {
+        if (e.key === 'Escape') {
+            _closeRecurrenceConfig();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    // Close on outside click
+    setTimeout(function() {
+        var closeHandler = function(e) {
+            if (!panel.contains(e.target) && e.target !== badgeEl) {
+                _closeRecurrenceConfig();
+                document.removeEventListener('mousedown', closeHandler);
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('mousedown', closeHandler);
+    }, 10);
 }
