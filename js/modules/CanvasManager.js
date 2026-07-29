@@ -1014,6 +1014,65 @@ export const CanvasManager = {
                     background: rgba(255, 255, 255, 0.08);
                     margin: 3px 8px;
                 }
+                .canvas-edge-context-menu .ctx-section-header {
+                    padding: 6px 14px 2px;
+                    font-size: 0.55rem;
+                    color: #666;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                }
+                .canvas-edge-context-menu .ctx-color-row {
+                    display: flex;
+                    gap: 5px;
+                    padding: 4px 14px 8px;
+                }
+                .canvas-edge-context-menu .ctx-swatch {
+                    display: inline-block;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 50%;
+                    border: 2px solid rgba(255,255,255,0.15);
+                    cursor: pointer;
+                    transition: all 0.12s ease;
+                    background: var(--main-color, #00ff41);
+                }
+                .canvas-edge-context-menu .ctx-swatch:hover {
+                    border-color: rgba(255,255,255,0.5);
+                    transform: scale(1.2);
+                }
+                .canvas-edge-context-menu .ctx-swatch-active {
+                    border-color: #fff !important;
+                    box-shadow: 0 0 8px rgba(255,255,255,0.3);
+                    transform: scale(1.15);
+                }
+                .canvas-edge-context-menu .ctx-width-row {
+                    display: flex;
+                    gap: 3px;
+                    padding: 4px 14px 8px;
+                }
+                .canvas-edge-context-menu .ctx-width-btn {
+                    flex: 1;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 3px;
+                    color: #999;
+                    cursor: pointer;
+                    font-family: inherit;
+                    font-size: 0.7rem;
+                    padding: 4px 6px;
+                    transition: all 0.1s ease;
+                    text-align: center;
+                    letter-spacing: 1px;
+                }
+                .canvas-edge-context-menu .ctx-width-btn:hover {
+                    background: rgba(255,255,255,0.1);
+                    color: #ddd;
+                }
+                .canvas-edge-context-menu .ctx-width-btn.ctx-active {
+                    background: rgba(0,255,65,0.15);
+                    border-color: rgba(0,255,65,0.4);
+                    color: var(--main-color, #00ff41);
+                }
 
                 /* ── Edge hover glow ── */
                 .canvas-edge {
@@ -3474,6 +3533,17 @@ export const CanvasManager = {
         var bezierMidX = 0.125 * x1 + 0.375 * cp1x + 0.375 * cp2x + 0.125 * x2;
         var bezierMidY = 0.125 * y1 + 0.375 * cp1y + 0.375 * cp2y + 0.125 * y2;
 
+        // Update stroke style on existing paths (needed after style change via context menu)
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', strokeWidth);
+        if (isDashed) {
+            path.setAttribute('stroke-dasharray', '5,3');
+            path.setAttribute('marker-end', 'url(#canvas-arrowhead-dim)');
+        } else {
+            path.removeAttribute('stroke-dasharray');
+            path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
+        }
+
         // Build path string — through waypoints if any, else auto-bezier
         let d;
         const wps = edge.waypoints;
@@ -3487,22 +3557,26 @@ export const CanvasManager = {
 
         var self = this;
 
+        // Resolve style properties (with defaults)
+        var strokeColor = edge.color || 'var(--main-color, #00ff41)';
+        var strokeWidth = edge.styleWidth || (edge.isWikiLink ? 1.5 : 2);
+        var isDashed = edge.styleDashed === true || edge.isWikiLink === true;
+
         // Create or update path
         let path = document.getElementById(`edge-${edge.id}`);
         if (!path) {
             path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.id = `edge-${edge.id}`;
             path.classList.add('canvas-edge');
-            path.setAttribute('stroke', edge.color || 'var(--main-color, #00ff41)');
+            path.setAttribute('stroke', strokeColor);
             path.setAttribute('fill', 'none');
 
-            if (edge.isWikiLink) {
-                path.setAttribute('stroke-width', '1.5');
+            path.setAttribute('stroke-width', strokeWidth);
+            if (isDashed) {
                 path.setAttribute('opacity', '0.5');
                 path.setAttribute('stroke-dasharray', '5,3');
                 path.setAttribute('marker-end', 'url(#canvas-arrowhead-dim)');
             } else {
-                path.setAttribute('stroke-width', '2');
                 path.setAttribute('opacity', '0.7');
                 path.setAttribute('marker-end', 'url(#canvas-arrowhead)');
             }
@@ -4116,8 +4190,43 @@ export const CanvasManager = {
 
         var menu = document.createElement('div');
         menu.className = 'canvas-edge-context-menu';
+        menu.id = 'canvas-edge-context-menu';
         menu.style.cssText = 'position:fixed;left:' + clientX + 'px;top:' + clientY + 'px;z-index:45000;';
+
+        var currentColor = edge.color || '';
+        var currentWidth = edge.styleWidth || 2;
+        var isDashed = edge.styleDashed === true;
+
+        var colorSwatches = [
+            { name: 'green', val: 'var(--main-color, #00ff41)' },
+            { name: 'red', val: '#ff5555' },
+            { name: 'yellow', val: '#ffb800' },
+            { name: 'blue', val: '#55aaff' },
+            { name: 'purple', val: '#bb88ff' },
+            { name: 'white', val: '#ffffff' }
+        ];
+
+        var swatchHtml = colorSwatches.map(function(s) {
+            var isDefault = s.val.indexOf('var(') === 0;
+            var active = (currentColor === s.val) || (currentColor === '' && isDefault) ? ' ctx-swatch-active' : '';
+            var style = isDefault ? '' : 'background:' + s.val;
+            return '<span class="ctx-swatch' + active + '" data-val="' + s.val + '" data-action="set-color" title="' + s.name + '" style="' + style + '"></span>';
+        }).join('');
+
         menu.innerHTML = `
+            <div class="ctx-section-header">COLOR</div>
+            <div class="ctx-color-row">${swatchHtml}</div>
+            <div class="ctx-divider"></div>
+            <div class="ctx-section-header">WIDTH</div>
+            <div class="ctx-width-row">
+                <button class="ctx-width-btn${currentWidth === 1 ? ' ctx-active' : ''}" data-val="1" data-action="set-width">─</button>
+                <button class="ctx-width-btn${currentWidth === 2 ? ' ctx-active' : ''}" data-val="2" data-action="set-width">──</button>
+                <button class="ctx-width-btn${currentWidth === 3 ? ' ctx-active' : ''}" data-val="3" data-action="set-width">───</button>
+                <button class="ctx-width-btn${currentWidth === 4 ? ' ctx-active' : ''}" data-val="4" data-action="set-width">────</button>
+            </div>
+            <div class="ctx-divider"></div>
+            <div class="ctx-item" data-action="toggle-dashed">${isDashed ? '✓' : '▢'} Dashed</div>
+            <div class="ctx-divider"></div>
             <div class="ctx-item" data-action="add-waypoint">+ Add Waypoint</div>
             <div class="ctx-item" data-action="edit-label">✎ Edit Label</div>
             <div class="ctx-divider"></div>
@@ -4127,10 +4236,37 @@ export const CanvasManager = {
 
         var self = this;
         menu.addEventListener('click', function(e) {
-            var item = e.target.closest('.ctx-item');
+            var item = e.target.closest('[data-action]');
             if (!item) return;
             var action = item.getAttribute('data-action');
+            var val = item.getAttribute('data-val');
+
             switch (action) {
+                case 'set-color': {
+                    self._saveHistoryState();
+                    edge.color = val === 'var(--main-color, #00ff41)' ? null : val;
+                    self._saveData();
+                    self.renderEdge(edge);
+                    menu.remove();
+                    break;
+                }
+                case 'set-width': {
+                    self._saveHistoryState();
+                    edge.styleWidth = parseInt(val, 10);
+                    self._saveData();
+                    self.renderEdge(edge);
+                    menu.remove();
+                    break;
+                }
+                case 'toggle-dashed': {
+                    self._saveHistoryState();
+                    edge.styleDashed = !edge.styleDashed;
+                    if (edge.styleDashed) edge.isWikiLink = false;
+                    self._saveData();
+                    self.renderEdge(edge);
+                    menu.remove();
+                    break;
+                }
                 case 'add-waypoint': {
                     var rect = self.container.getBoundingClientRect();
                     var wx = (clientX - rect.left - self.transform.x) / self.transform.scale;
@@ -4139,6 +4275,7 @@ export const CanvasManager = {
                     edge.waypoints.push({ x: wx, y: wy });
                     self._saveData();
                     self.renderEdge(edge);
+                    menu.remove();
                     break;
                 }
                 case 'edit-label': {
@@ -4149,10 +4286,10 @@ export const CanvasManager = {
                 }
                 case 'delete-edge': {
                     self._deleteEdge(edge.id);
+                    menu.remove();
                     break;
                 }
             }
-            menu.remove();
         });
 
         // Close on outside click
