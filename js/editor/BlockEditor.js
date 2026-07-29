@@ -1429,7 +1429,8 @@ export const BlockEditor = {
                 var imgDeleteBtn = document.createElement('button');
                 imgDeleteBtn.className = 'image-delete-btn block-action-btn'; // Whitelist for click
                 imgDeleteBtn.textContent = 'X';
-                imgDeleteBtn.onclick = function() {
+                imgDeleteBtn.onclick = function(e) {
+                    e.stopPropagation();
                     PageManager.deleteBlock(self.activePageId, block.id);
                     self.render(self.activePageId);
                 };
@@ -1923,7 +1924,8 @@ export const BlockEditor = {
                 var addRowBtn = document.createElement('button');
                 addRowBtn.className = 'table-add-row-btn';
                 addRowBtn.textContent = '+ Add Row';
-                addRowBtn.onclick = function() {
+                addRowBtn.onclick = function(e) {
+                    e.stopPropagation();
                     var newRow = tableData.headers.map(function() { return ''; });
                     tableData.rows.push(newRow);
                     PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
@@ -1934,7 +1936,8 @@ export const BlockEditor = {
                 var addColBtn = document.createElement('button');
                 addColBtn.className = 'table-add-col-btn';
                 addColBtn.textContent = '+';
-                addColBtn.onclick = function() {
+                addColBtn.onclick = function(e) {
+                    e.stopPropagation();
                     tableData.headers.push('New Column');
                     tableData.columnAligns.push('left');
                     tableData.rows.forEach(function(row) { row.push(''); });
@@ -2064,7 +2067,8 @@ export const BlockEditor = {
                 qDeleteBtn.innerHTML = '×';
                 qDeleteBtn.className = 'query-delete-btn block-action-btn';
                 qDeleteBtn.style.cssText = 'background:transparent; border:none; color:var(--danger-color); cursor:pointer; font-size:1.2rem; margin-left:10px;';
-                qDeleteBtn.onclick = function() {
+                qDeleteBtn.onclick = function(e) {
+                    e.stopPropagation();
                     PageManager.deleteBlock(self.activePageId, block.id);
                     self.render(self.activePageId);
                 };
@@ -2229,7 +2233,8 @@ export const BlockEditor = {
                 var deleteBtn = document.createElement('button');
                 deleteBtn.className = 'divider-delete-btn';
                 deleteBtn.textContent = 'X';
-                deleteBtn.onclick = function() {
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
                     PageManager.deleteBlock(self.activePageId, block.id);
                     self.render(self.activePageId);
                 };
