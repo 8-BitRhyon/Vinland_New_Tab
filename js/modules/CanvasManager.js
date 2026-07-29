@@ -404,6 +404,9 @@ export const CanvasManager = {
             <span class="canvas-tb-info" id="canvas-node-count">0 nodes</span>
             <span class="canvas-tb-divider">|</span>
             <span class="canvas-tb-info" id="canvas-zoom-label">100%</span>
+            <input type="range" class="canvas-zoom-slider" id="canvas-zoom-slider"
+                   min="10" max="500" value="100"
+                   title="Zoom level" aria-label="Canvas zoom level">
             <span class="canvas-tb-divider">|</span>
             <button class="canvas-tb-btn" id="canvas-snap-toggle" title="Toggle Snap to Grid (nodes align to 30px grid)">⧉</button>
             <span class="canvas-tb-divider">|</span>
@@ -922,12 +925,57 @@ export const CanvasManager = {
                 .canvas-edge-label-hint.visible:hover {
                     opacity: 1;
                 }
+
+                /* ── Canvas zoom slider ── */
+                .canvas-zoom-slider {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 60px;
+                    height: 4px;
+                    background: rgba(255, 255, 255, 0.15);
+                    border-radius: 2px;
+                    outline: none;
+                    margin: 0 6px;
+                    cursor: pointer;
+                    transition: background 0.15s ease;
+                }
+                .canvas-zoom-slider:hover {
+                    background: rgba(255, 255, 255, 0.25);
+                }
+                .canvas-zoom-slider::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: var(--main-color, #00ff41);
+                    border: 2px solid rgba(0, 0, 0, 0.5);
+                    cursor: pointer;
+                    box-shadow: 0 0 6px rgba(0, 255, 65, 0.3);
+                    transition: transform 0.1s ease, box-shadow 0.1s ease;
+                }
+                .canvas-zoom-slider::-webkit-slider-thumb:hover {
+                    transform: scale(1.2);
+                    box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+                }
+                .canvas-zoom-slider::-moz-range-thumb {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: var(--main-color, #00ff41);
+                    border: 2px solid rgba(0, 0, 0, 0.5);
+                    cursor: pointer;
+                }
+                .canvas-zoom-slider:active::-webkit-slider-thumb {
+                    transform: scale(1.3);
+                }
             `;
             document.head.appendChild(fbStyle);
         }
 
-        // Zoom label reference
+        // Zoom label and slider references
         this.zoomLabel = this.toolbar.querySelector('#canvas-zoom-label');
+        this.zoomSlider = this.toolbar.querySelector('#canvas-zoom-slider');
 
         this.bindToolbar();
         this.bindEvents();
@@ -1024,8 +1072,10 @@ export const CanvasManager = {
         const countEl = this.toolbar ? this.toolbar.querySelector('#canvas-node-count') : null;
         if (countEl) countEl.textContent = count + ' node' + (count !== 1 ? 's' : '');
 
-        // Zoom label
-        if (this.zoomLabel) this.zoomLabel.textContent = Math.round(this.transform.scale * 100) + '%';
+        // Zoom label and slider
+        var zoomPct = Math.round(this.transform.scale * 100);
+        if (this.zoomLabel) this.zoomLabel.textContent = zoomPct + '%';
+        if (this.zoomSlider) this.zoomSlider.value = zoomPct;
 
         // Empty state hint
         if (this.hintOverlay) {
@@ -1094,6 +1144,15 @@ export const CanvasManager = {
         // ? SHORTCUTS button
         this.toolbar.querySelector('#canvas-shortcuts-btn').addEventListener('click', () => {
             this._showShortcutsPanel();
+        });
+
+        // Zoom slider
+        this.zoomSlider.addEventListener('input', () => {
+            var pct = parseInt(this.zoomSlider.value);
+            this.transform.scale = Math.max(0.1, Math.min(5, pct / 100));
+            this.updateTransform();
+            this.updateUI();
+            this._saveViewport();
         });
 
         // ≐ ALIGN button
