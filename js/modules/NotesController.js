@@ -815,7 +815,7 @@ export const Notes = {
         var textarea = document.getElementById('active-note-content');
         var blockEditorEl = document.getElementById('block-editor');
         var preview = document.getElementById('note-preview');
-        var toggleBtn = document.getElementById('preview-toggle');
+        // toggleBtn already declared at open() start — reuse existing reference
         var canvasContainer = document.getElementById('canvas-container'); // Canvas Integration
         
         // Phase 1: Canvas Routing Override
@@ -893,11 +893,10 @@ export const Notes = {
 
         // TRASH BANNER & READ-ONLY MODE
         var isTrash = note.path && note.path.indexOf('/.trash') === 0;
-        var editorModal = document.getElementById('note-editor-modal');
         var bannerContainer = document.getElementById('trash-banner-container');
         
-        // Ensure banner container exists
-        if (!bannerContainer && editorModal) {
+        // Ensure banner container exists (use cached _modalEl from open() start)
+        if (!bannerContainer && _modalEl) {
             bannerContainer = document.createElement('div');
             bannerContainer.id = 'trash-banner-container';
             // Insert before block-editor
