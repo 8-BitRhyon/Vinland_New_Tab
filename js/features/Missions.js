@@ -69,6 +69,13 @@ export function renderMissions() {
             div.classList.add('priority-' + task.priority);
         }
 
+        // ── Grip handle for drag affordance ──
+        var gripHandle = document.createElement('span');
+        gripHandle.className = 'grip-handle';
+        gripHandle.textContent = '⠿';
+        gripHandle.title = 'Drag to reorder';
+        div.appendChild(gripHandle);
+
         // ── Drag-to-reorder attributes ──
         div.draggable = true;
         div.setAttribute('data-task-index', originalIndex);
@@ -78,6 +85,14 @@ export function renderMissions() {
             _draggedIndex = parseInt(this.getAttribute('data-task-index'));
             e.dataTransfer.setData('text/plain', _draggedIndex);
             e.dataTransfer.effectAllowed = 'move';
+            // Set drag ghost image to a semi-transparent clone
+            if (e.dataTransfer.setDragImage) {
+                var ghost = this.cloneNode(true);
+                ghost.style.cssText = 'position:absolute;top:-9999px;opacity:0.6;background:rgba(0,0,0,0.8);border:1px solid var(--main-color);border-radius:4px;padding:4px 8px;transform:scale(0.95);';
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 20, this.offsetHeight / 2);
+                setTimeout(function() { ghost.remove(); }, 0);
+            }
             this.classList.add('dragging');
         });
 
@@ -86,8 +101,10 @@ export function renderMissions() {
             e.dataTransfer.dropEffect = 'move';
             var rect = this.getBoundingClientRect();
             var midY = rect.top + rect.height / 2;
-            this.classList.toggle('drop-before', e.clientY < midY);
-            this.classList.toggle('drop-after', e.clientY >= midY);
+            // Only show indicator if not dragging this item
+            var isSelf = parseInt(this.getAttribute('data-task-index')) === _draggedIndex;
+            this.classList.toggle('drop-before', !isSelf && e.clientY < midY);
+            this.classList.toggle('drop-after', !isSelf && e.clientY >= midY);
         });
 
         div.addEventListener('dragleave', function () {

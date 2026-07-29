@@ -6687,22 +6687,52 @@
       .mission-item {
         display: flex;
         align-items: baseline;
-        gap: 8px;
+        gap: 4px;
         color: var(--secondary-color);
         font-size: 0.85rem;
         margin-bottom: 6px;
-        padding-left: 0;
+        padding: 3px 0 3px 4px;
         line-height: 1.4;
         cursor: pointer;
+        transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        border-left: 2px solid transparent;
+        border-radius: 3px;
+        position: relative;
       }
 
       .mission-item:hover {
         background: rgba(255, 255, 255, 0.05);
+        border-left-color: rgba(255,255,255,0.1);
       }
 
       .mission-item.completed .mission-text {
         text-decoration: line-through;
         opacity: 0.5;
+      }
+
+      /* ── Grip Handle ── */
+      .grip-handle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        flex-shrink: 0;
+        color: transparent;
+        font-size: 0.55rem;
+        letter-spacing: -1px;
+        cursor: grab;
+        transition: color 0.12s ease, opacity 0.12s ease;
+        opacity: 0;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .mission-item:hover .grip-handle {
+        color: rgba(255, 255, 255, 0.3);
+        opacity: 1;
+      }
+      .mission-item[draggable="true"]:active .grip-handle,
+      .mission-item.dragging .grip-handle {
+        color: var(--main-color);
       }
 
       .task-checkbox {
@@ -6862,19 +6892,31 @@
       }
 
       /* ── Drag-to-Reorder ── */
+      @keyframes dropGlowPulse {
+        0%, 100% { box-shadow: 0 0 4px var(--main-color); }
+        50% { box-shadow: 0 0 10px var(--main-color), 0 0 20px rgba(0,255,65,0.15); }
+      }
+
       .mission-item.dragging {
-        opacity: 0.3;
-        outline: 1px dashed rgba(255,255,255,0.2);
+        opacity: 0.25;
+        transform: scale(0.95) rotate(-0.5deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        outline: 1px dashed rgba(255,255,255,0.15);
+        border-left-color: var(--main-color) !important;
+        background: rgba(0,255,65,0.03);
+        transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
       }
 
       .mission-item.drop-before {
         border-top: 2px solid var(--main-color) !important;
-        padding-top: 4px;
+        margin-top: 2px;
+        animation: dropGlowPulse 0.8s ease-in-out infinite;
       }
 
       .mission-item.drop-after {
         border-bottom: 2px solid var(--main-color) !important;
-        padding-bottom: 4px;
+        margin-bottom: 8px;
+        animation: dropGlowPulse 0.8s ease-in-out infinite;
       }
 
       .mission-item[draggable="true"] {
