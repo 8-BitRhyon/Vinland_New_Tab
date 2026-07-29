@@ -17,6 +17,7 @@ const suites = [
   'canvas-unit-tests.mjs',
   'snap-grid-unit-tests.mjs',
   'table-column-unit-tests.mjs',
+  'fuzzy-unit-tests.mjs',
 ];
 
 let exitCode = 0;

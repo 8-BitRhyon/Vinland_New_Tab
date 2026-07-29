@@ -54,6 +54,8 @@ function _fuzzyMatch(query, target) {
     return { score: 0, matched: [] };
 }
 
+export { _fuzzyMatch };
+
 export const CommandRegistry = {
     commands: [],
 
