@@ -483,25 +483,7 @@ export const Notes = {
             }
         });
 
-        // Global Shortcuts for Editor
-        document.addEventListener('keydown', function(e) {
-            // Only trigger if editor is open/modal is active
-            var editorModal = document.getElementById('note-editor-modal');
-            if (!editorModal || editorModal.style.display === 'none') return;
-
-            // CMD+E: Toggle Preview
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
-                e.preventDefault();
-                self.togglePreview();
-            }
-            
-            // CMD+S: Manual Save (though auto-save is on)
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-                e.preventDefault();
-                self.autoSave(); 
-                // Visual feedback?
-            }
-        });
+        // Editor shortcuts (Cmd+S, Cmd+E) handled globally in Input.js capture-phase
         var closeBtn = document.getElementById('note-editor-close');
         if (closeBtn) closeBtn.onclick = function() { window.closeNoteEditor(); };
 
@@ -677,25 +659,14 @@ export const Notes = {
         }
         
         // Keyboard Shortcuts (Global when note modal is open)
+        // Note: Cmd+S (save) and Cmd+E (toggle preview) handled globally in Input.js
+        // to prevent duplicate save flooding (audit P0 fix).
         document.addEventListener('keydown', function(e) {
             var modal = document.getElementById('note-editor-modal');
             var isNotesOpen = modal && modal.classList.contains('active');
             if (!isNotesOpen) return;
             
             var meta = e.ctrlKey || e.metaKey;
-            
-            // Cmd+S = Save
-            if (meta && e.key === 's') {
-                e.preventDefault();
-                self.save();
-                if (typeof showNotification === 'function') showNotification('Note saved');
-            }
-            
-            // Cmd+E = Toggle Preview/Edit
-            if (meta && e.key === 'e') {
-                e.preventDefault();
-                self.togglePreview();
-            }
             
             // Cmd+N = New Note
             if (meta && e.key === 'n') {
@@ -856,6 +827,11 @@ export const Notes = {
                 if (window.CanvasManager) window.CanvasManager.load(note.id);
             }
             if (window.ModalManager) window.ModalManager.open('note-editor-modal');
+            
+            // Push to browser history before returning (canvas notes need history too)
+            if (!this._historyPopState) {
+                this._pushHistoryState(note.id, !_modalWasActive);
+            }
             return;
         }
         
@@ -1171,12 +1147,11 @@ export const Notes = {
             if (State.NOTES.length > 0) {
                 var tabSwitched = false;
                 if (TabManager && TabManager.tabs.length > 0) {
-                    if (TabManager.currentIndex < TabManager.tabs.length) {
-                        this.open(TabManager.tabs[TabManager.currentIndex].noteId);
+                    if (TabManager.activeIndex < TabManager.tabs.length) {
+                        this.open(TabManager.tabs[TabManager.activeIndex].noteId);
                         tabSwitched = true;
                     } else if (TabManager.tabs.length > 0) {
-                        TabManager.currentIndex = TabManager.tabs.length - 1;
-                        this.open(TabManager.tabs[TabManager.currentIndex].noteId);
+                        this.open(TabManager.tabs[TabManager.tabs.length - 1].noteId);
                         tabSwitched = true;
                     }
                 }
