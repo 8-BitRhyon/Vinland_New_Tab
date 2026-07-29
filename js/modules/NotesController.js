@@ -30,6 +30,47 @@ export const Notes = {
     // Legacy flag for auto-created empty notes cleanup
     autoCreatedNoteId: null,
     isCleaningUpAutoNote: false,
+    _historyPopState: false, // Guard: prevent pushState loop from popstate
+
+    // ─── Browser History Navigation (pushState/popstate) ───
+
+    // Push note state into browser history so back/forward navigates between notes
+    _pushHistoryState: function(noteId, replace) {
+        if (this._historyPopState) return; // Don't re-push what popstate just restored
+        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        var title = note ? (note.title || 'Untitled') : 'Untitled';
+        var url = '?note=' + encodeURIComponent(noteId);
+        var state = { noteId: noteId, timestamp: Date.now() };
+        if (replace) {
+            history.replaceState(state, title, url);
+        } else {
+            history.pushState(state, title, url);
+        }
+    },
+
+    // Handle browser back/forward — restore the note from history state
+    _handlePopState: function(event) {
+        var state = event.state;
+        if (state && state.noteId) {
+            this._historyPopState = true;
+            this.open(state.noteId);
+            this._historyPopState = false;
+        }
+    },
+
+    // Check URL params on init for deep-linked note
+    _checkUrlForNote: function() {
+        var match = window.location.search.match(/[?&]note=([^&]+)/);
+        if (match) {
+            var noteId = decodeURIComponent(match[1]);
+            var note = State.NOTES.find(function(n) { return n.id === noteId; });
+            if (note) {
+                this.open(noteId, true);
+                return true;
+            }
+        }
+        return false;
+    },
 
     // Deep Link Support
     openByTitle: function(title) {
@@ -370,6 +411,13 @@ export const Notes = {
         
         // Restore sidebar state + resize handle
         this._initSidebar();
+
+        // Browser history: handle back/forward navigation
+        var self = this;
+        window.addEventListener('popstate', function(e) { self._handlePopState(e); });
+        
+        // Check URL for deep-linked note (before quick panel render)
+        var hasDeepLink = this._checkUrlForNote();
         
         // Restore sidebar state (persistence)
         try {
@@ -709,6 +757,10 @@ export const Notes = {
 
     open: function (noteId, skipFocus) {
         console.log('[Notes] open() called with ID:', noteId);
+        // Capture modal state BEFORE any ModalManager.open() calls below
+        var _modalEl = document.getElementById('note-editor-modal');
+        var _modalWasActive = _modalEl && _modalEl.classList.contains('active');
+        
         var toggleBtn = document.getElementById('preview-toggle');
         if (toggleBtn) toggleBtn.style.display = 'inline-block';
         
@@ -982,6 +1034,12 @@ export const Notes = {
         // Render version history panel (async, fire-and-forget)
         if (window.VersionHistoryManager && window.VersionHistoryManager.renderPanel) {
             window.VersionHistoryManager.renderPanel(note.id);
+        }
+
+        // Push to browser history (replaceState on first open, pushState on subsequent)
+        // _modalWasActive is captured at the top of open() before the modal is opened
+        if (!this._historyPopState) {
+            this._pushHistoryState(note.id, !_modalWasActive);
         }
     },
 
