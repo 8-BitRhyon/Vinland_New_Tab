@@ -34,6 +34,35 @@ export const Notes = {
 
     // ─── Browser History Navigation (pushState/popstate) ───
 
+    // ─── Private Helpers (extracted from open() for readability) ───
+
+    // Clean up auto-created empty notes when switching to a different note
+    _cleanupAutoNote: function(noteId) {
+        if (!this.autoCreatedNoteId || this.autoCreatedNoteId === noteId) return;
+        var autoNote = State.NOTES.find(function (n) { return n.id === Notes.autoCreatedNoteId; });
+        if (!autoNote) {
+            this.autoCreatedNoteId = null; // preserve original: always clear on condition
+            return;
+        }
+
+        var isCanvas = autoNote.type === 'canvas';
+        var titleEmpty = !autoNote.title || autoNote.title.trim() === '';
+        var contentEmpty = !autoNote.content || autoNote.content.trim() === '';
+        var blocksEmpty = !autoNote.blocks || autoNote.blocks.length === 0 || 
+            (autoNote.blocks.length === 1 && (!autoNote.blocks[0].content || autoNote.blocks[0].content.trim() === ''));
+
+        if (!isCanvas && titleEmpty && contentEmpty && blocksEmpty) {
+            var autoNoteId = this.autoCreatedNoteId;
+            State.NOTES = State.NOTES.filter(function (n) { return n.id !== autoNoteId; });
+            saveData();
+            this.isCleaningUpAutoNote = true;
+            if (TabManager) TabManager.closeTabById(autoNoteId);
+            this.isCleaningUpAutoNote = false;
+            this.renderSidebar();
+        }
+        this.autoCreatedNoteId = null;
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -735,28 +764,8 @@ export const Notes = {
         var toggleBtn = document.getElementById('preview-toggle');
         if (toggleBtn) toggleBtn.style.display = 'inline-block';
         
-        // Cleanup Logic
-        if (this.autoCreatedNoteId && this.autoCreatedNoteId !== noteId) {
-            var autoNote = State.NOTES.find(function (n) { return n.id === Notes.autoCreatedNoteId; });
-            if (autoNote) {
-                var isCanvas = autoNote.type === 'canvas';
-                var titleEmpty = !autoNote.title || autoNote.title.trim() === '';
-                var contentEmpty = !autoNote.content || autoNote.content.trim() === '';
-                var blocksEmpty = !autoNote.blocks || autoNote.blocks.length === 0 || 
-                    (autoNote.blocks.length === 1 && (!autoNote.blocks[0].content || autoNote.blocks[0].content.trim() === ''));
-                
-                if (!isCanvas && titleEmpty && contentEmpty && blocksEmpty) {
-                    var autoNoteId = this.autoCreatedNoteId;
-                    State.NOTES = State.NOTES.filter(function (n) { return n.id !== autoNoteId; });
-                    saveData();
-                    this.isCleaningUpAutoNote = true;
-                    if (TabManager) TabManager.closeTabById(autoNoteId);
-                    this.isCleaningUpAutoNote = false;
-                    this.renderSidebar();
-                }
-            }
-            this.autoCreatedNoteId = null;
-        }
+        // Cleanup auto-created empty notes when switching
+        this._cleanupAutoNote(noteId);
         
         if (this.activeNoteId && this.activeNoteId !== noteId) {
             var current = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
