@@ -3,6 +3,10 @@ import { saveData } from '../core/Storage.js';
 import { saveConfig } from '../core/Config.js';
 import { safeText } from '../core/Utils.js';
 
+// ─── DRAG STATE (module-level, persists across renders) ─────
+var _draggedIndex = null;
+var _completeAnimTimer = null;
+
 // Helper for global notification
 function getShowNotification() {
     return window.showNotification || function(msg) { console.log('Notify:', msg); };
@@ -14,7 +18,6 @@ export function renderMissions() {
     if (!list || !container) return;
 
     if (!State.TASKS || State.TASKS.length === 0) {
-        // Empty state: keep panel visible with a discoverable CTA
         container.classList.add('active');
         list.innerHTML = '<div class="empty-state-hint">' +
             '<div class="empty-state-title">NO ACTIVE MISSIONS</div>' +
@@ -65,6 +68,62 @@ export function renderMissions() {
         if (task.priority && task.priority !== 'normal') {
             div.classList.add('priority-' + task.priority);
         }
+
+        // ── Drag-to-reorder attributes ──
+        div.draggable = true;
+        div.setAttribute('data-task-index', originalIndex);
+
+        // ── Drag event handlers ──
+        div.addEventListener('dragstart', function (e) {
+            _draggedIndex = parseInt(this.getAttribute('data-task-index'));
+            e.dataTransfer.setData('text/plain', _draggedIndex);
+            e.dataTransfer.effectAllowed = 'move';
+            this.classList.add('dragging');
+        });
+
+        div.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            var rect = this.getBoundingClientRect();
+            var midY = rect.top + rect.height / 2;
+            this.classList.toggle('drop-before', e.clientY < midY);
+            this.classList.toggle('drop-after', e.clientY >= midY);
+        });
+
+        div.addEventListener('dragleave', function () {
+            this.classList.remove('drop-before', 'drop-after');
+        });
+
+        div.addEventListener('dragend', function () {
+            document.querySelectorAll('.mission-item').forEach(function (el) {
+                el.classList.remove('dragging', 'drop-before', 'drop-after');
+            });
+            _draggedIndex = null;
+        });
+
+        div.addEventListener('drop', function (e) {
+            e.preventDefault();
+            var fromIdx = _draggedIndex;
+            var toIdx = parseInt(this.getAttribute('data-task-index'));
+            var dropAfter = this.classList.contains('drop-after');
+
+            document.querySelectorAll('.mission-item').forEach(function (el) {
+                el.classList.remove('dragging', 'drop-before', 'drop-after');
+            });
+            _draggedIndex = null;
+
+            if (fromIdx === null || fromIdx === toIdx) return;
+
+            // Reorder State.TASKS: remove from old position, insert at new
+            var task = State.TASKS.splice(fromIdx, 1)[0];
+            var adjustedToIdx = (fromIdx < toIdx) ? toIdx - 1 : toIdx;
+            if (dropAfter) adjustedToIdx++;
+            adjustedToIdx = Math.max(0, Math.min(adjustedToIdx, State.TASKS.length));
+            State.TASKS.splice(adjustedToIdx, 0, task);
+
+            saveData();
+            renderMissions();
+        });
 
         // .0: Priority indicator
         var priorityIndicator = document.createElement('span');
@@ -166,12 +225,46 @@ export function addTask(rawText, timeOverride) {
 }
 
 export function toggleTaskComplete(index) {
-    if (State.TASKS[index]) {
-        State.TASKS[index].completed = !State.TASKS[index].completed;
-        saveData();
+    if (!State.TASKS[index]) return;
+
+    State.TASKS[index].completed = !State.TASKS[index].completed;
+    saveData();
+
+    // Animate the DOM element in-place (no full re-render during animation)
+    var item = document.querySelector('.mission-item[data-task-index="' + index + '"]');
+    if (item) {
+        // Cancel any pending animation re-render
+        if (_completeAnimTimer) {
+            clearTimeout(_completeAnimTimer);
+            _completeAnimTimer = null;
+        }
+
+        item.classList.toggle('completed');
+        item.classList.remove('completing');
+
+        // Force reflow so the animation restarts if re-toggling
+        void item.offsetWidth;
+
+        item.classList.add('completing');
+
+        // Update checkbox text immediately for responsive feel
+        var chk = item.querySelector('.task-checkbox');
+        if (chk) {
+            var nowCompleted = State.TASKS[index].completed;
+            chk.textContent = '[' + (nowCompleted ? 'x' : '\u00A0') + '] ';
+        }
+
+        // Re-render after animation completes to sync any filters/ordering
+        _completeAnimTimer = setTimeout(function () {
+            _completeAnimTimer = null;
+            renderMissions();
+        }, 500);
+    } else {
+        // Fallback: immediate re-render
         renderMissions();
-        updateProgressBar(); 
     }
+
+    updateProgressBar();
 }
 
 export function clearCompletedTasks() {

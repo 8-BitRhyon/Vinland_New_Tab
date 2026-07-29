@@ -35,9 +35,11 @@ export const Background = {
 
         var bgList = CONFIG.backgrounds && CONFIG.backgrounds.length > 0 ? CONFIG.backgrounds : [];
 
-        // No backgrounds configured - use default or solid color
+        // No backgrounds configured - use solid color (avoids 404 from missing background.mp4)
         if (bgList.length === 0) {
-            this.tryLoadVideo('background.mp4');
+            if (this.video) this.video.style.display = 'none';
+            this.bgImage.style.display = 'none';
+            document.body.style.backgroundColor = CONFIG.background_color || '#000';
             return;
         }
 
@@ -61,11 +63,15 @@ export const Background = {
                     }
                 } else {
                     console.log('Asset missing from Vault:', key);
-                    this.tryLoadVideo('background.mp4');
+                    if (this.video) this.video.style.display = 'none';
+                    this.bgImage.style.display = 'none';
+                    document.body.style.backgroundColor = State.CONFIG.background_color || '#000';
                 }
             }).catch((e) => {
                 console.error('DB Error', e);
-                this.tryLoadVideo('background.mp4');
+                if (this.video) this.video.style.display = 'none';
+                this.bgImage.style.display = 'none';
+                document.body.style.backgroundColor = State.CONFIG.background_color || '#000';
             });
             return;
         }
@@ -119,8 +125,8 @@ export const Background = {
             State.BG_RETRY_COUNT++;
             if (State.BG_RETRY_COUNT > State.BG_MAX_RETRIES) {
                 this.video.style.display = 'none';
-                if (src !== 'background.mp4') this.tryLoadVideo('background.mp4');
-                else document.body.style.backgroundColor = State.CONFIG.background_color || '#000';
+                // Fallback directly to solid color instead of non-existent background.mp4
+                document.body.style.backgroundColor = State.CONFIG.background_color || '#000';
                 return;
             }
         };

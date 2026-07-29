@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TERMINAL : --</title>
     <link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg" />
     <link rel="stylesheet" href="assets/design-tokens.css" />
@@ -970,6 +971,16 @@
           opacity: 1 !important;
           stroke-width: 3 !important;
           filter: drop-shadow(0 0 4px var(--main-color, #00ff41));
+      }
+
+      /* ── Canvas Temp Edge (draw preview with marching ants) ── */
+      @keyframes canvasEdgeDraw {
+        from { stroke-dashoffset: 28; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .canvas-temp-edge {
+        animation: canvasEdgeDraw 0.6s linear infinite;
+        filter: drop-shadow(0 0 6px var(--main-color, #00ff41));
       }
 
       /* ── Canvas Edge Label (SVG text with pill background) ── */
@@ -6801,6 +6812,68 @@
         }
       }
 
+      /* ── Completion Animation ── */
+      @keyframes taskCompleteIn {
+        0% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        30% {
+          opacity: 1;
+          transform: translateX(-4px);
+        }
+        100% {
+          opacity: 0.5;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes checkPop {
+        0% { transform: scale(0.2); opacity: 0; }
+        50% { transform: scale(1.4); opacity: 1; }
+        70% { transform: scale(0.9); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+
+      .mission-item.completing {
+        animation: taskCompleteIn 0.45s ease-out forwards;
+      }
+
+      .mission-item.completing .task-checkbox {
+        animation: checkPop 0.4s ease-out forwards;
+        color: var(--main-color);
+      }
+
+      .mission-item.completing .mission-text {
+        text-decoration: line-through;
+        opacity: 0.6;
+        transition: all 0.3s ease;
+      }
+
+      /* ── Drag-to-Reorder ── */
+      .mission-item.dragging {
+        opacity: 0.3;
+        outline: 1px dashed rgba(255,255,255,0.2);
+      }
+
+      .mission-item.drop-before {
+        border-top: 2px solid var(--main-color) !important;
+        padding-top: 4px;
+      }
+
+      .mission-item.drop-after {
+        border-bottom: 2px solid var(--main-color) !important;
+        padding-bottom: 4px;
+      }
+
+      .mission-item[draggable="true"] {
+        cursor: grab;
+      }
+
+      .mission-item[draggable="true"]:active {
+        cursor: grabbing;
+      }
+
       .mission-time {
         color: var(--main-color);
         font-size: 0.65rem;
@@ -8876,7 +8949,6 @@
           max-width: none;
           transform: none;
           max-height: 15vh;
-          /* .5: Further reduced */
           overflow-y: auto;
           font-size: 0.7rem;
           z-index: 100 !important;
@@ -8891,14 +8963,11 @@
         #mission-log.active {
           display: block !important;
         }
-
-        /* Ensure text wraps correctly in narrow view */
         #mission-log .mission-text {
           white-space: normal;
           word-break: break-word;
         }
 
-        /* .7: Notes panel matches Tasks panel styling */
         #notes-panel {
           position: fixed;
           bottom: 60px;
@@ -8928,12 +8997,45 @@
 
         .hud-container {
           top: 45%;
-          /* Move HUD back up to center/upper-center */
           padding-top: 0;
         }
 
         #pomodoro-container {
           transform: scale(0.85);
+        }
+
+        /* CLI bar compact for tablets */
+        .prompt {
+          font-size: 1.2rem;
+          margin-right: 10px;
+        }
+        #cmd-input {
+          font-size: 1.1rem;
+        }
+        .cmd-wrapper {
+          padding: 12px 16px;
+        }
+        .input-group {
+          max-width: 90vw;
+        }
+
+        /* Config/help/download buttons repositioned for smaller screens */
+        #help-btn {
+          top: 12px;
+          right: 14px;
+        }
+        #config-btn {
+          top: 12px;
+          right: 58px;
+        }
+        #download-btn {
+          top: 12px;
+          right: 96px;
+        }
+
+        /* Suggestions dropdown: full-width on mobile */
+        #suggestions {
+          max-height: 220px;
         }
       }
 
@@ -8949,41 +9051,48 @@
         }
 
         #mission-log {
-          top: 70px;
-          /* Keep at top */
+          top: 60px;
           bottom: auto;
-          /* Override previous bottom: 200px */
-          max-height: 15vh;
-          /* .8: Strict height limit to avoid clock */
+          max-height: 14vh;
         }
 
         #mission-log::-webkit-scrollbar {
           display: block !important;
-          /* Force scrollbar */
         }
 
-        /* .7: Notes panel matches Tasks panel in very narrow viewport */
         #notes-panel {
-          bottom: 85px;
-          /* .8: Raised higher to clear shortcut hint + dock */
+          bottom: 80px;
           left: 10px;
           right: 10px;
           width: auto;
           max-width: none;
           transform: none;
-          max-height: 18vh;
+          max-height: 16vh;
         }
 
         #clock {
-          font-size: 2.8rem;
+          font-size: 2.5rem;
+          letter-spacing: -2px;
+        }
+
+        #greeting {
+          font-size: 0.7rem;
+          letter-spacing: 1px;
+        }
+
+        #date {
+          font-size: 0.8rem;
+          letter-spacing: 3px;
+          margin-bottom: 20px;
         }
 
         .hud-container {
-          top: 45%;
+          top: 42%;
+          width: 92%;
         }
 
         #status-bar {
-          font-size: 0.6rem;
+          font-size: 0.55rem;
           flex-wrap: wrap;
           gap: 10px;
         }
@@ -9021,6 +9130,138 @@
         .config-input,
         .config-select {
           width: 100%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        /* Compact phone layout */
+        #clock {
+          font-size: 2rem;
+          letter-spacing: -1px;
+        }
+        #greeting {
+          font-size: 0.65rem;
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+        }
+        #date {
+          font-size: 0.7rem;
+          letter-spacing: 2px;
+          margin-bottom: 14px;
+        }
+        .hud-container {
+          top: 38%;
+          width: 95%;
+        }
+        #mission-log {
+          top: 50px;
+          max-height: 12vh;
+          left: 6px;
+          right: 6px;
+          padding: 10px;
+          font-size: 0.65rem;
+        }
+        #notes-panel {
+          bottom: 72px;
+          left: 6px;
+          right: 6px;
+          padding: 10px;
+          font-size: 0.65rem;
+          max-height: 14vh;
+        }
+
+        /* CLI bar: compact for thumb typing */
+        .prompt {
+          font-size: 1rem;
+          margin-right: 8px;
+        }
+        #cmd-input {
+          font-size: 0.95rem;
+        }
+        .cmd-wrapper {
+          padding: 10px 12px;
+        }
+        .input-group {
+          max-width: 96vw;
+        }
+        #suggestions {
+          max-height: 180px;
+          font-size: 0.8rem;
+        }
+        #suggestions .suggestion-item {
+          padding: 10px 14px;
+        }
+
+        /* Touch-friendly buttons and controls */
+        .dock a {
+          font-size: 0.55rem;
+          padding: 8px 6px;
+          min-height: 36px;
+          display: inline-flex;
+          align-items: center;
+        }
+        .modal {
+          width: 98vw;
+          max-height: 90vh;
+          font-size: 0.8rem;
+        }
+        .config-row,
+        .toggle-row,
+        .slider-row {
+          flex-direction: column;
+        }
+        .config-input,
+        .config-select {
+          width: 100%;
+          min-height: 36px;
+        }
+        .config-header {
+          font-size: 0.8rem;
+          padding: 10px 12px;
+        }
+        #status-bar {
+          font-size: 0.5rem;
+          gap: 6px;
+          padding: 6px 10px;
+        }
+        #pomodoro-container {
+          transform: scale(0.65);
+        }
+        .progress-container {
+          max-width: 160px;
+        }
+
+        /* Reposition top buttons for small screens */
+        #help-btn {
+          top: 8px;
+          right: 10px;
+          width: 32px;
+          height: 32px;
+          font-size: 0.8rem;
+        }
+        #config-btn {
+          top: 8px;
+          right: 48px;
+          width: 32px;
+          height: 32px;
+        }
+        #download-btn {
+          top: 8px;
+          right: 84px;
+          width: 32px;
+          height: 32px;
+          font-size: 0.8rem;
+        }
+
+        /* Shortcut hint: one line at the very bottom */
+        #shortcut-hint {
+          font-size: 0.5rem;
+          padding: 4px 10px;
+          bottom: 2px;
+        }
+        #shortcut-hint kbd {
+          font-size: 0.5rem;
+          padding: 1px 4px;
         }
       }
       /* =========================================

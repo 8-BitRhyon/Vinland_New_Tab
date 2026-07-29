@@ -2833,14 +2833,26 @@ export const CanvasManager = {
         const x1 = nodeData.x + (nodeData.width || 200) / 2;
         const y1 = nodeData.y + (nodeData.height || 80) / 2;
 
+        // ── Animated temp edge ──
         this.tempEdge = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        this.tempEdge.classList.add('canvas-temp-edge');
         this.tempEdge.setAttribute('stroke', 'var(--main-color, #00ff41)');
         this.tempEdge.setAttribute('stroke-width', '2');
-        this.tempEdge.setAttribute('stroke-dasharray', '6,4');
+        this.tempEdge.setAttribute('stroke-dasharray', '8,6');
         this.tempEdge.setAttribute('fill', 'none');
-        this.tempEdge.setAttribute('opacity', '0.6');
+        this.tempEdge.setAttribute('opacity', '0.7');
         this.tempEdge.setAttribute('marker-end', 'url(#canvas-arrowhead)');
         this.svgLayer.appendChild(this.tempEdge);
+
+        // ── Cursor dot: a small ring following the mouse ──
+        this._tempEdgeDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        this._tempEdgeDot.setAttribute('r', '6');
+        this._tempEdgeDot.setAttribute('fill', 'none');
+        this._tempEdgeDot.setAttribute('stroke', 'var(--main-color, #00ff41)');
+        this._tempEdgeDot.setAttribute('stroke-width', '2');
+        this._tempEdgeDot.setAttribute('opacity', '0.8');
+        this._tempEdgeDot.style.pointerEvents = 'none';
+        this.svgLayer.appendChild(this._tempEdgeDot);
 
         const onMouseMoveEdge = (moveEvent) => {
             const rect = this.container.getBoundingClientRect();
@@ -2852,6 +2864,12 @@ export const CanvasManager = {
             const tension = Math.abs(targetX - fromPort.x) * 0.4;
             const d = `M ${fromPort.x} ${fromPort.y} C ${fromPort.x + tension} ${fromPort.y}, ${targetX - tension} ${targetY}, ${targetX} ${targetY}`;
             this.tempEdge.setAttribute('d', d);
+
+            // Move cursor dot to current mouse position in world coords
+            if (this._tempEdgeDot) {
+                this._tempEdgeDot.setAttribute('cx', targetX);
+                this._tempEdgeDot.setAttribute('cy', targetY);
+            }
         };
 
         const onMouseUpEdge = (upEvent) => {
@@ -2862,6 +2880,10 @@ export const CanvasManager = {
             if (this.tempEdge) {
                 this.tempEdge.remove();
                 this.tempEdge = null;
+            }
+            if (this._tempEdgeDot) {
+                this._tempEdgeDot.remove();
+                this._tempEdgeDot = null;
             }
 
             const dropTarget = upEvent.target.closest('.canvas-card');
