@@ -44,22 +44,81 @@ export const Notes = {
 
     toggleSidebar: function() {
         console.log('[Notes] toggleSidebar called');
-        // Updated to target the ACTUAL sidebar (.notes-sidebar) instead of just the panel
-        // This fixes CMD+\ behavior to match user expectation.
         var sidebar = document.querySelector('.notes-sidebar');
         if (sidebar) {
             sidebar.classList.toggle('collapsed');
             var isCollapsed = sidebar.classList.contains('collapsed');
             console.log('[Notes] Sidebar collapsed:', isCollapsed);
             localStorage.setItem('VINLAND_SIDEBAR_COLLAPSED', isCollapsed ? '1' : '0');
+            // Remove force-open when user manually toggles (responsive override)
+            sidebar.classList.remove('sidebar-force-open');
+        }
+    },
+
+    // Initialize sidebar: restore persisted state, default to open
+    _initSidebar: function() {
+        var sidebar = document.querySelector('.notes-sidebar');
+        if (!sidebar) return;
+        
+        var saved = localStorage.getItem('VINLAND_SIDEBAR_COLLAPSED');
+        if (saved === '1') {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
         }
 
-        // Optional: Also toggle the panel if it's meant to be synced, 
-        // but user specifically complained about "Only closes Quick Notes".
-        // So we might want to LEAVE the panel alone (it lives inside sidebar usually).
-        // If #notes-panel is the "Quick Notes" list, it should probably be visible if sidebar is open.
-        // I will rely on CSS structure: if sidebar is collapsed, content is hidden.
-        // So just toggling sidebar class is sufficient.
+        // Restore persisted width
+        var savedWidth = localStorage.getItem('VINLAND_SIDEBAR_WIDTH');
+        if (savedWidth) {
+            var w = parseInt(savedWidth, 10);
+            if (w >= 180 && w <= 500) {
+                sidebar.style.width = w + 'px';
+                sidebar.style.minWidth = w + 'px';
+            }
+        }
+        
+        // Bind resize handle
+        this._initSidebarResize();
+    },
+
+    // Sidebar drag resize
+    _initSidebarResize: function() {
+        var handle = document.getElementById('sidebar-resize-handle');
+        var sidebar = document.querySelector('.notes-sidebar');
+        if (!handle || !sidebar) return;
+
+        var self = this;
+        var startX, startWidth;
+
+        function onMouseMove(e) {
+            var newWidth = startWidth + (e.clientX - startX);
+            // Clamp between 180px and 500px
+            newWidth = Math.max(180, Math.min(500, newWidth));
+            sidebar.style.width = newWidth + 'px';
+            sidebar.style.minWidth = newWidth + 'px';
+            handle.classList.add('resizing');
+        }
+
+        function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            handle.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            // Persist width
+            var w = parseInt(sidebar.style.width, 10);
+            if (w > 0) localStorage.setItem('VINLAND_SIDEBAR_WIDTH', w);
+        }
+
+        handle.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            startX = e.clientX;
+            startWidth = sidebar.offsetWidth;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
     },
 
     // Plain-text preview extractor for Quick Notes teaser
@@ -308,6 +367,9 @@ export const Notes = {
 
         this.bindEvents();
         this.bindPreviewListeners(); // Preview Interactivity
+        
+        // Restore sidebar state + resize handle
+        this._initSidebar();
         
         // Restore sidebar state (persistence)
         try {

@@ -7372,7 +7372,20 @@
         display: none !important;
       }
 
+      /* ── Wide note editor modal for side-by-side layout ── */
+      .notes-modal {
+        width: 860px !important;
+        max-width: 95vw;
+      }
+
+      @media (max-width: 900px) {
+        .notes-modal {
+          width: 95vw !important;
+        }
+      }
+
       .notes-sidebar {
+        position: relative;
         width: 280px;
         min-width: 220px;
         border-right: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
@@ -7380,16 +7393,49 @@
         flex-direction: column;
         background: rgba(0, 0, 0, 0.3);
         transition:
-          width 0.2s ease,
-          min-width 0.2s ease;
+          width 0.25s cubic-bezier(0.2, 0, 0, 1),
+          min-width 0.25s cubic-bezier(0.2, 0, 0, 1),
+          opacity 0.2s ease;
+        overflow: hidden;
       }
 
       /* Sidebar collapsed state */
       .notes-sidebar.collapsed {
         width: 0;
         min-width: 0;
-        overflow: hidden;
         border-right: none;
+        opacity: 0;
+        padding: 0;
+      }
+
+      /* On narrow viewports, auto-collapse sidebar unless user has forced it open */
+      @media (max-width: 1100px) {
+        .notes-sidebar:not(.sidebar-force-open) {
+          width: 0;
+          min-width: 0;
+          border-right: none;
+          opacity: 0;
+          overflow: hidden;
+          padding: 0;
+        }
+      }
+
+      /* Sidebar drag resize handle */
+      .sidebar-resize-handle {
+        position: absolute;
+        top: 0;
+        right: -3px;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 10;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .sidebar-resize-handle:hover,
+      .sidebar-resize-handle.resizing {
+        opacity: 1;
+        background: rgba(var(--main-color-rgb, 0,255,65), 0.3);
       }
 
       .sidebar-header {
@@ -12817,7 +12863,8 @@
       </div>
       <div class="notes-container">
         <!-- SIDEBAR -->
-        <div class="notes-sidebar">
+        <div class="notes-sidebar" id="notes-sidebar">
+          <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
           <div
             class="sidebar-header"
             style="
