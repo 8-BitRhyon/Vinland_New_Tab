@@ -154,6 +154,38 @@ export const Notes = {
         return note;
     },
 
+    // Route to canvas or standard editor containers. Returns true if canvas (caller should return).
+    _setupEditorContainers: function(note, _modalWasActive) {
+        var toggleBtn = document.getElementById('preview-toggle');
+        var canvasContainer = document.getElementById('canvas-container');
+
+        if (note.type === 'canvas') {
+            console.log('[Notes] Canvas routing - noteId:', note.id, '| container found:', !!canvasContainer);
+            var textarea = document.getElementById('active-note-content');
+            var blockEditorEl = document.getElementById('block-editor');
+            var preview = document.getElementById('note-preview');
+            if (textarea) textarea.style.display = 'none';
+            if (preview) { preview.classList.remove('active'); preview.style.display = 'none'; }
+            if (blockEditorEl) blockEditorEl.style.display = 'none';
+            if (toggleBtn) toggleBtn.style.display = 'none';
+            if (canvasContainer) {
+                canvasContainer.style.display = 'flex';
+                console.log('[Notes] Canvas container shown. offsetHeight:', canvasContainer.offsetHeight, '| offsetWidth:', canvasContainer.offsetWidth);
+                if (window.CanvasManager) window.CanvasManager.load(note.id);
+            }
+            if (window.ModalManager) window.ModalManager.open('note-editor-modal');
+            if (!this._historyPopState) {
+                this._pushHistoryState(note.id, !_modalWasActive);
+            }
+            return true;
+        }
+
+        // Standard note: hide canvas, show toggle
+        if (canvasContainer) canvasContainer.style.display = 'none';
+        if (toggleBtn) toggleBtn.style.display = 'inline-block';
+        return false;
+    },
+
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
@@ -830,40 +862,14 @@ export const Notes = {
         var titleInput = document.getElementById('active-note-title');
         if (titleInput) titleInput.value = note.title || '';
         
+        // Route to canvas or standard editor containers
+        if (this._setupEditorContainers(note, _modalWasActive)) return;
+
+        // DOM references needed for preview/edit mode below
         var textarea = document.getElementById('active-note-content');
         var blockEditorEl = document.getElementById('block-editor');
         var preview = document.getElementById('note-preview');
         // toggleBtn already declared at open() start — reuse existing reference
-        var canvasContainer = document.getElementById('canvas-container'); // Canvas Integration
-        
-        // Phase 1: Canvas Routing Override
-        if (note.type === 'canvas') {
-            console.log('[Notes] Canvas routing - noteId:', note.id, '| container found:', !!canvasContainer);
-            if (textarea) textarea.style.display = 'none';
-            if (preview) {
-                preview.classList.remove('active');
-                preview.style.display = 'none';
-            }
-            if (blockEditorEl) blockEditorEl.style.display = 'none';
-            if (toggleBtn) toggleBtn.style.display = 'none';
-            
-            if (canvasContainer) {
-                canvasContainer.style.display = 'flex';
-                console.log('[Notes] Canvas container shown. offsetHeight:', canvasContainer.offsetHeight, '| offsetWidth:', canvasContainer.offsetWidth);
-                if (window.CanvasManager) window.CanvasManager.load(note.id);
-            }
-            if (window.ModalManager) window.ModalManager.open('note-editor-modal');
-            
-            // Push to browser history before returning (canvas notes need history too)
-            if (!this._historyPopState) {
-                this._pushHistoryState(note.id, !_modalWasActive);
-            }
-            return;
-        }
-        
-        // Reset defaults for standard markdown/text notes
-        if (canvasContainer) canvasContainer.style.display = 'none';
-        if (toggleBtn) toggleBtn.style.display = 'inline-block';
 
         // .37: Open modal BEFORE rendering so a render error can't prevent the editor from showing.
         if (window.ModalManager) window.ModalManager.open('note-editor-modal');
