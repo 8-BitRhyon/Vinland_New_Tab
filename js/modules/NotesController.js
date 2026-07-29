@@ -36,6 +36,40 @@ export const Notes = {
 
     // ─── Private Helpers ───
 
+    _bindShortcuts: function() {
+        // Note: Cmd+S (save) and Cmd+E (toggle preview) handled globally in Input.js
+        // to prevent duplicate save flooding (audit P0 fix).
+        var self = this;
+        document.addEventListener('keydown', function(e) {
+            var modal = document.getElementById('note-editor-modal');
+            var isNotesOpen = modal && modal.classList.contains('active');
+            if (!isNotesOpen) return;
+
+            var meta = e.ctrlKey || e.metaKey;
+
+            // Cmd+N = New Note
+            if (meta && e.key === 'n') {
+                e.preventDefault();
+                // Prevent infinite untitled notes
+                if (self.activeNoteId) {
+                    var currentNote = State.NOTES.find(function(n) { return n.id === self.activeNoteId; });
+                    if (currentNote && (!currentNote.title || currentNote.title.trim() === '')) {
+                        if (typeof showNotification === 'function') showNotification('Please name your current note first');
+                        document.getElementById('active-note-title').focus();
+                        return;
+                    }
+                }
+                self.create();
+            }
+
+            // Cmd+P = Toggle Pin
+            if (meta && e.key.toLowerCase() === 'p') {
+                e.preventDefault();
+                self.togglePin();
+            }
+        });
+    },
+
     _bindSidebarSearch: function() {
         var search = document.getElementById('notes-search');
         if (search) {
@@ -726,39 +760,7 @@ export const Notes = {
             };
         }
         
-        // Keyboard Shortcuts (Global when note modal is open)
-        // Note: Cmd+S (save) and Cmd+E (toggle preview) handled globally in Input.js
-        // to prevent duplicate save flooding (audit P0 fix).
-        document.addEventListener('keydown', function(e) {
-            var modal = document.getElementById('note-editor-modal');
-            var isNotesOpen = modal && modal.classList.contains('active');
-            if (!isNotesOpen) return;
-            
-            var meta = e.ctrlKey || e.metaKey;
-            
-            // Cmd+N = New Note
-            if (meta && e.key === 'n') {
-                e.preventDefault();
-                // Prevent infinite untitled notes
-                if (self.activeNoteId) {
-                    var currentNote = State.NOTES.find(function(n) { return n.id === self.activeNoteId; });
-                    if (currentNote && (!currentNote.title || currentNote.title.trim() === '')) {
-                        if (typeof showNotification === 'function') showNotification('Please name your current note first');
-                        document.getElementById('active-note-title').focus();
-                        return;
-                    }
-                }
-                self.create();
-            }
-            
-            // CMD+\ Listener Removed (Handled globally in Input.js)
-            
-            // Cmd+P = Toggle Pin
-            if (meta && e.key.toLowerCase() === 'p') {
-                e.preventDefault();
-                self.togglePin();
-            }
-        });
+        this._bindShortcuts();
         
         // WikiLink Click Handling in Preview
         var preview = document.getElementById('note-preview');
