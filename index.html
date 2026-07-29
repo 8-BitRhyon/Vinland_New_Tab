@@ -5882,6 +5882,36 @@
         max-height: 3.9em;
       }
 
+      /* Graph folder filter dropdown */
+      .graph-folder-filter {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.2);
+        color: var(--secondary-color, #888);
+        font-family: var(--font-main, monospace);
+        font-size: 0.7rem;
+        padding: 5px 8px;
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+        max-width: 160px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: border-color 0.15s ease, color 0.15s ease;
+      }
+      .graph-folder-filter:hover {
+        border-color: var(--main-color, #00ff41);
+        color: var(--main-color, #00ff41);
+      }
+      .graph-folder-filter:focus {
+        border-color: var(--main-color, #00ff41);
+        box-shadow: 0 0 8px rgba(var(--main-color-rgb, 0, 255, 65), 0.1);
+      }
+      .graph-folder-filter option {
+        background: #111;
+        color: #ccc;
+        padding: 4px;
+      }
+
       /* Active node pulse animation */
       @keyframes graphNodePulse {
         0%,
@@ -13799,6 +13829,9 @@
               outline: none;
             "
           />
+          <select id="graph-folder-filter" class="graph-folder-filter" title="Scope graph to a folder">
+            <option value="">ALL FOLDERS</option>
+          </select>
           <button class="graph-mode-toggle" id="graph-mode-toggle">
             GLOBAL
           </button>

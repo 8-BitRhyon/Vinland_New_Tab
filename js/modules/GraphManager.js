@@ -14,6 +14,7 @@ export const GraphManager = {
     filterQuery: '', // Search/filter query
     zoomBehavior: null, // D3 zoom behavior (stored for zoom-to-fit)
     svgSelection: null, // D3 SVG selection (parent of zoom)
+    folderFilter: '', // Selected folder for graph scoping
     _clickTimer: null, // Timer for click/dblclick separation
 
     // .38: Persist graph node positions to localStorage
@@ -232,6 +233,25 @@ export const GraphManager = {
             resetBtn.onclick = function() { self.resetLayout(); };
         }
 
+        // Wire folder filter dropdown change
+        var folderSelect = document.getElementById('graph-folder-filter');
+        if (folderSelect) {
+            // Remove old listener to avoid duplicates
+            if (this._folderFilterHandler) {
+                folderSelect.removeEventListener('change', this._folderFilterHandler);
+            }
+            this._folderFilterHandler = function() {
+                self.folderFilter = folderSelect.value;
+                self._pendingZoomFit = true;
+                self.render();
+            };
+            folderSelect.addEventListener('change', this._folderFilterHandler);
+            folderSelect.value = this.folderFilter;
+        }
+
+        // Build folder options from current notes
+        this._buildFolderOptions();
+
         // Wire close button to call close() for cleanup
         var closeBtn = document.getElementById('graph-modal-close');
         if (closeBtn) {
@@ -261,6 +281,12 @@ export const GraphManager = {
                 searchInput.removeEventListener('keydown', this._searchKeyHandler);
                 this._searchKeyHandler = null;
             }
+        }
+        // Clean up folder filter listener
+        var folderSelect = document.getElementById('graph-folder-filter');
+        if (folderSelect && this._folderFilterHandler) {
+            folderSelect.removeEventListener('change', this._folderFilterHandler);
+            this._folderFilterHandler = null;
         }
     },
 
@@ -376,6 +402,34 @@ export const GraphManager = {
         if (connectedNodes.length > 0) {
             this._zoomToFit(connectedNodes, 500);
         }
+    },
+
+    // ─── Folder Scoping ──────────────────────────────────────────
+
+    /** Build the folder filter dropdown options from active notes */
+    _buildFolderOptions: function() {
+        var select = document.getElementById('graph-folder-filter');
+        if (!select) return;
+
+        // Collect unique first-level folders from active (non-trashed) notes
+        var folders = new Set();
+        State.NOTES.forEach(function(n) {
+            if (n.path && n.path.indexOf('/.trash') !== 0 && n.title && n.title !== 'Untitled') {
+                var folder = n.path.split('/')[1] || 'root';
+                folders.add(folder);
+            }
+        });
+
+        var sorted = Array.from(folders).sort();
+        var currentValue = select.value;
+
+        // Only rebuild if the options changed (avoid losing selection)
+        var html = '<option value="">ALL FOLDERS</option>';
+        sorted.forEach(function(f) {
+            html += '<option value="' + f + '">' + f.toUpperCase() + '</option>';
+        });
+        select.innerHTML = html;
+        select.value = currentValue || '';
     },
 
     // ─── Tooltip ────────────────────────────────────────────────
@@ -497,6 +551,14 @@ export const GraphManager = {
         // 🚨 FIX: Strip out trashed notes before rendering (evaluating path, not boolean)
         var activeNotes = State.NOTES.filter(n => !(n.path && n.path.indexOf('/.trash') === 0));
         var validNotes = activeNotes.filter(n => n.title && n.title !== 'Untitled');
+
+        // Apply folder filter if set
+        if (this.folderFilter) {
+            validNotes = validNotes.filter(n => {
+                var folder = (n.path || '/').split('/')[1] || 'root';
+                return folder === this.folderFilter;
+            });
+        }
         
         // Map Notes to Nodes
         var allNodes = validNotes.map(n => ({
