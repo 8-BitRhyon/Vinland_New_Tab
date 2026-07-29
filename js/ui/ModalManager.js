@@ -305,6 +305,9 @@ export const ModalManager = {
                     if (m) m.style.zIndex = 21000 + idx;
                 });
                 self._updateStackIndicator();
+                // Focus the reordered modal
+                var targetModal = document.getElementById(modalId);
+                if (targetModal) self._focusDialog(targetModal);
             });
 
             // Click on pill-close → close that specific modal
