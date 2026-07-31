@@ -1168,39 +1168,10 @@ export const BlockEditor = {
 
         switch (block.type) {
             case 'h1': case 'h2': case 'h3':
-                content = document.createElement(block.type);
-                content.contentEditable = 'true';
-                content.innerHTML = this.markdownToHtml(block.content || '');
-                content.className = 'block-content block-' + block.type;
-                content.setAttribute('data-placeholder', block.type === 'h1' ? 'Heading 1' : block.type === 'h2' ? 'Heading 2' : 'Heading 3');
+                content = this._renderHeadingBlock(block, wrapper);
                 break;
             case 'task':
-                content = document.createElement('div');
-                content.className = 'block-content block-task';
-                var checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = 'task-check-' + block.id;
-                checkbox.name = 'task-check-' + block.id;
-                checkbox.checked = block.checked;
-                checkbox.className = 'task-checkbox-inline';
-                checkbox.addEventListener('change', function () {
-                    var pageId = BlockEditor.activePageId;
-                    var textEl = wrapper.querySelector('.task-text');
-                    var updates = { checked: checkbox.checked };
-                    if (textEl) updates.content = textEl.textContent;
-                    PageManager.updateBlock(pageId, block.id, updates);
-                    PageManager.syncContent(pageId);
-                    wrapper.classList.toggle('completed', checkbox.checked);
-                    saveData();
-                });
-                var taskText = document.createElement('div');
-                taskText.className = 'task-text';
-                taskText.contentEditable = 'true';
-                taskText.innerHTML = this.markdownToHtml(block.content || '');
-                taskText.setAttribute('data-placeholder', 'To-do');
-                if (block.checked) wrapper.classList.add('completed');
-                content.appendChild(checkbox);
-                content.appendChild(taskText);
+                content = this._renderTaskBlock(block, wrapper);
                 break;
             case 'code':
                 content = document.createElement('div');
@@ -1304,18 +1275,10 @@ export const BlockEditor = {
                 });
                 break;
             case 'bullet': case 'numbered':
-                content = document.createElement('div');
-                content.classList.add('block-content', 'block-' + block.type);
-                content.contentEditable = 'true';
-                content.innerHTML = this.markdownToHtml(block.content || '');
-                content.setAttribute('data-placeholder', 'List item');
+                content = this._renderListBlock(block, wrapper);
                 break;
             case 'quote':
-                content = document.createElement('div');
-                content.classList.add('block-content', 'block-quote');
-                content.contentEditable = 'true';
-                content.innerHTML = this.markdownToHtml(block.content || '');
-                content.setAttribute('data-placeholder', 'Quote');
+                content = this._renderQuoteBlock(block, wrapper);
                 break;
             case 'callout':
                 content = document.createElement('div');
@@ -2223,6 +2186,94 @@ export const BlockEditor = {
                 break;
 
             case 'divider':
+                content = this._renderDividerBlock(block, wrapper);
+                break;
+            default:
+                content = this._renderParagraphBlock(block, wrapper);
+}
+        wrapper.appendChild(dragHandle);
+        wrapper.appendChild(content);
+        // Clicking the drag handle opens the SlashMenu for intuitive block options
+        dragHandle.addEventListener('click', function(e) {
+            // Prevent event from bubbling and unfocusing
+            e.stopPropagation();
+            if (typeof SlashMenu !== 'undefined') {
+                SlashMenu.show(wrapper, e);
+            }
+        });
+        
+        return wrapper;
+    },
+
+
+    _renderHeadingBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement(block.type);
+                content.contentEditable = 'true';
+                content.innerHTML = this.markdownToHtml(block.content || '');
+                content.className = 'block-content block-' + block.type;
+                content.setAttribute('data-placeholder', block.type === 'h1' ? 'Heading 1' : block.type === 'h2' ? 'Heading 2' : 'Heading 3');
+        return content;
+    },
+
+    _renderTaskBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.className = 'block-content block-task';
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'task-check-' + block.id;
+                checkbox.name = 'task-check-' + block.id;
+                checkbox.checked = block.checked;
+                checkbox.className = 'task-checkbox-inline';
+                checkbox.addEventListener('change', function () {
+                    var pageId = BlockEditor.activePageId;
+                    var textEl = wrapper.querySelector('.task-text');
+                    var updates = { checked: checkbox.checked };
+                    if (textEl) updates.content = textEl.textContent;
+                    PageManager.updateBlock(pageId, block.id, updates);
+                    PageManager.syncContent(pageId);
+                    wrapper.classList.toggle('completed', checkbox.checked);
+                    saveData();
+                });
+                var taskText = document.createElement('div');
+                taskText.className = 'task-text';
+                taskText.contentEditable = 'true';
+                taskText.innerHTML = this.markdownToHtml(block.content || '');
+                taskText.setAttribute('data-placeholder', 'To-do');
+                if (block.checked) wrapper.classList.add('completed');
+                content.appendChild(checkbox);
+                content.appendChild(taskText);
+        return content;
+    },
+
+    _renderListBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('block-content', 'block-' + block.type);
+                content.contentEditable = 'true';
+                content.innerHTML = this.markdownToHtml(block.content || '');
+                content.setAttribute('data-placeholder', 'List item');
+        return content;
+    },
+
+    _renderQuoteBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('block-content', 'block-quote');
+                content.contentEditable = 'true';
+                content.innerHTML = this.markdownToHtml(block.content || '');
+                content.setAttribute('data-placeholder', 'Quote');
+        return content;
+    },
+
+    _renderDividerBlock: function(block, wrapper) {
+        var self = this;
+        var content;
                 content = document.createElement('div');
                 content.classList.add('block-divider-wrapper');
                 content.classList.add('block-divider-wrapper');
@@ -2240,27 +2291,20 @@ export const BlockEditor = {
                 };
                 content.appendChild(hr);
                 content.appendChild(deleteBtn);
-                break;
-            default:
+        return content;
+    },
+
+    _renderParagraphBlock: function(block, wrapper) {
+        var self = this;
+        var content;
                 content = document.createElement('div');
                 content.contentEditable = 'true';
                 // Process markdown into visual HTML tags for WYSIWYG editor
                 content.innerHTML = this.markdownToHtml(block.content || '');
                 content.classList.add('block-content', 'block-p');
                 content.setAttribute('data-placeholder', 'Type / for commands');
-        }
-        wrapper.appendChild(dragHandle);
-        wrapper.appendChild(content);
-        // Clicking the drag handle opens the SlashMenu for intuitive block options
-        dragHandle.addEventListener('click', function(e) {
-            // Prevent event from bubbling and unfocusing
-            e.stopPropagation();
-            if (typeof SlashMenu !== 'undefined') {
-                SlashMenu.show(wrapper, e);
-            }
-        });
         
-        return wrapper;
+        return content;
     },
 
     // ─── FIND / REPLACE ───
