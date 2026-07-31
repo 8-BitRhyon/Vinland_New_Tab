@@ -1186,210 +1186,10 @@ export const BlockEditor = {
                 content = this._renderCalloutBlock(block, wrapper);
                 break;
             case 'image':
-                content = document.createElement('div');
-                content.classList.add('block-image');
-                content.contentEditable = false;
-                content.tabIndex = 0; // Allow focus for keyboard delete
-                
-                var innerWrapper = document.createElement('div');
-                innerWrapper.className = 'image-inner-wrapper';
-                var img = document.createElement('img');
-                img.src = block.url || block.content;
-                img.style.maxWidth = '100%';
-                img.style.maxHeight = '500px';
-                img.style.display = 'block';
-                img.style.margin = '0 auto';
-                innerWrapper.appendChild(img);
-                var imgDeleteBtn = document.createElement('button');
-                imgDeleteBtn.className = 'image-delete-btn block-action-btn'; // Whitelist for click
-                imgDeleteBtn.textContent = 'X';
-                imgDeleteBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    PageManager.deleteBlock(self.activePageId, block.id);
-                    self.render(self.activePageId);
-                };
-                var caption = document.createElement('div');
-                caption.className = 'image-caption';
-                caption.contentEditable = 'true';
-                caption.innerHTML = this.markdownToHtml(block.caption || '');
-                caption.setAttribute('data-placeholder', 'Add caption…');
-                content.appendChild(innerWrapper);
-                content.appendChild(caption);
-                content.appendChild(imgDeleteBtn);
+                content = this._renderImageBlock(block, wrapper);
                 break;
             case 'kanban_ref':
-                content = document.createElement('div');
-                content.classList.add('kanban-hud-wrapper'); 
-                content.classList.add('kanban-hud-wrapper'); 
-                content.contentEditable = false;
-                content.tabIndex = 0; // Allow focus for keyboard delete
-                var BOARDS = State.BOARDS || [];
-                var board = BOARDS.find(function(b) { return b.id === block.boardId; });
-                
-                if (board) {
-                    // Telemetry (Robust Math)
-                    var totalCards = 0;
-                    board.columns.forEach(function(c) { totalCards += c.cards.length; });
-                    var doneCol = board.columns[board.columns.length - 1];
-                    var doneCount = doneCol ? doneCol.cards.length : 0;
-                    var percent = totalCards === 0 ? 0 : Math.round((doneCount / totalCards) * 100);
-
-                    // Active Stream (Smart List)
-                    var activeCol = board.columns.find(function(c) { return c.cards.length > 0 && c !== doneCol; }) || board.columns[0];
-                    var activeCards = activeCol ? activeCol.cards.slice(0, 3) : [];
-
-                    var listHtml = activeCards.map(function(card) {
-                        var displayContent = (card.content || '').replace(/#(\w+)/g, '<span class="hud-tag">#$1</span>');
-                        return '<li class="hud-item" data-card-id="' + card.id + '">' +
-                            '<span class="hud-item-text">' + displayContent + '</span>' +
-                            '<span class="hud-advance-btn" title="Advance">>></span>' +
-                        '</li>';
-                    }).join('');
-
-                    content.innerHTML = 
-                        '<div class="hud-header-compact" title="Click to Open Board">' +
-                            '<div class="hud-title-row">' +
-                                '<span class="hud-icon">[=]</span>' +
-                                '<span class="hud-name">' + board.title.toUpperCase() + '</span>' +
-                                '<span class="hud-percent">' + percent + '%</span>' +
-                                '<button class="hud-delete-btn" title="Remove Block" style="opacity:0.3; cursor:pointer; margin-left:auto; background:none; color:white;">[x]</button>' +
-                            '</div>' +
-                            '<div class="hud-progress-track">' +
-                                '<div class="hud-progress-fill" style="width: ' + percent + '%"></div>' +
-                            '</div>' +
-                        '</div>' +
-                        '<ul class="hud-list" style="list-style:none; padding:0; margin:0;">' + listHtml + '</ul>' +
-                        '<div class="hud-injector-row">' +
-                            '<input type="text" class="hud-injector-input" placeholder="+ Add task (#tag supported)...">' +
-                        '</div>';
-
-                    // Event Handlers
-                    var hudHeader = content.querySelector('.hud-header-compact');
-                    hudHeader.onclick = function(e) { 
-                        if (e.target.classList.contains('hud-delete-btn')) {
-                            e.stopPropagation();
-                            PageManager.deleteBlock(self.activePageId, block.id);
-                            self.render(self.activePageId);
-                        } else {
-                            if (typeof KanbanManager !== 'undefined') KanbanManager.open(block.boardId); 
-                        }
-                    };
-
-                    // Deep Link & Advance
-                    content.querySelectorAll('.hud-item').forEach(function(item) {
-                        item.addEventListener('dblclick', function(e) {
-                            e.stopPropagation();
-                            var textEl = this.querySelector('.hud-item-text');
-                            if (textEl && typeof Notes !== 'undefined') {
-                                Notes.openByTitle(textEl.innerText) || Notes.create(textEl.innerText);
-                            }
-                        });
-                        
-                        var advBtn = item.querySelector('.hud-advance-btn');
-                        if (advBtn) {
-                            advBtn.onclick = function(e) {
-                                e.stopPropagation();
-                                if (typeof KanbanManager !== 'undefined' && KanbanManager.advanceCard) {
-                                    if (KanbanManager.advanceCard(item.dataset.cardId, board.id)) {
-                                        self.render(self.activePageId);
-                                    }
-                                }
-                            };
-                        }
-                    });
-
-                    // Injector (Smart Enter)
-                    var hudInput = content.querySelector('.hud-injector-input');
-                    if (hudInput) {
-                        hudInput.addEventListener('keydown', function(e) {
-                            e.stopPropagation();
-                            if (e.key === 'Enter' && this.value.trim()) {
-                                if (board.columns.length > 0) {
-                                    board.columns[0].cards.push({ id: 'card_' + Date.now(), content: this.value.trim(), created: Date.now() });
-                                    board.modified = Date.now();
-                                    saveData();
-                                    self.render(self.activePageId);
-                                }
-                            }
-                        });
-                        hudInput.addEventListener('click', function(e) { e.stopPropagation(); });
-                    }
-                } else {
-                    // Setup UI for no board linked
-                    var setup = document.createElement('div');
-                    setup.style.cssText = 'padding:10px;text-align:center;display:flex;gap:10px;justify-content:center;align-items:center;';
-                    
-                    var icon = document.createElement('span');
-                    icon.textContent = '[=]';
-                    icon.style.color = 'var(--main-color)';
-                    
-                    var createBtn = document.createElement('button');
-                createBtn.textContent = 'NEW BOARD';
-                createBtn.className = 'kanban-setup-btn block-action-btn'; // Whitelist
-                createBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid #444;color:#ccc;padding:4px 8px;cursor:pointer;';
-                    
-                    createBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        var newTitle = prompt("Enter Board Name:", "Project Alpha");
-                        if (newTitle && typeof KanbanManager !== 'undefined') {
-                            var b = KanbanManager.createBoard(newTitle);
-                            PageManager.updateBlock(self.activePageId, block.id, { boardId: b.id });
-                            self.render(self.activePageId);
-                            // ponytail: persist the note's board link now (see slashmenu)
-                            window.saveData();
-                        }
-                    };
-                    
-                    var linkBtn = document.createElement('button');
-                    linkBtn.textContent = 'LINK EXISTING';
-                    linkBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid #444;color:#ccc;padding:4px 8px;cursor:pointer;';
-                    
-                    var delBtn = document.createElement('button');
-                delBtn.textContent = '[x]';
-                delBtn.title = 'Delete Block';
-                delBtn.className = 'block-action-btn'; // Whitelist
-                delBtn.style.cssText = 'background:transparent;border:none;color:#666;cursor:pointer;';
-                    
-                    linkBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        this.style.display = 'none';
-                        var select = document.createElement('select');
-                        select.className = 'config-input';
-                        
-                        var def = document.createElement('option');
-                        def.text = 'Select Board...';
-                        select.add(def);
-                        
-                        BOARDS.forEach(function(b) {
-                            var opt = document.createElement('option');
-                            opt.value = b.id;
-                            opt.text = b.title;
-                            select.add(opt);
-                        });
-                        
-                        select.onchange = function() {
-                            if (select.value) {
-                                PageManager.updateBlock(self.activePageId, block.id, { boardId: select.value });
-                                self.render(self.activePageId);
-                                // ponytail: persist the note's board link now (see slashmenu)
-                                window.saveData();
-                            }
-                        };
-                        setup.insertBefore(select, delBtn);
-                    };
-                    
-                    delBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        PageManager.deleteBlock(self.activePageId, block.id);
-                        self.render(self.activePageId);
-                    };
-                    
-                    setup.appendChild(icon);
-                    setup.appendChild(createBtn);
-                    setup.appendChild(linkBtn);
-                    setup.appendChild(delBtn);
-                    content.appendChild(setup);
-                }
+                content = this._renderKanbanBlock(block, wrapper);
                 break;
             case 'table':
                 content = document.createElement('div');
@@ -2320,6 +2120,221 @@ export const BlockEditor = {
                 content.appendChild(calloutHeader);
                 content.appendChild(calloutBody);
                 content.appendChild(actionsDiv);
+        return content;
+    },
+
+
+    _renderImageBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('block-image');
+                content.contentEditable = false;
+                content.tabIndex = 0; // Allow focus for keyboard delete
+                
+                var innerWrapper = document.createElement('div');
+                innerWrapper.className = 'image-inner-wrapper';
+                var img = document.createElement('img');
+                img.src = block.url || block.content;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '500px';
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                innerWrapper.appendChild(img);
+                var imgDeleteBtn = document.createElement('button');
+                imgDeleteBtn.className = 'image-delete-btn block-action-btn'; // Whitelist for click
+                imgDeleteBtn.textContent = 'X';
+                imgDeleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    PageManager.deleteBlock(self.activePageId, block.id);
+                    self.render(self.activePageId);
+                };
+                var caption = document.createElement('div');
+                caption.className = 'image-caption';
+                caption.contentEditable = 'true';
+                caption.innerHTML = this.markdownToHtml(block.caption || '');
+                caption.setAttribute('data-placeholder', 'Add caption…');
+                content.appendChild(innerWrapper);
+                content.appendChild(caption);
+                content.appendChild(imgDeleteBtn);
+        return content;
+    },
+
+    _renderKanbanBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('kanban-hud-wrapper'); 
+                content.classList.add('kanban-hud-wrapper'); 
+                content.contentEditable = false;
+                content.tabIndex = 0; // Allow focus for keyboard delete
+                var BOARDS = State.BOARDS || [];
+                var board = BOARDS.find(function(b) { return b.id === block.boardId; });
+                
+                if (board) {
+                    // Telemetry (Robust Math)
+                    var totalCards = 0;
+                    board.columns.forEach(function(c) { totalCards += c.cards.length; });
+                    var doneCol = board.columns[board.columns.length - 1];
+                    var doneCount = doneCol ? doneCol.cards.length : 0;
+                    var percent = totalCards === 0 ? 0 : Math.round((doneCount / totalCards) * 100);
+
+                    // Active Stream (Smart List)
+                    var activeCol = board.columns.find(function(c) { return c.cards.length > 0 && c !== doneCol; }) || board.columns[0];
+                    var activeCards = activeCol ? activeCol.cards.slice(0, 3) : [];
+
+                    var listHtml = activeCards.map(function(card) {
+                        var displayContent = (card.content || '').replace(/#(\w+)/g, '<span class="hud-tag">#$1</span>');
+                        return '<li class="hud-item" data-card-id="' + card.id + '">' +
+                            '<span class="hud-item-text">' + displayContent + '</span>' +
+                            '<span class="hud-advance-btn" title="Advance">>></span>' +
+                        '</li>';
+                    }).join('');
+
+                    content.innerHTML = 
+                        '<div class="hud-header-compact" title="Click to Open Board">' +
+                            '<div class="hud-title-row">' +
+                                '<span class="hud-icon">[=]</span>' +
+                                '<span class="hud-name">' + board.title.toUpperCase() + '</span>' +
+                                '<span class="hud-percent">' + percent + '%</span>' +
+                                '<button class="hud-delete-btn" title="Remove Block" style="opacity:0.3; cursor:pointer; margin-left:auto; background:none; color:white;">[x]</button>' +
+                            '</div>' +
+                            '<div class="hud-progress-track">' +
+                                '<div class="hud-progress-fill" style="width: ' + percent + '%"></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<ul class="hud-list" style="list-style:none; padding:0; margin:0;">' + listHtml + '</ul>' +
+                        '<div class="hud-injector-row">' +
+                            '<input type="text" class="hud-injector-input" placeholder="+ Add task (#tag supported)...">' +
+                        '</div>';
+
+                    // Event Handlers
+                    var hudHeader = content.querySelector('.hud-header-compact');
+                    hudHeader.onclick = function(e) { 
+                        if (e.target.classList.contains('hud-delete-btn')) {
+                            e.stopPropagation();
+                            PageManager.deleteBlock(self.activePageId, block.id);
+                            self.render(self.activePageId);
+                        } else {
+                            if (typeof KanbanManager !== 'undefined') KanbanManager.open(block.boardId); 
+                        }
+                    };
+
+                    // Deep Link & Advance
+                    content.querySelectorAll('.hud-item').forEach(function(item) {
+                        item.addEventListener('dblclick', function(e) {
+                            e.stopPropagation();
+                            var textEl = this.querySelector('.hud-item-text');
+                            if (textEl && typeof Notes !== 'undefined') {
+                                Notes.openByTitle(textEl.innerText) || Notes.create(textEl.innerText);
+                            }
+                        });
+                        
+                        var advBtn = item.querySelector('.hud-advance-btn');
+                        if (advBtn) {
+                            advBtn.onclick = function(e) {
+                                e.stopPropagation();
+                                if (typeof KanbanManager !== 'undefined' && KanbanManager.advanceCard) {
+                                    if (KanbanManager.advanceCard(item.dataset.cardId, board.id)) {
+                                        self.render(self.activePageId);
+                                    }
+                                }
+                            };
+                        }
+                    });
+
+                    // Injector (Smart Enter)
+                    var hudInput = content.querySelector('.hud-injector-input');
+                    if (hudInput) {
+                        hudInput.addEventListener('keydown', function(e) {
+                            e.stopPropagation();
+                            if (e.key === 'Enter' && this.value.trim()) {
+                                if (board.columns.length > 0) {
+                                    board.columns[0].cards.push({ id: 'card_' + Date.now(), content: this.value.trim(), created: Date.now() });
+                                    board.modified = Date.now();
+                                    saveData();
+                                    self.render(self.activePageId);
+                                }
+                            }
+                        });
+                        hudInput.addEventListener('click', function(e) { e.stopPropagation(); });
+                    }
+                } else {
+                    // Setup UI for no board linked
+                    var setup = document.createElement('div');
+                    setup.style.cssText = 'padding:10px;text-align:center;display:flex;gap:10px;justify-content:center;align-items:center;';
+                    
+                    var icon = document.createElement('span');
+                    icon.textContent = '[=]';
+                    icon.style.color = 'var(--main-color)';
+                    
+                    var createBtn = document.createElement('button');
+                createBtn.textContent = 'NEW BOARD';
+                createBtn.className = 'kanban-setup-btn block-action-btn'; // Whitelist
+                createBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid #444;color:#ccc;padding:4px 8px;cursor:pointer;';
+                    
+                    createBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        var newTitle = prompt("Enter Board Name:", "Project Alpha");
+                        if (newTitle && typeof KanbanManager !== 'undefined') {
+                            var b = KanbanManager.createBoard(newTitle);
+                            PageManager.updateBlock(self.activePageId, block.id, { boardId: b.id });
+                            self.render(self.activePageId);
+                            // ponytail: persist the note's board link now (see slashmenu)
+                            window.saveData();
+                        }
+                    };
+                    
+                    var linkBtn = document.createElement('button');
+                    linkBtn.textContent = 'LINK EXISTING';
+                    linkBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid #444;color:#ccc;padding:4px 8px;cursor:pointer;';
+                    
+                    var delBtn = document.createElement('button');
+                delBtn.textContent = '[x]';
+                delBtn.title = 'Delete Block';
+                delBtn.className = 'block-action-btn'; // Whitelist
+                delBtn.style.cssText = 'background:transparent;border:none;color:#666;cursor:pointer;';
+                    
+                    linkBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        this.style.display = 'none';
+                        var select = document.createElement('select');
+                        select.className = 'config-input';
+                        
+                        var def = document.createElement('option');
+                        def.text = 'Select Board...';
+                        select.add(def);
+                        
+                        BOARDS.forEach(function(b) {
+                            var opt = document.createElement('option');
+                            opt.value = b.id;
+                            opt.text = b.title;
+                            select.add(opt);
+                        });
+                        
+                        select.onchange = function() {
+                            if (select.value) {
+                                PageManager.updateBlock(self.activePageId, block.id, { boardId: select.value });
+                                self.render(self.activePageId);
+                                // ponytail: persist the note's board link now (see slashmenu)
+                                window.saveData();
+                            }
+                        };
+                        setup.insertBefore(select, delBtn);
+                    };
+                    
+                    delBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        PageManager.deleteBlock(self.activePageId, block.id);
+                        self.render(self.activePageId);
+                    };
+                    
+                    setup.appendChild(icon);
+                    setup.appendChild(createBtn);
+                    setup.appendChild(linkBtn);
+                    setup.appendChild(delBtn);
+                    content.appendChild(setup);
+                }
         return content;
     },
 
