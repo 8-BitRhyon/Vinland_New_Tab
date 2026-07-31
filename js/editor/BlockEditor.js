@@ -3535,16 +3535,7 @@ export const BlockEditor = {
         if (!clipboardData) return;
         
         // 1. Check for Files (Images)
-        if (clipboardData.files && clipboardData.files.length > 0) {
-            e.preventDefault();
-            for (var i = 0; i < clipboardData.files.length; i++) {
-                var file = clipboardData.files[i];
-                if (file.type.startsWith('image/')) {
-                    this.processImageFile(file);
-                }
-            }
-            return;
-        }
+        if (this._pHandleImagePaste(e, clipboardData)) return;
 
         // 2. Check for Text
         var text = clipboardData.getData('text/plain');
@@ -3568,7 +3559,35 @@ export const BlockEditor = {
               }
 
               // Double check if we are in a code block
-              if (blockEl && blockEl.getAttribute('data-block-type') === 'code') {
+        if (this._pHandleCodePaste(e, text, blockEl)) return;
+             
+             // If short text (single line), let default paste happen to insert at cursor
+             if (!text.includes('\n') && text.length < 200) {
+                 return;
+             }
+
+        this._pHandleTextToBlocks(e, text, blockEl);
+        }
+    },
+    
+    // Image File Processing (Extracted)
+    _pHandleImagePaste: function(e, clipboardData) {
+        if (clipboardData.files && clipboardData.files.length > 0) {
+
+            e.preventDefault();
+            for (var i = 0; i < clipboardData.files.length; i++) {
+                var file = clipboardData.files[i];
+                if (file.type.startsWith('image/')) {
+                    this.processImageFile(file);
+                }
+            }
+            return true;
+        }
+        return false;
+    },
+    _pHandleCodePaste: function(e, text, blockEl) {
+        if (blockEl && blockEl.getAttribute('data-block-type') === 'code') {
+
                   e.preventDefault();
                   // Force Plain Text via Range API (most robust)
                   var sel = window.getSelection();
@@ -3620,101 +3639,97 @@ export const BlockEditor = {
                   blockEl.dispatchEvent(event); // Dispatch on wrapper or specific target?
                   if (codeInner) codeInner.dispatchEvent(event);
                   
-                  return; 
-              }
-             
-             // If short text (single line), let default paste happen to insert at cursor
-             if (!text.includes('\n') && text.length < 200) {
-                 return;
-             }
-
-             // Multi-line paste or large text -> Parse into blocks
-             e.preventDefault();
-             var page = State.NOTES.find(n => n.id === this.activePageId);
-             
-             // Where to insert?
-             var afterBlockId = null;
-             if (blockEl) afterBlockId = blockEl.getAttribute('data-block-id');
-             
-             var lines = text.split('\n');
-             var buffer = [];
-             
-             // Helper to flush buffer
-             var self = this;
-             var flushBuffer = function() {
-                 if (buffer.length === 0) return;
-                 var content = buffer.join('\n');
-                 var newBlock = PageManager.addBlock(page, 'p', content, afterBlockId);
-                 afterBlockId = newBlock.id;
-                 buffer = [];
-             };
-             
-             lines.forEach(function(line) {
-                 var trimmed = line.trim();
-                 
-                 // Headers
-                 if (trimmed.startsWith('# ')) {
-                     flushBuffer();
-                     var newBlock = PageManager.addBlock(page, 'h1', trimmed.substring(2), afterBlockId);
-                     afterBlockId = newBlock.id;
-                 } else if (trimmed.startsWith('## ')) {
-                     flushBuffer();
-                     var newBlock = PageManager.addBlock(page, 'h2', trimmed.substring(3), afterBlockId);
-                     afterBlockId = newBlock.id;
-                 } else if (trimmed.startsWith('### ')) {
-                     flushBuffer();
-                     var newBlock = PageManager.addBlock(page, 'h3', trimmed.substring(4), afterBlockId);
-                     afterBlockId = newBlock.id;
-                 }
-                 // Task
-                 else if (trimmed.match(/^- \[[ xX]\] /)) {
-                     flushBuffer();
-                     var isChecked = trimmed.toLowerCase().startsWith('- [x] ');
-                     var content = trimmed.substring(6);
-                     var newBlock = PageManager.addBlock(page, 'task', content, afterBlockId);
-                     newBlock.checked = isChecked;
-                     afterBlockId = newBlock.id;
-                 }
-                 // Bullet
-                 else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                     flushBuffer();
-                     var newBlock = PageManager.addBlock(page, 'bullet', trimmed.substring(2), afterBlockId);
-                     afterBlockId = newBlock.id;
-                 }
-                 // Numbered
-                 else if (trimmed.match(/^\d+\. /)) {
-                     flushBuffer();
-                     var content = trimmed.replace(/^\d+\. /, '');
-                     var newBlock = PageManager.addBlock(page, 'numbered', content, afterBlockId);
-                     afterBlockId = newBlock.id;
-                 }
-                 // Divider
-                 else if (trimmed === '---') {
-                     flushBuffer();
-                     var newBlock = PageManager.addBlock(page, 'divider', '', afterBlockId);
-                     afterBlockId = newBlock.id;
-                 }
-                 // Code Block Fence
-                 else if (trimmed.startsWith('```')) {
-                     flushBuffer(); // TODO: Better multi-line code handling
-                     var lang = trimmed.substring(3);
-                     var newBlock = PageManager.addBlock(page, 'code', '', afterBlockId);
-                     newBlock.language = lang || 'javascript';
-                     afterBlockId = newBlock.id;
-                 }
-                 else {
-                     // buffer normal text
-                     buffer.push(line);
-                 }
-             });
-             flushBuffer();
-             
-             this.render(this.activePageId);
-             this.focusBlock(afterBlockId); // Focus last inserted
+                  return true;
         }
+        return false;
     },
-    
-    // Image File Processing (Extracted)
+    _pHandleTextToBlocks: function(e, text, blockEl) {
+     // Multi-line paste or large text -> Parse into blocks
+     e.preventDefault();
+     var page = State.NOTES.find(n => n.id === this.activePageId);
+     
+     // Where to insert?
+     var afterBlockId = null;
+     if (blockEl) afterBlockId = blockEl.getAttribute('data-block-id');
+     
+     var lines = text.split('\n');
+     var buffer = [];
+     
+     // Helper to flush buffer
+     var self = this;
+     var flushBuffer = function() {
+         if (buffer.length === 0) return;
+         var content = buffer.join('\n');
+         var newBlock = PageManager.addBlock(page, 'p', content, afterBlockId);
+         afterBlockId = newBlock.id;
+         buffer = [];
+     };
+     
+     lines.forEach(function(line) {
+         var trimmed = line.trim();
+         
+         // Headers
+         if (trimmed.startsWith('# ')) {
+             flushBuffer();
+             var newBlock = PageManager.addBlock(page, 'h1', trimmed.substring(2), afterBlockId);
+             afterBlockId = newBlock.id;
+         } else if (trimmed.startsWith('## ')) {
+             flushBuffer();
+             var newBlock = PageManager.addBlock(page, 'h2', trimmed.substring(3), afterBlockId);
+             afterBlockId = newBlock.id;
+         } else if (trimmed.startsWith('### ')) {
+             flushBuffer();
+             var newBlock = PageManager.addBlock(page, 'h3', trimmed.substring(4), afterBlockId);
+             afterBlockId = newBlock.id;
+         }
+         // Task
+         else if (trimmed.match(/^- \[[ xX]\] /)) {
+             flushBuffer();
+             var isChecked = trimmed.toLowerCase().startsWith('- [x] ');
+             var content = trimmed.substring(6);
+             var newBlock = PageManager.addBlock(page, 'task', content, afterBlockId);
+             newBlock.checked = isChecked;
+             afterBlockId = newBlock.id;
+         }
+         // Bullet
+         else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+             flushBuffer();
+             var newBlock = PageManager.addBlock(page, 'bullet', trimmed.substring(2), afterBlockId);
+             afterBlockId = newBlock.id;
+         }
+         // Numbered
+         else if (trimmed.match(/^\d+\. /)) {
+             flushBuffer();
+             var content = trimmed.replace(/^\d+\. /, '');
+             var newBlock = PageManager.addBlock(page, 'numbered', content, afterBlockId);
+             afterBlockId = newBlock.id;
+         }
+         // Divider
+         else if (trimmed === '---') {
+             flushBuffer();
+             var newBlock = PageManager.addBlock(page, 'divider', '', afterBlockId);
+             afterBlockId = newBlock.id;
+         }
+         // Code Block Fence
+         else if (trimmed.startsWith('```')) {
+             flushBuffer(); // TODO: Better multi-line code handling
+             var lang = trimmed.substring(3);
+             var newBlock = PageManager.addBlock(page, 'code', '', afterBlockId);
+             newBlock.language = lang || 'javascript';
+             afterBlockId = newBlock.id;
+         }
+         else {
+             // buffer normal text
+             buffer.push(line);
+         }
+     });
+     flushBuffer();
+     
+     this.render(this.activePageId);
+     this.focusBlock(afterBlockId); // Focus last inserted
+            return true;
+    },
+
     processImageFile: function(file) {
         var reader = new FileReader();
         var self = this;
