@@ -1183,98 +1183,7 @@ export const BlockEditor = {
                 content = this._renderQuoteBlock(block, wrapper);
                 break;
             case 'callout':
-                content = document.createElement('div');
-                content.classList.add('block-callout', 'callout-' + (block.calloutType || 'info').toLowerCase());
-                content.contentEditable = false;
-                content.tabIndex = 0;
-                
-                var cType = (block.calloutType || 'info').toLowerCase();
-                var cTitle = block.calloutTitle || '';
-                var cContent = '';
-                
-                if (block.content) {
-                    var cLines = block.content.split('\n').map(l => l.replace(/^>\s?/, '')); // Strip '>' prefix
-                    if (cLines[0] && cLines[0].match(/^\[!\w+\]/)) {
-                        cType = cLines[0].match(/^\[!(\w+)\]/)[1].toLowerCase(); // Extract type robustly
-                        cContent = cLines.slice(1).join('\n').trim();
-                        if (!cTitle) cTitle = cLines[0].replace(/^\[!\w+\]\s*/, '').trim();
-                    } else {
-                        cContent = cLines.join('\n'); // Join what's left
-                    }
-                }
-                
-                // Build callout header
-                var calloutHeader = document.createElement('div');
-                calloutHeader.className = 'callout-header';
-                
-                var iconSpan = document.createElement('span');
-                iconSpan.className = 'callout-icon';
-                // Icons will be injected via CSS content or left as is if you prefer emojis
-                iconSpan.textContent = BlockEditor.getCalloutIcon(cType); 
-                
-                var titleSpan = document.createElement('span');
-                titleSpan.className = 'callout-title';
-                titleSpan.textContent = cTitle || cType.toUpperCase();
-                
-                calloutHeader.appendChild(iconSpan);
-                calloutHeader.appendChild(titleSpan);
-                
-                // Build callout body
-                var calloutBody = document.createElement('div');
-                calloutBody.className = 'callout-body';
-                if (cContent) {
-                    calloutBody.innerHTML = cContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-                }
-
-                // Build action buttons container
-                var actionsDiv = document.createElement('div');
-                actionsDiv.style.cssText = 'position: absolute; top: 8px; right: 8px; display: flex; gap: 8px;';
-                
-                // EDIT button - pure DOM with direct onclick
-                var editBtn = document.createElement('span');
-                editBtn.className = 'block-action-btn'; // Added class for mousedown whitelist
-                editBtn.textContent = 'EDIT';
-                editBtn.style.cssText = 'cursor: pointer; color: #666; font-size: 11px; padding: 2px 6px; border: 1px solid #444; border-radius: 3px;';
-                editBtn.onmouseenter = function() { editBtn.style.color = 'var(--callout-color)'; editBtn.style.borderColor = 'var(--callout-color)'; };
-                editBtn.onmouseleave = function() { editBtn.style.color = '#666'; editBtn.style.borderColor = '#444'; };
-                (function(bid, bcontent) {
-                    editBtn.onclick = function(e) {
-                        console.log('[BlockEditor] Edit button clicked for', bid);
-                        e.stopPropagation();
-                        e.preventDefault();
-                        if (window.CalloutModal) {
-                            console.log('[BlockEditor] CalloutModal exists, opening...');
-                            window.CalloutModal.open(bid, bcontent);
-                        } else {
-                            console.error('[BlockEditor] window.CalloutModal is undefined!');
-                        }
-                        return false;
-                    };
-                })(block.id, block.content);
-                
-                // DELETE button - pure DOM with direct onclick  
-                var delBtn = document.createElement('span');
-                delBtn.className = 'block-action-btn'; // Added class for mousedown whitelist
-                delBtn.textContent = 'X';
-                delBtn.style.cssText = 'cursor: pointer; color: #666; font-size: 11px; padding: 2px 6px; border: 1px solid #444; border-radius: 3px;';
-                delBtn.onmouseenter = function() { delBtn.style.color = '#FF0055'; delBtn.style.borderColor = '#FF0055'; };
-                delBtn.onmouseleave = function() { delBtn.style.color = '#666'; delBtn.style.borderColor = '#444'; };
-                (function(bid) {
-                    delBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        PageManager.deleteBlock(self.activePageId, bid);
-                        self.render(self.activePageId);
-                        return false;
-                    };
-                })(block.id);
-                
-                actionsDiv.appendChild(editBtn);
-                actionsDiv.appendChild(delBtn);
-                
-                content.appendChild(calloutHeader);
-                content.appendChild(calloutBody);
-                content.appendChild(actionsDiv);
+                content = this._renderCalloutBlock(block, wrapper);
                 break;
             case 'image':
                 content = document.createElement('div');
@@ -2312,6 +2221,105 @@ export const BlockEditor = {
                         window.CodeBlockTools.enhanceBlock(wrapper, block);
                     }
                 });
+        return content;
+    },
+
+
+    _renderCalloutBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('block-callout', 'callout-' + (block.calloutType || 'info').toLowerCase());
+                content.contentEditable = false;
+                content.tabIndex = 0;
+                
+                var cType = (block.calloutType || 'info').toLowerCase();
+                var cTitle = block.calloutTitle || '';
+                var cContent = '';
+                
+                if (block.content) {
+                    var cLines = block.content.split('\n').map(l => l.replace(/^>\s?/, '')); // Strip '>' prefix
+                    if (cLines[0] && cLines[0].match(/^\[!\w+\]/)) {
+                        cType = cLines[0].match(/^\[!(\w+)\]/)[1].toLowerCase(); // Extract type robustly
+                        cContent = cLines.slice(1).join('\n').trim();
+                        if (!cTitle) cTitle = cLines[0].replace(/^\[!\w+\]\s*/, '').trim();
+                    } else {
+                        cContent = cLines.join('\n'); // Join what's left
+                    }
+                }
+                
+                // Build callout header
+                var calloutHeader = document.createElement('div');
+                calloutHeader.className = 'callout-header';
+                
+                var iconSpan = document.createElement('span');
+                iconSpan.className = 'callout-icon';
+                // Icons will be injected via CSS content or left as is if you prefer emojis
+                iconSpan.textContent = BlockEditor.getCalloutIcon(cType); 
+                
+                var titleSpan = document.createElement('span');
+                titleSpan.className = 'callout-title';
+                titleSpan.textContent = cTitle || cType.toUpperCase();
+                
+                calloutHeader.appendChild(iconSpan);
+                calloutHeader.appendChild(titleSpan);
+                
+                // Build callout body
+                var calloutBody = document.createElement('div');
+                calloutBody.className = 'callout-body';
+                if (cContent) {
+                    calloutBody.innerHTML = cContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                }
+
+                // Build action buttons container
+                var actionsDiv = document.createElement('div');
+                actionsDiv.style.cssText = 'position: absolute; top: 8px; right: 8px; display: flex; gap: 8px;';
+                
+                // EDIT button - pure DOM with direct onclick
+                var editBtn = document.createElement('span');
+                editBtn.className = 'block-action-btn'; // Added class for mousedown whitelist
+                editBtn.textContent = 'EDIT';
+                editBtn.style.cssText = 'cursor: pointer; color: #666; font-size: 11px; padding: 2px 6px; border: 1px solid #444; border-radius: 3px;';
+                editBtn.onmouseenter = function() { editBtn.style.color = 'var(--callout-color)'; editBtn.style.borderColor = 'var(--callout-color)'; };
+                editBtn.onmouseleave = function() { editBtn.style.color = '#666'; editBtn.style.borderColor = '#444'; };
+                (function(bid, bcontent) {
+                    editBtn.onclick = function(e) {
+                        console.log('[BlockEditor] Edit button clicked for', bid);
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (window.CalloutModal) {
+                            console.log('[BlockEditor] CalloutModal exists, opening...');
+                            window.CalloutModal.open(bid, bcontent);
+                        } else {
+                            console.error('[BlockEditor] window.CalloutModal is undefined!');
+                        }
+                        return false;
+                    };
+                })(block.id, block.content);
+                
+                // DELETE button - pure DOM with direct onclick  
+                var delBtn = document.createElement('span');
+                delBtn.className = 'block-action-btn'; // Added class for mousedown whitelist
+                delBtn.textContent = 'X';
+                delBtn.style.cssText = 'cursor: pointer; color: #666; font-size: 11px; padding: 2px 6px; border: 1px solid #444; border-radius: 3px;';
+                delBtn.onmouseenter = function() { delBtn.style.color = '#FF0055'; delBtn.style.borderColor = '#FF0055'; };
+                delBtn.onmouseleave = function() { delBtn.style.color = '#666'; delBtn.style.borderColor = '#444'; };
+                (function(bid) {
+                    delBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        PageManager.deleteBlock(self.activePageId, bid);
+                        self.render(self.activePageId);
+                        return false;
+                    };
+                })(block.id);
+                
+                actionsDiv.appendChild(editBtn);
+                actionsDiv.appendChild(delBtn);
+                
+                content.appendChild(calloutHeader);
+                content.appendChild(calloutBody);
+                content.appendChild(actionsDiv);
         return content;
     },
 
