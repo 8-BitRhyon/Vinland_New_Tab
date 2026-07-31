@@ -2781,164 +2781,23 @@ export const BlockEditor = {
 
         // CMD+1-9: Switch Tabs
         if (this._kHandleTabSwitch(e)) return;
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-            var blockWrapper = e.target.closest('.block-wrapper');
-            if (blockWrapper && blockWrapper.getAttribute('data-block-type') === 'code') {
-                var blockId = blockWrapper.getAttribute('data-block-id');
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
-                var block = page.blocks.find(function(b) { return b.id === blockId; });
-                if (block && block.language === 'calc') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var currentText = e.target.textContent || block.content;
-                    var expression = currentText.split('//')[0].trim();
-                    try {
-                        var result = BlockEditor.safeMathEval(expression);
-                        var newContent = expression + ' // = ' + result;
-                        block.content = newContent;
-                        PageManager.updateBlock(this.activePageId, blockId, { content: block.content });
-                        var inner = blockWrapper.querySelector('.code-inner');
-                        if (inner) {
-                            inner.innerHTML = BlockEditor.getCalcPreviewHtml(newContent);
-                            inner.setAttribute('data-highlighted', 'true');
-                            inner.blur(); 
-                        }
-                    } catch (err) {}
-                    return;
-                }
-            }
-        }
-        if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-            e.preventDefault();
-            if (e.shiftKey) HistoryManager.redo();
-            else HistoryManager.undo();
-            return;
-        }
+        if (this._kHandleCalcEval(e)) return;
+        if (this._kHandleUndoRedo(e)) return;
         // Multi-Block Operations
         // Delete/Backspace with selection - delete all selected blocks
         var isEditingContent = e.target.closest('.block-content, .task-text, .code-inner, .image-caption');
         var hasTextSelection = window.getSelection().toString().length > 0;
         
-        if ((e.key === 'Backspace' || e.key === 'Delete') && this.selectedBlockIds.length >= 1) {
-            // Only intercept if we have multi-select OR if focus is outside editable content
-            if (!isEditingContent || this.selectedBlockIds.length > 1) {
-                e.preventDefault();
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
-                if (!page) return;
-                
-                // Handle delete for single focused non-editable block
-                if (this.selectedBlockIds.length === 0) {
-                     var blockEl = e.target.closest('.block-wrapper');
-                     if (blockEl) {
-                         var bType = blockEl.getAttribute('data-block-type');
-                         // If it's a non-text block (divider, image, etc) that has focus
-                         if (['divider', 'image', 'table', 'kanban_ref'].includes(bType)) {
-                             var bId = blockEl.getAttribute('data-block-id');
-                             if (bId) {
-                                  PageManager.deleteBlock(BlockEditor.activePageId, bId);
-                                  this.render(this.activePageId);
-                                  saveData();
-                                  return;
-                             }
-                         }
-                     }
-                }
-
-                // Delete all selected blocks
-                e.preventDefault();
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
-                if (!page) return;
-                
-                // Delete all selected blocks
-                var idsToDelete = this.selectedBlockIds.slice();
-                idsToDelete.forEach(function(id) {
-                    PageManager.deleteBlock(BlockEditor.activePageId, id);
-                });
-                
-                this.clearSelection();
-                this.render(this.activePageId);
-                saveData();
-                return;
-            }
-        }
+        if (this._kHandleMultiDelete(e, isEditingContent, hasTextSelection)) return;
         
         // CMD+C with selection - copy all selected blocks
-        if ((e.metaKey || e.ctrlKey) && e.key === 'c' && this.selectedBlockIds.length >= 1) {
-            // If user has text selected inside a block, let browser handle normal copy
-            if (hasTextSelection) return;
-            
-            // Copy all selected blocks
-            e.preventDefault();
-            var blocks = this.getSelectedBlocks();
-            var allText = blocks.map(function(block) {
-                if (block.type === 'task') return (block.checked ? '- [x] ' : '- [ ] ') + (block.content || '');
-                else if (block.type === 'code') return '```' + (block.language || '') + '\n' + (block.content || '') + '\n```';
-                else if (block.type === 'h1') return '# ' + (block.content || '');
-                else if (block.type === 'h2') return '## ' + (block.content || '');
-                else if (block.type === 'h3') return '### ' + (block.content || '');
-                else if (block.type === 'quote') return '> ' + (block.content || '');
-                else if (block.type === 'bullet') return '- ' + (block.content || '');
-                else if (block.type === 'numbered') return '1. ' + (block.content || '');
-                else if (block.type === 'divider') return '---';
-                else return block.content || '';
-            }).join('\n');
-            
-            navigator.clipboard.writeText(allText).then(function() {
-                if (typeof showNotification === 'function') {
-                    showNotification('Copied ' + blocks.length + ' block' + (blocks.length > 1 ? 's' : ''));
-                }
-            });
-            return;
-        }
+        if (this._kHandleCopy(e, hasTextSelection)) return;
         
         // CMD+X with selection - cut all selected blocks
-        if ((e.metaKey || e.ctrlKey) && e.key === 'x' && this.selectedBlockIds.length >= 1) {
-            // If user has text selected inside a block, let browser handle normal cut
-            if (hasTextSelection) return;
-            
-            // Cut all selected blocks
-            e.preventDefault();
-            var blocks = this.getSelectedBlocks();
-            var allText = blocks.map(function(block) {
-                 if (block.type === 'task') return (block.checked ? '- [x] ' : '- [ ] ') + (block.content || '');
-                 else if (block.type === 'code') return '```' + (block.language || '') + '\n' + (block.content || '') + '\n```';
-                 else if (block.type === 'h1') return '# ' + (block.content || '');
-                 else if (block.type === 'h2') return '## ' + (block.content || '');
-                 else if (block.type === 'h3') return '### ' + (block.content || '');
-                 else if (block.type === 'quote') return '> ' + (block.content || '');
-                 else if (block.type === 'bullet') return '- ' + (block.content || '');
-                 else if (block.type === 'numbered') return '1. ' + (block.content || '');
-                 else if (block.type === 'divider') return '---';
-                 else return block.content || '';
-            }).join('\n');
-            
-            var self = this;
-            navigator.clipboard.writeText(allText).then(function() {
-                // Delete after copy
-                var idsToDelete = self.selectedBlockIds.slice();
-                idsToDelete.forEach(function(id) {
-                    PageManager.deleteBlock(self.activePageId, id);
-                });
-                self.clearSelection();
-                self.render(self.activePageId);
-                saveData();
-                if (typeof showNotification === 'function') {
-                    showNotification('Cut ' + blocks.length + ' block' + (blocks.length > 1 ? 's' : ''));
-                }
-            });
-            return;
-        }
+        if (this._kHandleCut(e, hasTextSelection)) return;
 
         // DUPLICATE BLOCK (CMD+D)
-        if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-            e.preventDefault();
-            var blockWrapper = e.target.closest('.block-wrapper');
-            if (blockWrapper) {
-                var blockId = blockWrapper.getAttribute('data-block-id');
-                this.duplicateBlock(blockId);
-            }
-            return;
-        }
+        if (this._kHandleDuplicate(e)) return;
         
         // Tab / Shift+Tab for Indentation
         if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey) {
@@ -3282,6 +3141,183 @@ export const BlockEditor = {
 
             e.preventDefault();
             this._findClose();
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleCalcEval: function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+
+            var blockWrapper = e.target.closest('.block-wrapper');
+            if (blockWrapper && blockWrapper.getAttribute('data-block-type') === 'code') {
+                var blockId = blockWrapper.getAttribute('data-block-id');
+                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                var block = page.blocks.find(function(b) { return b.id === blockId; });
+                if (block && block.language === 'calc') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var currentText = e.target.textContent || block.content;
+                    var expression = currentText.split('//')[0].trim();
+                    try {
+                        var result = BlockEditor.safeMathEval(expression);
+                        var newContent = expression + ' // = ' + result;
+                        block.content = newContent;
+                        PageManager.updateBlock(this.activePageId, blockId, { content: block.content });
+                        var inner = blockWrapper.querySelector('.code-inner');
+                        if (inner) {
+                            inner.innerHTML = BlockEditor.getCalcPreviewHtml(newContent);
+                            inner.setAttribute('data-highlighted', 'true');
+                            inner.blur(); 
+                        }
+                    } catch (err) {}
+                    return true;
+                }
+            }
+        }
+        return false;
+    },
+
+    _kHandleUndoRedo: function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+
+            e.preventDefault();
+            if (e.shiftKey) HistoryManager.redo();
+            else HistoryManager.undo();
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleMultiDelete: function(e, isEditingContent, hasTextSelection) {
+        if ((e.key === 'Backspace' || e.key === 'Delete') && this.selectedBlockIds.length >= 1) {
+
+            // Only intercept if we have multi-select OR if focus is outside editable content
+            if (!isEditingContent || this.selectedBlockIds.length > 1) {
+                e.preventDefault();
+                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                if (!page) return true;
+                
+                // Handle delete for single focused non-editable block
+                if (this.selectedBlockIds.length === 0) {
+                     var blockEl = e.target.closest('.block-wrapper');
+                     if (blockEl) {
+                         var bType = blockEl.getAttribute('data-block-type');
+                         // If it's a non-text block (divider, image, etc) that has focus
+                         if (['divider', 'image', 'table', 'kanban_ref'].includes(bType)) {
+                             var bId = blockEl.getAttribute('data-block-id');
+                             if (bId) {
+                                  PageManager.deleteBlock(BlockEditor.activePageId, bId);
+                                  this.render(this.activePageId);
+                                  saveData();
+                                  return true;
+                             }
+                         }
+                     }
+                }
+
+                // Delete all selected blocks
+                e.preventDefault();
+                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                if (!page) return true;
+                
+                // Delete all selected blocks
+                var idsToDelete = this.selectedBlockIds.slice();
+                idsToDelete.forEach(function(id) {
+                    PageManager.deleteBlock(BlockEditor.activePageId, id);
+                });
+                
+                this.clearSelection();
+                this.render(this.activePageId);
+                saveData();
+                return true;
+            }
+        }
+        return false;
+    },
+
+    _kHandleCopy: function(e, hasTextSelection) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'c' && this.selectedBlockIds.length >= 1) {
+
+            // If user has text selected inside a block, let browser handle normal copy
+            if (hasTextSelection) return true;
+            
+            // Copy all selected blocks
+            e.preventDefault();
+            var blocks = this.getSelectedBlocks();
+            var allText = blocks.map(function(block) {
+                if (block.type === 'task') return (block.checked ? '- [x] ' : '- [ ] ') + (block.content || '');
+                else if (block.type === 'code') return '```' + (block.language || '') + '\n' + (block.content || '') + '\n```';
+                else if (block.type === 'h1') return '# ' + (block.content || '');
+                else if (block.type === 'h2') return '## ' + (block.content || '');
+                else if (block.type === 'h3') return '### ' + (block.content || '');
+                else if (block.type === 'quote') return '> ' + (block.content || '');
+                else if (block.type === 'bullet') return '- ' + (block.content || '');
+                else if (block.type === 'numbered') return '1. ' + (block.content || '');
+                else if (block.type === 'divider') return '---';
+                else return block.content || '';
+            }).join('\n');
+            
+            navigator.clipboard.writeText(allText).then(function() {
+                if (typeof showNotification === 'function') {
+                    showNotification('Copied ' + blocks.length + ' block' + (blocks.length > 1 ? 's' : ''));
+                }
+            });
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleCut: function(e, hasTextSelection) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'x' && this.selectedBlockIds.length >= 1) {
+
+            // If user has text selected inside a block, let browser handle normal cut
+            if (hasTextSelection) return true;
+            
+            // Cut all selected blocks
+            e.preventDefault();
+            var blocks = this.getSelectedBlocks();
+            var allText = blocks.map(function(block) {
+                 if (block.type === 'task') return (block.checked ? '- [x] ' : '- [ ] ') + (block.content || '');
+                 else if (block.type === 'code') return '```' + (block.language || '') + '\n' + (block.content || '') + '\n```';
+                 else if (block.type === 'h1') return '# ' + (block.content || '');
+                 else if (block.type === 'h2') return '## ' + (block.content || '');
+                 else if (block.type === 'h3') return '### ' + (block.content || '');
+                 else if (block.type === 'quote') return '> ' + (block.content || '');
+                 else if (block.type === 'bullet') return '- ' + (block.content || '');
+                 else if (block.type === 'numbered') return '1. ' + (block.content || '');
+                 else if (block.type === 'divider') return '---';
+                 else return block.content || '';
+            }).join('\n');
+            
+            var self = this;
+            navigator.clipboard.writeText(allText).then(function() {
+                // Delete after copy
+                var idsToDelete = self.selectedBlockIds.slice();
+                idsToDelete.forEach(function(id) {
+                    PageManager.deleteBlock(self.activePageId, id);
+                });
+                self.clearSelection();
+                self.render(self.activePageId);
+                saveData();
+                if (typeof showNotification === 'function') {
+                    showNotification('Cut ' + blocks.length + ' block' + (blocks.length > 1 ? 's' : ''));
+                }
+            });
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleDuplicate: function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+
+            e.preventDefault();
+            var blockWrapper = e.target.closest('.block-wrapper');
+            if (blockWrapper) {
+                var blockId = blockWrapper.getAttribute('data-block-id');
+                this.duplicateBlock(blockId);
+            }
             return true;
         }
         return false;
