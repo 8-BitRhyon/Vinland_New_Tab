@@ -2819,16 +2819,8 @@ export const BlockEditor = {
         // Arrow keys navigation between blocks
         if (this._kHandleArrowNav(e, blockId)) return;
         
-        if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u', 'k', 'l'].includes(e.key.toLowerCase())) {
-            e.preventDefault();
-            this.applyFormatting(e.key.toLowerCase());
-        }
-        if (e.key === '/') {
-            var blockEl = e.target.closest('.block-wrapper');
-            setTimeout(function () {
-                if (typeof SlashMenu !== 'undefined') SlashMenu.show(blockEl);
-            }, 10);
-        }
+        if (this._kHandleFormat(e)) return;
+        if (this._kHandleSlashTrigger(e)) return;
     },
 
     // Flash a block briefly (visual feedback for reorder / type change)
@@ -3348,6 +3340,28 @@ export const BlockEditor = {
                     if (newBlock) this.focusBlock(newBlock.id);
                 }
             }
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleFormat: function(e) {
+        if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u', 'k', 'l'].includes(e.key.toLowerCase())) {
+
+            e.preventDefault();
+            this.applyFormatting(e.key.toLowerCase());
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleSlashTrigger: function(e) {
+        if (e.key === '/') {
+
+            var blockEl = e.target.closest('.block-wrapper');
+            setTimeout(function () {
+                if (typeof SlashMenu !== 'undefined') SlashMenu.show(blockEl);
+            }, 10);
             return true;
         }
         return false;
