@@ -1195,179 +1195,11 @@ export const BlockEditor = {
                 content = this._renderTableBlock(block, wrapper);
                 break;
             case 'query':
-                content = document.createElement('div');
-                content.className = 'block-query-container';
-                content.contentEditable = false;
-                
-                // Header & Input
-                var queryHeader = document.createElement('div');
-                queryHeader.className = 'query-header';
-                var queryInput = document.createElement('input');
-                queryInput.type = 'text';
-                queryInput.className = 'query-input config-input';
-                queryInput.value = block.content || '';
-                queryInput.placeholder = 'e.g., LIST FROM #tasks WHERE status="TODO"';
-                
-                // Added delete button hook
-                var qDeleteBtn = document.createElement('button');
-                qDeleteBtn.innerHTML = '×';
-                qDeleteBtn.className = 'query-delete-btn block-action-btn';
-                qDeleteBtn.style.cssText = 'background:transparent; border:none; color:var(--danger-color); cursor:pointer; font-size:1.2rem; margin-left:10px;';
-                qDeleteBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    PageManager.deleteBlock(self.activePageId, block.id);
-                    self.render(self.activePageId);
-                };
-                
-                queryHeader.appendChild(document.createTextNode('🔍 Query: '));
-                queryHeader.appendChild(queryInput);
-                queryHeader.appendChild(qDeleteBtn);
-                content.appendChild(queryHeader);
-
-                // Results Container
-                var resultsContainer = document.createElement('div');
-                resultsContainer.className = 'query-results';
-                content.appendChild(resultsContainer);
-
-                // Execution Logic
-                var executeQuery = () => {
-                    if (!window.QueryEngine) return;
-                    var qString = queryInput.value.trim();
-                    if (!qString) {
-                        resultsContainer.innerHTML = '<span style="color:var(--secondary-color)">Enter a query to see results.</span>';
-                        return;
-                    }
-                    try {
-                        var results = window.QueryEngine.execute(qString);
-                        if (qString.toUpperCase().startsWith('LIST')) {
-                            if (results.results.length === 0) {
-                                resultsContainer.innerHTML = '<em>No results found.</em>';
-                                return;
-                            }
-                            var ul = document.createElement('ul');
-                            results.results.forEach(res => {
-                                var li = document.createElement('li');
-                                li.innerHTML = res.title ? `<strong>📄 ${res.title}</strong>` : (res.text || res.content || 'Item');
-                                li.style.cursor = 'pointer';
-                                li.onclick = () => {
-                                    if (res.noteId) window.Notes.open(res.noteId);
-                                    else if (res.id && res.path) window.Notes.open(res.id);
-                                };
-                                ul.appendChild(li);
-                            });
-                            resultsContainer.innerHTML = '';
-                            resultsContainer.appendChild(ul);
-                        } else {
-                            resultsContainer.innerHTML = window.QueryEngine.renderResults(results.results, results.parsed.type);
-                        }
-                    } catch (e) {
-                        resultsContainer.innerHTML = `<span style="color:var(--danger-color)">Syntax Error: ${e.message}</span>`;
-                    }
-                };
-
-                executeQuery();
-                queryInput.addEventListener('change', (e) => {
-                    block.content = e.target.value;
-                    window.saveData();
-                    if (window.PageManager) window.PageManager.syncContent(self.activePageId);
-                    executeQuery();
-                });
+                content = this._renderQueryBlock(block, wrapper);
                 break;
             case 'embed':
-                content = document.createElement('div');
-                content.className = 'block-embed';
-                content.contentEditable = false;
-                content.tabIndex = 0;
-
-                // Find the target note by title
-                var embedTitle = (block.content || '').trim();
-                var targetNote = null;
-                if (embedTitle && State && State.NOTES) {
-                    targetNote = State.NOTES.find(function(n) {
-                        return (n.title || '').toLowerCase() === embedTitle.toLowerCase();
-                    });
-                }
-
-                if (targetNote) {
-                    // Render embed header with title and open button
-                    var embedHeader = document.createElement('div');
-                    embedHeader.className = 'embed-header';
-
-                    var embedLabel = document.createElement('span');
-                    embedLabel.className = 'embed-label';
-                    embedLabel.textContent = 'EMBED: ' + (targetNote.title || 'Untitled');
-
-                    var openBtn = document.createElement('button');
-                    openBtn.className = 'embed-open-btn block-action-btn';
-                    openBtn.textContent = 'OPEN';
-                    openBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        if (window.Notes) window.Notes.open(targetNote.id);
-                    };
-
-                    embedHeader.appendChild(embedLabel);
-                    embedHeader.appendChild(openBtn);
-                    content.appendChild(embedHeader);
-
-                    // Render the target note's content as read-only preview
-                    var embedBody = document.createElement('div');
-                    embedBody.className = 'embed-body';
-
-                    var targetContent = targetNote.content || '';
-                    if (targetContent) {
-                        // Use renderMarkdown for preview if available, else plain text
-                        if (window.Notes && window.Notes.renderMarkdown) {
-                            embedBody.innerHTML = window.Notes.renderMarkdown(targetContent, true);
-                        } else {
-                            var safe = targetContent.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                            embedBody.innerHTML = safe.replace(/\n/g, '<br>');
-                        }
-                    } else {
-                        // Check blocks
-                        var blocks = targetNote.blocks || [];
-                        if (blocks.length > 0) {
-                            var text = blocks.map(function(b) { return b.content || ''; }).join(' ');
-                            if (window.Notes && window.Notes.renderMarkdown) {
-                                embedBody.innerHTML = window.Notes.renderMarkdown(text, true);
-                            } else {
-                                var safe = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                embedBody.innerHTML = safe.replace(/\n/g, '<br>');
-                            }
-                        } else {
-                            embedBody.innerHTML = '<span class="embed-empty">(empty note)</span>';
-                        }
-                    }
-
-                    // Refresh-on-reopen marker
-                    var embedMeta = document.createElement('div');
-                    embedMeta.className = 'embed-meta';
-                    embedMeta.textContent = '\u21BB Refreshes on reopen';
-
-                    content.appendChild(embedBody);
-                    content.appendChild(embedMeta);
-                } else {
-                    // Note not found - show placeholder
-                    var embedPlaceholder = document.createElement('div');
-                    embedPlaceholder.className = 'embed-placeholder';
-
-                    if (embedTitle) {
-                        var createBtn = document.createElement('button');
-                        createBtn.className = 'embed-create-btn block-action-btn';
-                        createBtn.textContent = 'CREATE: "' + embedTitle + '"';
-                        createBtn.onclick = function(e) {
-                            e.stopPropagation();
-                            if (window.Notes) window.Notes.create(embedTitle, '/');
-                        };
-                        embedPlaceholder.innerHTML = '<span class="embed-missing">Note not found: <strong>!' + embedTitle + ']</strong></span>';
-                        embedPlaceholder.appendChild(createBtn);
-                    } else {
-                        embedPlaceholder.innerHTML = '<span class="embed-missing">Empty embed (no note title)</span>';
-                    }
-
-                    content.appendChild(embedPlaceholder);
-                }
+                content = this._renderEmbedBlock(block, wrapper);
                 break;
-
             case 'divider':
                 content = this._renderDividerBlock(block, wrapper);
                 break;
@@ -2343,6 +2175,188 @@ export const BlockEditor = {
                 content.appendChild(tableWrapper);
                 content.appendChild(addRowBtn);
                 content.appendChild(addColBtn);
+        return content;
+    },
+
+
+    _renderQueryBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.className = 'block-query-container';
+                content.contentEditable = false;
+                
+                // Header & Input
+                var queryHeader = document.createElement('div');
+                queryHeader.className = 'query-header';
+                var queryInput = document.createElement('input');
+                queryInput.type = 'text';
+                queryInput.className = 'query-input config-input';
+                queryInput.value = block.content || '';
+                queryInput.placeholder = 'e.g., LIST FROM #tasks WHERE status="TODO"';
+                
+                // Added delete button hook
+                var qDeleteBtn = document.createElement('button');
+                qDeleteBtn.innerHTML = '×';
+                qDeleteBtn.className = 'query-delete-btn block-action-btn';
+                qDeleteBtn.style.cssText = 'background:transparent; border:none; color:var(--danger-color); cursor:pointer; font-size:1.2rem; margin-left:10px;';
+                qDeleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    PageManager.deleteBlock(self.activePageId, block.id);
+                    self.render(self.activePageId);
+                };
+                
+                queryHeader.appendChild(document.createTextNode('🔍 Query: '));
+                queryHeader.appendChild(queryInput);
+                queryHeader.appendChild(qDeleteBtn);
+                content.appendChild(queryHeader);
+
+                // Results Container
+                var resultsContainer = document.createElement('div');
+                resultsContainer.className = 'query-results';
+                content.appendChild(resultsContainer);
+
+                // Execution Logic
+                var executeQuery = () => {
+                    if (!window.QueryEngine) return;
+                    var qString = queryInput.value.trim();
+                    if (!qString) {
+                        resultsContainer.innerHTML = '<span style="color:var(--secondary-color)">Enter a query to see results.</span>';
+                        return;
+                    }
+                    try {
+                        var results = window.QueryEngine.execute(qString);
+                        if (qString.toUpperCase().startsWith('LIST')) {
+                            if (results.results.length === 0) {
+                                resultsContainer.innerHTML = '<em>No results found.</em>';
+                                return;
+                            }
+                            var ul = document.createElement('ul');
+                            results.results.forEach(res => {
+                                var li = document.createElement('li');
+                                li.innerHTML = res.title ? `<strong>📄 ${res.title}</strong>` : (res.text || res.content || 'Item');
+                                li.style.cursor = 'pointer';
+                                li.onclick = () => {
+                                    if (res.noteId) window.Notes.open(res.noteId);
+                                    else if (res.id && res.path) window.Notes.open(res.id);
+                                };
+                                ul.appendChild(li);
+                            });
+                            resultsContainer.innerHTML = '';
+                            resultsContainer.appendChild(ul);
+                        } else {
+                            resultsContainer.innerHTML = window.QueryEngine.renderResults(results.results, results.parsed.type);
+                        }
+                    } catch (e) {
+                        resultsContainer.innerHTML = `<span style="color:var(--danger-color)">Syntax Error: ${e.message}</span>`;
+                    }
+                };
+
+                executeQuery();
+                queryInput.addEventListener('change', (e) => {
+                    block.content = e.target.value;
+                    window.saveData();
+                    if (window.PageManager) window.PageManager.syncContent(self.activePageId);
+                    executeQuery();
+                });
+        return content;
+    },
+
+    _renderEmbedBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.className = 'block-embed';
+                content.contentEditable = false;
+                content.tabIndex = 0;
+
+                // Find the target note by title
+                var embedTitle = (block.content || '').trim();
+                var targetNote = null;
+                if (embedTitle && State && State.NOTES) {
+                    targetNote = State.NOTES.find(function(n) {
+                        return (n.title || '').toLowerCase() === embedTitle.toLowerCase();
+                    });
+                }
+
+                if (targetNote) {
+                    // Render embed header with title and open button
+                    var embedHeader = document.createElement('div');
+                    embedHeader.className = 'embed-header';
+
+                    var embedLabel = document.createElement('span');
+                    embedLabel.className = 'embed-label';
+                    embedLabel.textContent = 'EMBED: ' + (targetNote.title || 'Untitled');
+
+                    var openBtn = document.createElement('button');
+                    openBtn.className = 'embed-open-btn block-action-btn';
+                    openBtn.textContent = 'OPEN';
+                    openBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        if (window.Notes) window.Notes.open(targetNote.id);
+                    };
+
+                    embedHeader.appendChild(embedLabel);
+                    embedHeader.appendChild(openBtn);
+                    content.appendChild(embedHeader);
+
+                    // Render the target note's content as read-only preview
+                    var embedBody = document.createElement('div');
+                    embedBody.className = 'embed-body';
+
+                    var targetContent = targetNote.content || '';
+                    if (targetContent) {
+                        // Use renderMarkdown for preview if available, else plain text
+                        if (window.Notes && window.Notes.renderMarkdown) {
+                            embedBody.innerHTML = window.Notes.renderMarkdown(targetContent, true);
+                        } else {
+                            var safe = targetContent.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            embedBody.innerHTML = safe.replace(/\n/g, '<br>');
+                        }
+                    } else {
+                        // Check blocks
+                        var blocks = targetNote.blocks || [];
+                        if (blocks.length > 0) {
+                            var text = blocks.map(function(b) { return b.content || ''; }).join(' ');
+                            if (window.Notes && window.Notes.renderMarkdown) {
+                                embedBody.innerHTML = window.Notes.renderMarkdown(text, true);
+                            } else {
+                                var safe = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                embedBody.innerHTML = safe.replace(/\n/g, '<br>');
+                            }
+                        } else {
+                            embedBody.innerHTML = '<span class="embed-empty">(empty note)</span>';
+                        }
+                    }
+
+                    // Refresh-on-reopen marker
+                    var embedMeta = document.createElement('div');
+                    embedMeta.className = 'embed-meta';
+                    embedMeta.textContent = '\u21BB Refreshes on reopen';
+
+                    content.appendChild(embedBody);
+                    content.appendChild(embedMeta);
+                } else {
+                    // Note not found - show placeholder
+                    var embedPlaceholder = document.createElement('div');
+                    embedPlaceholder.className = 'embed-placeholder';
+
+                    if (embedTitle) {
+                        var createBtn = document.createElement('button');
+                        createBtn.className = 'embed-create-btn block-action-btn';
+                        createBtn.textContent = 'CREATE: "' + embedTitle + '"';
+                        createBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            if (window.Notes) window.Notes.create(embedTitle, '/');
+                        };
+                        embedPlaceholder.innerHTML = '<span class="embed-missing">Note not found: <strong>!' + embedTitle + ']</strong></span>';
+                        embedPlaceholder.appendChild(createBtn);
+                    } else {
+                        embedPlaceholder.innerHTML = '<span class="embed-missing">Empty embed (no note title)</span>';
+                    }
+
+                    content.appendChild(embedPlaceholder);
+                }
         return content;
     },
 
