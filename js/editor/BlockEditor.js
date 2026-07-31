@@ -767,56 +767,13 @@ export const BlockEditor = {
         if (!svg) return;
 
         // Wire toggle header once (before early-return so it works even with 0 connections)
-        if (!this._localGraphToggleWired) {
-            this._localGraphToggleWired = true;
-            var toggleEl = document.getElementById('local-graph-toggle');
-            if (toggleEl) {
-                toggleEl.addEventListener('click', function() {
-                    var graphEl = document.getElementById('editor-local-graph');
-                    if (!graphEl) return;
-                    graphEl.classList.toggle('collapsed');
-                });
-            }
-        }
+        this._wireLocalGraphToggle();
 
         var note = State.NOTES.find(function(n) { return n.id === noteId; });
         if (!note) return;
 
         // Gather connected notes: backlinks + forward links
-        var connectedIds = new Set();
-        var connectedNotes = [];
-
-        // Backlinks (notes that link TO this note)
-        if (window.MetadataCache && window.MetadataCache.getBacklinks) {
-            var backlinkData = window.MetadataCache.getBacklinks(noteId);
-            backlinkData.forEach(function(m) {
-                if (m.id && m.id !== noteId && !connectedIds.has(m.id)) {
-                    connectedIds.add(m.id);
-                    var n = State.NOTES.find(function(x) { return x.id === m.id; });
-                    if (n) connectedNotes.push({ id: n.id, name: n.title || 'Untitled', direction: 'incoming' });
-                }
-            });
-        }
-
-        // Forward links (notes this note links TO) — parse [[wiki links]] from content/blocks
-        var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
-        var textToSearch = '';
-        if (note.blocks && Array.isArray(note.blocks)) {
-            textToSearch = note.blocks.map(function(b) { return (b.content || ''); }).join('\n');
-        } else {
-            textToSearch = note.content || '';
-        }
-        var match;
-        while ((match = wikiLinkRegex.exec(textToSearch)) !== null) {
-            var targetTitle = match[1].trim().toLowerCase();
-            var target = State.NOTES.find(function(n) {
-                return n.title && n.title.trim().toLowerCase() === targetTitle && n.id !== noteId;
-            });
-            if (target && !connectedIds.has(target.id)) {
-                connectedIds.add(target.id);
-                connectedNotes.push({ id: target.id, name: target.title || 'Untitled', direction: 'outgoing' });
-            }
-        }
+        var connectedNotes = this._gatherLocalGraphConnections(noteId, note);
 
         // Update count badge
         if (countEl) {
@@ -930,6 +887,57 @@ export const BlockEditor = {
 
         // Store simulation reference so it can be stopped if needed
         this._localGraphSim = simulation;
+    },
+
+    _wireLocalGraphToggle: function() {
+        if (this._localGraphToggleWired) return;
+        this._localGraphToggleWired = true;
+        var toggleEl = document.getElementById('local-graph-toggle');
+        if (toggleEl) {
+            toggleEl.addEventListener('click', function() {
+                var graphEl = document.getElementById('editor-local-graph');
+                if (!graphEl) return;
+                graphEl.classList.toggle('collapsed');
+            });
+        }
+    },
+    _gatherLocalGraphConnections: function(noteId, note) {
+        var connectedIds = new Set();
+        var connectedNotes = [];
+
+        // Backlinks (notes that link TO this note)
+        if (window.MetadataCache && window.MetadataCache.getBacklinks) {
+            var backlinkData = window.MetadataCache.getBacklinks(noteId);
+            backlinkData.forEach(function(m) {
+                if (m.id && m.id !== noteId && !connectedIds.has(m.id)) {
+                    connectedIds.add(m.id);
+                    var n = State.NOTES.find(function(x) { return x.id === m.id; });
+                    if (n) connectedNotes.push({ id: n.id, name: n.title || 'Untitled', direction: 'incoming' });
+                }
+            });
+        }
+
+        // Forward links (notes this note links TO) — parse [[wiki links]] from content/blocks
+        var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+        var textToSearch = '';
+        if (note.blocks && Array.isArray(note.blocks)) {
+            textToSearch = note.blocks.map(function(b) { return (b.content || ''); }).join('\n');
+        } else {
+            textToSearch = note.content || '';
+        }
+        var match;
+        while ((match = wikiLinkRegex.exec(textToSearch)) !== null) {
+            var targetTitle = match[1].trim().toLowerCase();
+            var target = State.NOTES.find(function(n) {
+                return n.title && n.title.trim().toLowerCase() === targetTitle && n.id !== noteId;
+            });
+            if (target && !connectedIds.has(target.id)) {
+                connectedIds.add(target.id);
+                connectedNotes.push({ id: target.id, name: target.title || 'Untitled', direction: 'outgoing' });
+            }
+        }
+
+        return connectedNotes;
     },
 
     // ─── SELECTION ───
