@@ -1174,105 +1174,7 @@ export const BlockEditor = {
                 content = this._renderTaskBlock(block, wrapper);
                 break;
             case 'code':
-                content = document.createElement('div');
-                content.classList.add('block-code');
-                content.contentEditable = false;
-                var inner = document.createElement('div');
-                inner.className = 'code-inner';
-                inner.contentEditable = true;
-                inner.setAttribute('data-placeholder', 'Code...');
-                
-                var rawCode = block.content || '';
-                var lang = block.language || 'javascript';
-                
-                // Corruption fix (simplified)
-                if (lang === 'calc') {
-                    inner.innerHTML = BlockEditor.getCalcPreviewHtml(rawCode);
-                    inner.setAttribute('data-highlighted', 'true');
-                    inner.addEventListener('focus', function() {
-                        if (this.getAttribute('data-highlighted') === 'true') {
-                            var safePage = State.NOTES.find(p => p.id === BlockEditor.activePageId);
-                            var safeBlock = safePage ? safePage.blocks.find(b => b.id === block.id) : block;
-                            this.textContent = safeBlock ? safeBlock.content : block.content;
-                            this.removeAttribute('data-highlighted');
-                        }
-                    });
-                    inner.addEventListener('blur', function() {
-                         if (this.textContent !== block.content) block.content = this.textContent;
-                         this.innerHTML = BlockEditor.getCalcPreviewHtml(this.textContent);
-                         this.setAttribute('data-highlighted', 'true');
-                    });
-                } else {
-                    inner.innerHTML = BlockEditor.highlightSyntax(rawCode, lang);
-                    inner.setAttribute('data-highlighted', 'true');
-                    inner.addEventListener('focus', function() {
-                        if (this.getAttribute('data-highlighted') === 'true') {
-                            this.textContent = rawCode;
-                            this.removeAttribute('data-highlighted');
-                        }
-                    });
-                    inner.addEventListener('blur', function() {
-                        rawCode = this.textContent;
-                        this.innerHTML = BlockEditor.highlightSyntax(rawCode, lang);
-                        this.setAttribute('data-highlighted', 'true');
-                    });
-                }
-                // Language selector (clickable label)
-                var langLabel = document.createElement('span');
-                langLabel.className = 'code-lang-label';
-                langLabel.textContent = lang;
-                langLabel.title = 'Click to change language';
-                langLabel.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var langPicker = wrapper.querySelector('.code-lang-picker');
-                    if (langPicker) { langPicker.remove(); return; }
-
-                    var LANGUAGES = ['javascript', 'python', 'html', 'css', 'typescript', 'jsx', 'tsx', 'json', 'markdown', 'bash', 'sql', 'yaml', 'rust', 'go', 'java', 'c', 'cpp', 'ruby', 'php', 'graphql', 'diff', 'plaintext'];
-                    var picker = document.createElement('div');
-                    picker.className = 'code-lang-picker';
-                    picker.style.cssText = 'position:absolute;top:24px;right:4px;z-index:200;';
-
-                    var currentLang = block.language || 'javascript';
-                    var html = LANGUAGES.map(function(l) {
-                        var cls = l === currentLang ? ' lang-opt active' : ' lang-opt';
-                        return '<div class="' + cls + '" data-lang="' + l + '">' + l + '</div>';
-                    }).join('');
-                    picker.innerHTML = html;
-
-                    picker.addEventListener('click', function(ce) {
-                        var opt = ce.target.closest('.lang-opt');
-                        if (!opt) return;
-                        var newLang = opt.getAttribute('data-lang');
-                        if (newLang !== (block.language || 'javascript')) {
-                            block.language = newLang;
-                            PageManager.updateBlock(self.activePageId, block.id, { language: newLang });
-                            self.render(self.activePageId);
-                        }
-                        picker.remove();
-                    });
-
-                    content.appendChild(picker);
-
-                    // Close on outside click
-                    setTimeout(function() {
-                        var closeHandler = function(ce2) {
-                            if (!picker.contains(ce2.target) && ce2.target !== langLabel) {
-                                picker.remove();
-                                document.removeEventListener('mousedown', closeHandler);
-                            }
-                        };
-                        document.addEventListener('mousedown', closeHandler);
-                    }, 10);
-                });
-                content.appendChild(langLabel);
-                content.appendChild(inner);
-                
-                // Enhance code block with line numbers, copy button, Tab support
-                requestAnimationFrame(function() {
-                    if (window.CodeBlockTools) {
-                        window.CodeBlockTools.enhanceBlock(wrapper, block);
-                    }
-                });
+                content = this._renderCodeBlock(block, wrapper);
                 break;
             case 'bullet': case 'numbered':
                 content = this._renderListBlock(block, wrapper);
@@ -2304,6 +2206,112 @@ export const BlockEditor = {
                 content.classList.add('block-content', 'block-p');
                 content.setAttribute('data-placeholder', 'Type / for commands');
         
+        return content;
+    },
+
+
+    _renderCodeBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('block-code');
+                content.contentEditable = false;
+                var inner = document.createElement('div');
+                inner.className = 'code-inner';
+                inner.contentEditable = true;
+                inner.setAttribute('data-placeholder', 'Code...');
+                
+                var rawCode = block.content || '';
+                var lang = block.language || 'javascript';
+                
+                // Corruption fix (simplified)
+                if (lang === 'calc') {
+                    inner.innerHTML = BlockEditor.getCalcPreviewHtml(rawCode);
+                    inner.setAttribute('data-highlighted', 'true');
+                    inner.addEventListener('focus', function() {
+                        if (this.getAttribute('data-highlighted') === 'true') {
+                            var safePage = State.NOTES.find(p => p.id === BlockEditor.activePageId);
+                            var safeBlock = safePage ? safePage.blocks.find(b => b.id === block.id) : block;
+                            this.textContent = safeBlock ? safeBlock.content : block.content;
+                            this.removeAttribute('data-highlighted');
+                        }
+                    });
+                    inner.addEventListener('blur', function() {
+                         if (this.textContent !== block.content) block.content = this.textContent;
+                         this.innerHTML = BlockEditor.getCalcPreviewHtml(this.textContent);
+                         this.setAttribute('data-highlighted', 'true');
+                    });
+                } else {
+                    inner.innerHTML = BlockEditor.highlightSyntax(rawCode, lang);
+                    inner.setAttribute('data-highlighted', 'true');
+                    inner.addEventListener('focus', function() {
+                        if (this.getAttribute('data-highlighted') === 'true') {
+                            this.textContent = rawCode;
+                            this.removeAttribute('data-highlighted');
+                        }
+                    });
+                    inner.addEventListener('blur', function() {
+                        rawCode = this.textContent;
+                        this.innerHTML = BlockEditor.highlightSyntax(rawCode, lang);
+                        this.setAttribute('data-highlighted', 'true');
+                    });
+                }
+                // Language selector (clickable label)
+                var langLabel = document.createElement('span');
+                langLabel.className = 'code-lang-label';
+                langLabel.textContent = lang;
+                langLabel.title = 'Click to change language';
+                langLabel.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var langPicker = wrapper.querySelector('.code-lang-picker');
+                    if (langPicker) { langPicker.remove(); return; }
+
+                    var LANGUAGES = ['javascript', 'python', 'html', 'css', 'typescript', 'jsx', 'tsx', 'json', 'markdown', 'bash', 'sql', 'yaml', 'rust', 'go', 'java', 'c', 'cpp', 'ruby', 'php', 'graphql', 'diff', 'plaintext'];
+                    var picker = document.createElement('div');
+                    picker.className = 'code-lang-picker';
+                    picker.style.cssText = 'position:absolute;top:24px;right:4px;z-index:200;';
+
+                    var currentLang = block.language || 'javascript';
+                    var html = LANGUAGES.map(function(l) {
+                        var cls = l === currentLang ? ' lang-opt active' : ' lang-opt';
+                        return '<div class="' + cls + '" data-lang="' + l + '">' + l + '</div>';
+                    }).join('');
+                    picker.innerHTML = html;
+
+                    picker.addEventListener('click', function(ce) {
+                        var opt = ce.target.closest('.lang-opt');
+                        if (!opt) return;
+                        var newLang = opt.getAttribute('data-lang');
+                        if (newLang !== (block.language || 'javascript')) {
+                            block.language = newLang;
+                            PageManager.updateBlock(self.activePageId, block.id, { language: newLang });
+                            self.render(self.activePageId);
+                        }
+                        picker.remove();
+                    });
+
+                    content.appendChild(picker);
+
+                    // Close on outside click
+                    setTimeout(function() {
+                        var closeHandler = function(ce2) {
+                            if (!picker.contains(ce2.target) && ce2.target !== langLabel) {
+                                picker.remove();
+                                document.removeEventListener('mousedown', closeHandler);
+                            }
+                        };
+                        document.addEventListener('mousedown', closeHandler);
+                    }, 10);
+                });
+                content.appendChild(langLabel);
+                content.appendChild(inner);
+                
+                // Enhance code block with line numbers, copy button, Tab support
+                requestAnimationFrame(function() {
+                    if (window.CodeBlockTools) {
+                        window.CodeBlockTools.enhanceBlock(wrapper, block);
+                    }
+                });
         return content;
     },
 
