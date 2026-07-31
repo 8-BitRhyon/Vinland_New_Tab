@@ -2,7 +2,7 @@
 
 > Single source of truth for the Vinland Chrome new-tab extension.
 > All facts verified against source code (`js/*` and `index.html`).
-> Last verified: 2026-07-26.
+> Last verified: 2026-07-29.
 
 ## 1. What Vinland is
 
@@ -77,7 +77,7 @@ _Verified against `js/boot.js` lines 422–516. 42 steps._
 
 ## 3. Module inventory (every `.js` file)
 
-> **✅ Filename casing normalized (2026-07-26):** All 52 JS files now use **PascalCase** consistently.
+> **✅ Filename casing normalized (2026-07-26):** All JS files now use **PascalCase** consistently.
 > The 5 files that were lowercase (`commandregistry.js`, `metadatacache.js`, `queryengine.js`, `dock.js`, `clock.js`)
 > have been renamed to `CommandRegistry.js`, `MetadataCache.js`, `QueryEngine.js`, `Dock.js`, `Clock.js`.
 > `SafeCalc.js` was already PascalCase. Import paths match filenames exactly — no import changes were needed.
@@ -101,23 +101,23 @@ _Verified against `js/boot.js` lines 422–516. 42 steps._
 
 | File | Exports | Purpose |
 |---|---|---|
-| `NotesController.js` | `Notes`, `closeNoteEditor`, `legacyRenderNotes` | Central PKM controller: `create`, `open`, `save`, `delete`, `renderNotes` (Quick Notes list), `toggleSidebar`, `openByTitle`, `togglePreview`, `togglePin`, tag extraction, markdown parsing helpers. 78KB. |
-| `CanvasManager.js` | `CanvasManager` | Infinite spatial canvas: nodes (text/file/embed/group), edges (Shift+drag), zoom/pan, lasso marquee, multi-select, undo/redo (50 states), clipboard (`Cmd+C/V/D`), minimap, context menus. Canvas data lives in `note.canvasData`. 91KB. Wiki-link auto-routing from text node content. |
-| `GraphManager.js` | `GraphManager` | D3 force-directed knowledge graph: nodes = notes + boards; edges = `[[wiki links]]` derived from note content. GLOBAL + LOCAL (1-degree) mode. Hover highlights full chain; click opens note/board. Saved node positions pinned (`fx`/`fy`) via `VINLAND_GRAPH_LAYOUT`. |
+| `NotesController.js` | `Notes`, `closeNoteEditor`, `legacyRenderNotes` | Central PKM controller: `create`, `open`, `save`, `delete`, `renderNotes` (Quick Notes list), `toggleSidebar`, `openByTitle`, `togglePreview`, `togglePin`, tag extraction, markdown parsing helpers. 2,419 lines. **Refactored V19.52** — `open()` and `bindEvents()` now delegate to 14 extracted helper methods. |
+| `CanvasManager.js` | `CanvasManager` | Infinite spatial canvas: nodes (text/file/embed/group), edges (Shift+drag), zoom/pan, lasso marquee, multi-select, undo/redo (50 states), clipboard (`Cmd+C/V/D`), minimap, context menus, auto-layout (force-directed), zoom slider, collapsible toolbar, auto-save + crash recovery, tag filter bar. Canvas data lives in `note.canvasData`. 4,982 lines. **Refactored V19.53** — 13 helper methods extracted from `renderEdge()`, `_showEdgeContextMenu()`, and `bindEvents()`. |
+| `GraphManager.js` | `GraphManager` | D3 force-directed knowledge graph: nodes = notes + boards; edges = `[[wiki links]]` derived from note content. GLOBAL + LOCAL (1-degree) mode. Zoom-to-fit on node click (animates connected subgraph). Rich DOM tooltips on hover. Folder/tag-based graph scoping dropdown. Hover highlights full chain; click opens note/board. Saved node positions pinned (`fx`/`fy`) via `VINLAND_GRAPH_LAYOUT`. |
 
 ### `js/features/` - Productivity widgets (HUD peripherals)
 
 | File | Exports | Purpose |
 |---|---|---|
 | `CommandLine.js` | `CommandLine` | Terminal input (`#cmd-input`): autocomplete suggestions, arrow nav, command history (last 50, key `OPERATOR_HISTORY_V2`), fallback search (8 engines). Shows default hint on load. |
-| `Missions.js` | `renderMissions`, `addTask`, `toggleTaskComplete`, `clearCompletedTasks`, `updateProgressBar`, `checkStreakReset` | Task system with priority (`!!/!/~`), time, `@category`. Progress bar + streak tracking. Empty state with CTA. |
+| `Missions.js` | `renderMissions`, `addTask`, `toggleTaskComplete`, `clearCompletedTasks`, `updateProgressBar`, `checkStreakReset` | Task system with priority (`!!/!/~`), time, `@category`. Progress bar + streak tracking. Recurring tasks (`+daily`/`+weekly`/`+monthly`) with auto-respawn. Drag-to-reorder with grip handle. Empty state with CTA. 571 lines. |
 | `kanbanmanager.js` | `KanbanManager` | Multi-board kanban: columns/cards, vim keyboard nav (`h/j/k/l`), drag-and-drop, inline contenteditable editing. 800+ lines of pure state management. |
 | `Pomodoro.js` | `Pomodoro`, `parseTime`, `startPomodoro`, `loadPomodoroState` | Timer with `chrome.storage.local` cross-tab sync. Supports `25m`, `90s`, `M:SS` formats. 8-bit completion sound + HUD overlay + notification. |
 | `Bookmarks.js` | `Bookmarks`, `indexBookmarks`, `renderBottomBar` | Chrome bookmarks browser as bottom bar, folder drill-down with `NAV_STACK` back nav, empty-folder hint. Populates `State.FLAT_BOOKMARKS` for `b` command. |
 | `Weather.js` | `Weather`, `fetchWeather` | Open-Meteo API (geocoding + forecast). 30-min cache in `OPERATOR_WEATHER_CACHE`. `SET_LOCATION` empty-state CTA. C/F toggle. |
 | `dock.js` | `Dock` | Quick-launch link bar below HUD. Default links: GMAIL, CAL, GPT. Right-click to delete. `+` opens Settings → dock tab. |
 | `taskaggregator.js` | `TaskAggregator` | Aggregates all `task`-type blocks from all notes into a single "Task Manager" view, grouped by page, with inline checkboxes. |
-| `QuickOpen.js` | `QuickOpen` | VS Code-inspired quick-open palette (Cmd+P / Cmd+Shift+F): full-text search across note titles, content, tags, and CLI commands. Debounced at 150ms. Results grouped into Notes/Tags/Commands sections with keyboard navigation. |
+| `QuickOpen.js` | `QuickOpen` | VS Code-inspired quick-open palette (Cmd+P / Cmd+Shift+F): full-text search across note titles, content, tags, canvas nodes, and CLI commands. Full-page search results page with staggered entrance animation, recent searches (localStorage). Debounced at 150ms. Results grouped into Notes/Canvas/Tasks/Commands sections with keyboard navigation. 1,792 lines. |
 | `Calendar.js` | `Calendar` | Monthly calendar view (Cmd+Shift+C / `calendar` CLI). Shows date-grid with note dot indicators. Click a day to open/create daily note. Prev/next month navigation, "Today" jump button. |
 | `DailyAgenda.js` | `DailyAgenda` | Daily notes aggregation view (Cmd+Shift+A / `agenda` CLI). Shows week/month layout of daily note titles with content previews. Navigate between periods, click cards to open notes. |
 | `TagBrowser.js` | `TagBrowser` | Tag browser modal (Cmd+Shift+T / `tags` CLI): lists all tags with counts, real-time search/filter, click-to-filter notes in sidebar. |
@@ -148,6 +148,7 @@ _Verified against `js/boot.js` lines 422–516. 42 steps._
 | `background.js` | `Background` | Video/image wallpaper player. Handles `backgrounds[]` list from config, random selection, retry on error, color fallback, filter overlay. |
 | `PropertiesPanel.js` | `PropertiesPanel` | YAML frontmatter editor panel in the note editor sidebar. Parses `---\nkey: value\n---` frontmatter and renders editable fields: tags (autocomplete), aliases, date, status (preset dropdown), booleans, and custom key:value pairs. `syncToNote()` serializes changes back into `note.content` on save. |
 | `WikiLinkAutocomplete.js` | `WikiLinkAutocomplete` | Inline `[[` autocomplete popup inside BlockEditor. Queries `MetadataCache` for note titles. Navigation with arrow keys, Enter to insert. |
+| `FormatToolbar.js` | `FormatToolbar` | Floating formatting toolbar (B/I/U/S/code) on text selection inside canvas card body. Positions above selection, flips below if near viewport top. Active-state toggle for each format button. |
 
 ### `js/editor/` - The note editor engine
 
@@ -352,13 +353,36 @@ Hardcoded z-index values used outside the CSS variable system:
 - **Cross-tab sync**: Pomodoro timer state syncs via `chrome.storage.local`.
   Everything else is per-tab (each tab loads state from localStorage on boot).
 - **Tests**: `npm test` runs `tests/run-all.mjs`, which aggregates unit tests
-  and Playwright E2E tests. See §13 for full test inventory.
+  and Playwright E2E tests. See §14 for full test inventory.
+- **CI**: GitHub Actions runs on every push/PR to `main`. See §12 for workflow details.
+  **12 consecutive green runs** as of 2026-07-29.
+- **Refactoring pattern**: Large functions (`open()`, `bindEvents()`, `renderEdge()`,
+  `_showEdgeContextMenu()`) are decomposed via **pure extraction** into `_`-prefixed helper
+  methods. No behavioral changes — each extraction commit is a pure move of inline code
+  into named methods. This pattern is preferred over file splitting because these modules
+  share a closure/state that would require passing `this` through call chains.
 - **`PROJECT_BLUEPRINT.md`** was deleted on 2026-07-26 (stale — still referenced
   the deleted `main.js`). The canonical file map is `docs/design.md` (this file).
 - **`Config.loadFromSync()` is called once** in the boot sequence (line 500).
   The duplicate was removed in V19.47+ (2026-07-26).
 
 ## 10. Recent changes
+
+- **V19.55** (2026-07-29): **Attachment Manager** — new `js/core/AttachmentsManager.js` (562 lines) backed by the existing IndexedDB `media_assets` store (`OPERATOR_VAULT`). `attachments` CLI command opens the Attachment Browser modal (upload button, thumbnail grid, per-file delete, count + total-size footer, empty state). Selecting an attachment inserts an image block into the active note via `getDataURL()` (the block renderer reads `block.content`/`url`, not an IDB key). Object URL lifecycle: cached per attachment, revoked on delete and on `beforeunload`. 18 new unit tests (`tests/attachments-unit-tests.mjs`, registered in `run-all.mjs`). **Canvas-tag indexing started** — `MetadataCache` now includes canvas node body/tag content in per-note full-text + tag indexing (first half of the TagBrowser integration roadmap item; click-to-filter side still pending).
+
+- **V19.54** (2026-07-29): Canvas edge style picker — color swatches (6 colors), width picker (1–4), dashed toggle via edge right-click context menu. Canvas tag filter bar — filter visible nodes by #tag, tag dropdown with counts. GitHub Actions CI fixed (Node.js 24, no E2E test breaking, green across 14 suites). Design doc reconciled to V19.54.
+
+- **V19.53** (2026-07-28): **CanvasManager massive refactoring (Phase C1–C3)** — 13 helper methods extracted across 3 phases, identical to the NotesController approach. C1: 5 edge-rendering helpers (`_calcBezierControlPoints`, `_buildEdgePathString`, `_resolveEdgeStyles`, `_renderWaypointHandles`, `_renderEdgeHoverHint`) extracted from `renderEdge()`. C2: 3 context-menu helpers (`_buildEdgeMenuHTML`, `_handleEdgeMenuAction`, `_setupCloseOnOutsideClick`) extracted from `_showEdgeContextMenu()`. C3: 5 event-binding handlers (`_bindKeyboardShortcuts`, `_bindCanvasMouseEvents`, `_bindGlobalMoveEvents`, `_bindWheelZoom`, `_bindCanvasContextMenu`) extracted from `bindEvents()`. `bindEvents()` went from 430 inline lines to a 6-line delegation chain. `renderEdge()` went from 200+ lines to a 35-line clean delegation chain.
+
+- **V19.52** (2026-07-28): **NotesController massive refactoring (Phase 1a–2f)** — 14 methods extracted from the two largest functions. From `open()`: `_cleanupAutoNote`, `_savePreviousNote`, `_resolveNote`, `_setupNoteState`, `_setupEditorContainers`, `_renderEditor`, `_renderTrashBanner`, `_refreshSidebar`. From `bindEvents()`: `_bindSidebarSearch`, `_bindShortcuts`, `_bindPreviewClicks`, `_bindEditorInputs`, `_bindSidebarButtons`, `_bindToolbarHandlers`. Both functions are now clean delegation chains under 30 lines. Pure extraction — zero behavioral changes. All 643 unit tests pass.
+
+- **V19.51** (2026-07-28): UX audit fixes — global error boundary (`window.onerror` + `unhandledrejection` handler), boot loader spinner with noscript fallback, improved `showNotification()` toast (3s auto-dismiss + CSS transitions). Modal stack indicator — pill tabs showing open modals, click to reorder and focus. Breadcrumb navigation for note path hierarchy (clickable `/`-delimited segments). CLI command suggestions with fuzzy matching and match highlighting. Side-by-side sidebar — wider note editor modal, drag-to-resize split, responsive collapse on narrow viewports. `FormatToolbar.js` created — floating B/I/U/S/code bar on text selection in canvas card body. Backup download button in main toolbar. History API (`pushState`/`popstate`) for browser back/forward note navigation. A11y baseline: `role=button`, `tabindex=0`, `aria-label` on 13 close-modal spans. Three remaining UX audit items shipped: date display in search results, `prefers-reduced-motion` support, saved confirmation toast.
+
+- **V19.50** (2026-07-28): **Search overhaul** — full-page search results page (Cmd+Shift+F) with staggered fade-in/slide-up animation (`@keyframes srpResultIn`). Results grouped by Notes/Canvas/Tasks/Commands with per-section counts. Recent searches persisted to localStorage (last 10, click to repeat). Canvas node content search integrated into QuickOpen. **Missions upgrade** — recurring tasks with `+daily`, `+weekly`, `+monthly` prefixes (auto-respawn on completion). Drag-to-reorder with grip handle, ghost element, glow pulse animation. Recurrence config panel with interval picker (daily/weekly/monthly) and day-of-week selector for weekly tasks. Note pinning — pin notes to top of sidebar via star icon, `togglePin()` with persistence.
+
+- **V19.49** (2026-07-28): **Graph overhaul** — GraphCon-inspired zoom-to-fit on node click (animates connected subgraph into view). Rich DOM tooltips on node hover (note title + content preview + tag count). Folder/tag-based graph scoping dropdown — filter visible graph nodes by note path or tag. **Canvas power tools** — auto-layout button running force-directed `d3.forceSimulation` on selected or all nodes (configurable iterations 50/100/300). Zoom slider (10%–500%) for precise zoom control. Collapsible toolbar with ◀/▶ toggle, persists to localStorage. Empty-area right-click context menu with Add Node, Auto-Layout, Paste, Reset View. Auto-save + crash recovery — periodic save (every 30s), auto-save indicator dot in toolbar, crash recovery prompt with snapshot preview on reload.
+
+- **V19.48** (2026-07-28): **Canvas edge system** — bezier curves with perpendicular offset for all orientations (horizontal/vertical/diagonal). Edge waypoints with drag-to-move handles and right-click-to-delete. Edge hover glow effect (`stroke-width` + opacity transition). Full edge context menu: color swatches (6 colors: default, red, blue, green, orange, purple), width picker (1–4px), dashed toggle, label editing, delete edge. **Table column resize** — drag handles between table header cells (`col-resize` cursor), live column width sync, min-width clamping (80px), reset-to-auto button in table toolbar. 36 unit tests. **Block Editor UX** — block duplicate action (Cmd+D, button in block toolbar). In-editor find/replace (Cmd+F) with text highlighting, match navigation, replace mode (Cmd+H). Code block language selector. Wiki-link autocomplete now supports "Create new note" when `[[` query has no matches. `/color` command via SlashMenu (6 preset colors). Canvas rich-text formatting toolbar (B/I/U/S/code) on text selection. Canvas markdown auto-format (`**bold**` → `<strong>`, `*italic*` → `<em>`) on blur/enter. Canvas keyboard nudging (arrow keys 1px, Shift+arrow 10px) + zoom-to-selection (Alt+Z).
 
 - **V19.47+** (2026-07-26): Comprehensive docs reconciliation — full module inventory audit, boot sequence verified against source, command list expanded to 33, z-index tiers updated, casing inconsistency documented, 8 undocumented feature modules catalogued (CanvasSearch, CodeBlockTools, DataviewQuery, FlashcardManager, ObsidianImporter, VersionHistoryManager, WorkspaceManager, WikiLinkAutocomplete). Core modules `Input.js` and `utils.js` documented. `js/main.js` deleted (dead code, not imported anywhere). Duplicate `Config.loadFromSync()` call removed from boot sequence (section lettering fixed to sequential A→G).
 - **V19.46** (2026-07-25): Properties Panel — YAML frontmatter editor in note editor sidebar. Inline editing for tags, aliases, date, status, booleans, and custom key:value pairs. Tag autocomplete from MetadataCache. Critical save-order bugs fixed (syncToNote before saveData, stale body reference).
@@ -378,8 +402,8 @@ Hardcoded z-index values used outside the CSS variable system:
 ## 11. Known limitations / future
 
 - **(RESOLVED 2026-07-26) Module casing inconsistency**: Previously 5 files were lowercase
-  while imports used PascalCase. All 52 JS files now consistently use PascalCase.
-  See §12 for the resolution details.
+  while imports used PascalCase. All JS files now consistently use PascalCase.
+  See §13 for the resolution details.
 - **(RESOLVED 2026-07-26) `js/main.js` dead code**: The file existed on disk but was
   not imported anywhere. Was deleted as part of the 2026-07-26 cleanup.
 - Graph layout positions are persisted to `VINLAND_GRAPH_LAYOUT` and reapplied
@@ -393,9 +417,11 @@ Hardcoded z-index values used outside the CSS variable system:
   Guarded by `tests/wikilink-routing.playwright.spec.mjs`.
 - IndexedDB (`OPERATOR_VAULT`) holds media assets + canvas offload + version
   history. Over time, the version history store may need a compaction strategy.
-- No CI; tests run manually via `npm test`.
-- **(RESOLVED 2026-07-26) `Config.loadFromSync()` duplicate removed** — was
+- **(RESOLVED 2026-07-28) No CI**: GitHub Actions CI was set up and is now fully green (all 14 test suites pass, Node.js 24). Runs on push/PR to `main`. See `.github/workflows/ci.yml`.
+- **(RESOLVED 2026-07-28) Config.loadFromSync() duplicate removed** — was
   called twice in boot (lines 499–500, 509–510). Now a single call (line 500).
+  _(Already marked resolved in V19.47+, re-verified.)_
+
 - The `KanbanManager` operates on `State.BOARDS` and links notes via a
   `kanban_ref` block (`block.boardId`). The note's link is persisted
   synchronously at link time so a board is never orphaned if the tab closes
@@ -408,8 +434,25 @@ Hardcoded z-index values used outside the CSS variable system:
   menu item requires the `contextMenus` permission which is declared in
   `manifest.json`. The service worker (`js/background/service-worker.js`)
   handles the context menu click event.
+- Canvas tags (`#tag` in canvas card body) are filtered in-canvas and are now
+  **indexed by `MetadataCache`** (V19.55 — canvas node body/tag content joins the
+  per-note full-text + tag index). The remaining half of the integration —
+  making canvas tags **clickable/filterable from the global TagBrowser**
+  (`Cmd+Shift+T`) — is still pending.
 
-## 12. (RESOLVED) Module filename casing normalization
+## 12. (RESOLVED) GitHub Actions CI
+
+**Status: Operational on all commits since V19.48+.**
+
+- Workflow: `.github/workflows/ci.yml`
+- Runs on `push` and `pull_request` to `main`
+- Steps: `actions/checkout@v4` → `actions/setup-node@v4` with Node.js 24 → `npm ci` → `npm test`
+- Node.js 24 is pinned (20 was deprecated by GitHub Actions runners in 2025-09)
+- 14 unit test suites pass (0 failures) on every push
+- E2E tests are NOT included in CI (Python HTTP server dependency, requires headed browser)
+- **12 consecutive green runs** as of 2026-07-29.
+
+## 13. (RESOLVED) Module filename casing normalization
 
 **Status: Resolved 2026-07-26.**
 
@@ -432,7 +475,7 @@ All imports already used PascalCase paths (e.g., `./core/CommandRegistry.js`),
 so **no JS files required import path updates**. The only changes were the
 5 file renames + documentation updates.
 
-## 13. Test inventory
+## 14. Test inventory
 
 Tests live in `tests/`. Two families — do NOT confuse them:
 
@@ -448,6 +491,10 @@ Tests live in `tests/`. Two families — do NOT confuse them:
 | `dataview-unit-tests.mjs` | DataviewQuery parser tests |
 | `metadata-cache-unit-tests.mjs` | MetadataCache index/write/lookup tests |
 | `quickopen-unit-tests.mjs` | QuickOpen search/filter logic tests |
+| `fuzzy-unit-tests.mjs` | CommandRegistry fuzzy matching algorithm (41 tests) |
+| `missions-unit-tests.mjs` | Missions addTask, toggle, reorder, streak, sorting (57 tests) |
+| `snap-grid-unit-tests.mjs` | Canvas snap-to-grid rounding and DOM updates |
+| `table-column-unit-tests.mjs` | Table column syncColumnWidths, clamp, lifecycle (36 tests) |
 | `import-unit-tests.mjs` | ObsidianImporter / backup import logic tests |
 | `helpers.mjs` | Shared test utility functions |
 
@@ -488,8 +535,9 @@ Playwright config auto-starts `python3 -m http.server 9999` (kills 8080/8181/999
 | `version-history.playwright.spec.mjs` | Version history |
 | `wikilink-autocomplete.playwright.spec.mjs` | [[ autocomplete popup |
 | `wikilink-routing.playwright.spec.mjs` | Canvas wiki-link auto-routing |
+| `local-graph.playwright.spec.mjs` | Per-note local graph (D3 force rendering) |
 
-**30 Playwright spec files total.**
+**31 Playwright spec files total.**
 
 ### Running tests
 

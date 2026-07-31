@@ -161,10 +161,17 @@ export const MetadataCache = {
             return null;
         }
         
-        // Build full content from blocks
+        // Build full content from blocks + canvas node body content
         var fullContent = note.content || '';
         if (note.blocks && note.blocks.length > 0) {
             fullContent = note.blocks.map(b => b.content || '').join('\n');
+        }
+        // Include canvas node body content for tag indexing
+        if (note.canvasData && note.canvasData.nodes && note.canvasData.nodes.length > 0) {
+            var canvasTexts = note.canvasData.nodes.map(function(n) {
+                return (n.body || n.title || '') + ' ' + (n.tags ? '#' + n.tags.join(' #') : '');
+            }).join('\n');
+            fullContent += '\n' + canvasTexts;
         }
         
         // Parse frontmatter

@@ -56,6 +56,7 @@ import { VersionHistoryManager } from "./features/VersionHistoryManager.js";
 import { FlashcardManager } from "./features/FlashcardManager.js";
 import { CodeBlockTools } from "./features/CodeBlockTools.js";
 import { CanvasSearch } from "./features/CanvasSearch.js";
+import { AttachmentsManager } from "./core/AttachmentsManager.js";
 
 // 2. EXPORT TO WINDOW (Fixes HTML onclick="" errors)
 window.State = State;
@@ -99,6 +100,7 @@ window.VersionHistoryManager = VersionHistoryManager;
 window.FlashcardManager = FlashcardManager;
 window.CodeBlockTools = CodeBlockTools;
 window.CanvasSearch = CanvasSearch;
+window.AttachmentsManager = AttachmentsManager;
 window.Audio = Audio;
 window.SlashMenu = SlashMenu;
 window.PageActions = PageActions;
@@ -486,6 +488,7 @@ async function boot() {
   if (PageActions) PageActions.init();
   if (SlashMenu) SlashMenu.init();
   if (FormatToolbar) FormatToolbar.init();
+  if (AttachmentsManager) AttachmentsManager.init();
   if (Clock) Clock.init();
   if (CalloutModal) CalloutModal.init();
 

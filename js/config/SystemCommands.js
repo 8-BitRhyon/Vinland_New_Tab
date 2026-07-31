@@ -466,5 +466,35 @@ export const SystemCommands = {
         }
       },
     });
+
+    // --- ATTACHMENTS ---
+    CommandRegistry.register({
+      id: "attachments:list",
+      trigger: "attachments",
+      title: "Open Attachment Browser",
+      hint: "[upload|list]",
+      action: (args) => {
+        if (window.AttachmentsManager) {
+          window.AttachmentsManager.openBrowser(function(attachmentId, meta) {
+            // Insert into active note — resolve the blob to a data URL first
+            // (the image block renderer reads `block.content`/`url`, not an IDB key)
+            if (window.Notes && window.BlockEditor) {
+              var note = window.State.NOTES.find(function(n) { return n.id === window.BlockEditor.activePageId; });
+              if (note) {
+                window.AttachmentsManager.getDataURL(attachmentId).then(function(dataUrl) {
+                  if (!dataUrl) return;
+                  var newBlock = window.PageManager.addBlock(note, 'image', dataUrl, window.BlockEditor.focusedBlockId);
+                  newBlock.attachmentId = attachmentId;
+                  newBlock.attachmentName = meta.name;
+                  window.BlockEditor.render(window.BlockEditor.activePageId);
+                  window.PageManager.syncContent(window.BlockEditor.activePageId);
+                  window.saveData();
+                });
+              }
+            }
+          });
+        }
+      },
+    });
   },
 };
