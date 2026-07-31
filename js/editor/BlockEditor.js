@@ -2800,69 +2800,10 @@ export const BlockEditor = {
         if (this._kHandleDuplicate(e)) return;
         
         // Tab / Shift+Tab for Indentation
-        if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey) {
-            var blockWrapper = e.target.closest('.block-wrapper');
-            if (blockWrapper) {
-                e.preventDefault();
-                var blockId = blockWrapper.getAttribute('data-block-id');
-                var page = State.NOTES.find(n => n.id === this.activePageId);
-                var block = page ? page.blocks.find(b => b.id === blockId) : null;
-                if (block) {
-                    var newLevel = (block.level || 0) + (e.shiftKey ? -1 : 1);
-                    PageManager.updateBlock(this.activePageId, block.id, { level: newLevel });
-                    this.render(this.activePageId);
-                    saveData();
-                }
-                return;
-            }
-        }
+        if (this._kHandleIndent(e)) return;
 
         // Alt + Arrow for Move Block
-        if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-            e.preventDefault();
-            
-            // 🛡️ FIX 2: Allow moving selected blocks even if text focus is lost
-            var targetBlockId = null;
-            var blockWrapper = e.target.closest('.block-wrapper');
-            
-            if (blockWrapper) {
-                targetBlockId = blockWrapper.getAttribute('data-block-id');
-            } else if (this.selectedBlockIds.length === 1) {
-                targetBlockId = this.selectedBlockIds[0];
-            }
-
-            if (targetBlockId) {
-                HistoryManager.push(this.activePageId);
-                var page = State.NOTES.find(n => n.id === BlockEditor.activePageId);
-                var idx = page.blocks.findIndex(b => b.id === targetBlockId);
-                if (idx === -1) return;
-                
-                var swapped = false;
-                if (e.key === 'ArrowUp' && idx > 0) {
-                    var temp = page.blocks[idx - 1];
-                    page.blocks[idx - 1] = page.blocks[idx];
-                    page.blocks[idx] = temp;
-                    swapped = true;
-                } else if (e.key === 'ArrowDown' && idx < page.blocks.length - 1) {
-                    var temp = page.blocks[idx + 1];
-                    page.blocks[idx + 1] = page.blocks[idx];
-                    page.blocks[idx] = temp;
-                    swapped = true;
-                }
-
-                if (swapped) {
-                    PageManager.reorderBlocks(page);
-                    PageManager.syncContent(this.activePageId);
-                    saveData();
-                    this.render(this.activePageId);
-                    
-                    // Keep the block selected instead of forcing a text cursor inside
-                    this.selectBlock(targetBlockId, false);
-                    this.flashBlock(targetBlockId);
-                }
-            }
-            return;
-        }
+        if (this._kHandleAltArrowMove(e)) return;
         
         var blockEl = e.target.closest('.block-wrapper');
         if (!blockEl) return;
@@ -2870,171 +2811,13 @@ export const BlockEditor = {
         var blockType = blockEl.getAttribute('data-block-type');
 
         // Enter = split block at cursor
-        if (e.key === 'Enter' && !e.shiftKey) {
-            if (blockType === 'code' || blockType === 'image' || blockType === 'table') return;
-            e.preventDefault();
-            var page = State.NOTES.find(n => n.id === this.activePageId);
-            if (!page) return;
-            
-            var sel = window.getSelection();
-            var range = sel.getRangeAt(0);
-            var contentEl = e.target;
-            
-            var beforeRange = document.createRange();
-            beforeRange.selectNodeContents(contentEl);
-            beforeRange.setEnd(range.startContainer, range.startOffset);
-            var textBefore = beforeRange.toString();
-            
-            var afterRange = document.createRange();
-            afterRange.selectNodeContents(contentEl);
-            afterRange.setStart(range.endContainer, range.endOffset);
-            var textAfter = afterRange.toString();
-            
-            PageManager.updateBlock(this.activePageId, blockId, { content: textBefore });
-            
-            // Enter on empty list item -> revert to paragraph
-            if (['bullet', 'numbered', 'task'].includes(blockType) && !textBefore.trim() && !textAfter.trim()) {
-                PageManager.updateBlock(this.activePageId, blockId, { type: 'p', level: 0 });
-                this.render(this.activePageId);
-                return;
-            }
-            
-            var newType = ['bullet', 'numbered', 'task'].includes(blockType) ? blockType : 'p';
-            var currentBlock = page.blocks.find(b => b.id === blockId);
-            var newBlock = PageManager.addBlock(page, newType, textAfter, blockId);
-            if (currentBlock && currentBlock.level) {
-                PageManager.updateBlock(this.activePageId, newBlock.id, { level: currentBlock.level });
-            }
-            
-            this.focusedBlockId = newBlock.id;
-            this.render(this.activePageId);
-            
-            var self = this;
-            setTimeout(function() {
-                var newEl = self.container.querySelector('[data-block-id="' + newBlock.id + '"] .block-content');
-                if (newEl) {
-                    newEl.focus();
-                    var r = document.createRange();
-                    r.selectNodeContents(newEl);
-                    r.collapse(true);
-                    var s = window.getSelection();
-                    s.removeAllRanges();
-                    s.addRange(r);
-                }
-            }, 0);
-            return;
-        }
+        if (this._kHandleEnterSplit(e, blockId, blockType)) return;
 
         // Backspace at start = merge with previous block
-        if (e.key === 'Backspace') {
-            if (blockType === 'image' || blockType === 'table') return;
-            var sel = window.getSelection();
-            var atStart = false;
-            if (sel.rangeCount > 0) {
-                var range = sel.getRangeAt(0);
-                var startRange = range.cloneRange();
-                startRange.selectNodeContents(e.target);
-                startRange.setEnd(range.startContainer, range.startOffset);
-                atStart = startRange.toString().length === 0 && range.collapsed;
-            }
-            if (atStart) {
-                var page = State.NOTES.find(n => n.id === this.activePageId);
-                if (!page) return;
-                var idx = page.blocks.findIndex(b => b.id === blockId);
-                if (idx > 0) {
-                    e.preventDefault();
-                    var prevBlock = page.blocks[idx - 1];
-                    var currentText = e.target.textContent || '';
-                    var prevText = prevBlock.content || '';
-                    var cursorPosition = prevText.length;
-                    PageManager.updateBlock(this.activePageId, prevBlock.id, { content: prevText + currentText });
-                    PageManager.deleteBlock(this.activePageId, blockId);
-                    this.focusedBlockId = prevBlock.id;
-                    this.render(this.activePageId);
-                    var self = this;
-                    setTimeout(function() {
-                        var prevEl = self.container.querySelector('[data-block-id="' + prevBlock.id + '"] .block-content');
-                        if (!prevEl) prevEl = self.container.querySelector('[data-block-id="' + prevBlock.id + '"] .task-text');
-                        if (prevEl) {
-                            prevEl.focus();
-                            var textNode = prevEl.firstChild;
-                            if (textNode && textNode.nodeType === 3) {
-                                var r = document.createRange();
-                                var pos = Math.min(cursorPosition, textNode.length);
-                                r.setStart(textNode, pos);
-                                r.collapse(true);
-                                var s = window.getSelection();
-                                s.removeAllRanges();
-                                s.addRange(r);
-                            }
-                        }
-                    }, 0);
-                }
-            }
-            return;
-        }
+        if (this._kHandleBackspaceMerge(e, blockId, blockType)) return;
 
         // Arrow keys navigation between blocks
-        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            var page = State.NOTES.find(n => n.id === this.activePageId);
-            if (!page) return;
-
-            // CMD+Arrow = Quick Navigation (Jump to Start/End)
-            if (e.metaKey || e.ctrlKey) {
-                e.preventDefault();
-                if (e.key === 'ArrowUp') {
-                     if (page.blocks.length > 0) this.focusBlock(page.blocks[0].id);
-                } else {
-                     if (page.blocks.length > 0) this.focusBlock(page.blocks[page.blocks.length - 1].id);
-                }
-                return;
-            }
-            
-            var sel = window.getSelection();
-            var atStart = false, atEnd = false;
-            if (sel.rangeCount > 0) {
-                var range = sel.getRangeAt(0);
-                var startRange = range.cloneRange();
-                startRange.selectNodeContents(e.target);
-                startRange.setEnd(range.startContainer, range.startOffset);
-                atStart = startRange.toString().length === 0;
-                var endRange = range.cloneRange();
-                endRange.selectNodeContents(e.target);
-                endRange.setStart(range.endContainer, range.endOffset);
-                atEnd = endRange.toString().length === 0;
-            } else {
-                atStart = atEnd = true;
-            }
-            
-            var idx = page.blocks.findIndex(b => b.id === blockId);
-            
-            if (e.key === 'ArrowUp' && atStart) {
-                e.preventDefault();
-                var targetIdx = idx - 1;
-                while (targetIdx >= 0 && ['divider', 'image', 'kanban_ref', 'table'].includes(page.blocks[targetIdx].type)) {
-                    targetIdx--;
-                }
-                if (targetIdx >= 0) this.focusBlock(page.blocks[targetIdx].id);
-            } else if (e.key === 'ArrowDown' && atEnd) {
-                e.preventDefault();
-                var targetIdx = idx + 1;
-                while (targetIdx < page.blocks.length && ['divider', 'image', 'kanban_ref', 'table'].includes(page.blocks[targetIdx].type)) {
-                    targetIdx++;
-                }
-                if (targetIdx < page.blocks.length) {
-                    this.focusBlock(page.blocks[targetIdx].id);
-                } else {
-                    // Start V78: Fix for "Pushing Down" issue
-                    // Use the ID of the LAST block in the list to append AFTER it, 
-                    // instead of inserting after the current block.
-                    var lastBlockId = page.blocks[page.blocks.length - 1].id;
-                    var newBlock = PageManager.addBlock(page, 'p', '', lastBlockId);
-                    this.render(this.activePageId);
-                    if (newBlock) this.focusBlock(newBlock.id);
-                }
-            }
-            return;
-        }
+        if (this._kHandleArrowNav(e, blockId)) return;
         
         if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u', 'k', 'l'].includes(e.key.toLowerCase())) {
             e.preventDefault();
@@ -3317,6 +3100,253 @@ export const BlockEditor = {
             if (blockWrapper) {
                 var blockId = blockWrapper.getAttribute('data-block-id');
                 this.duplicateBlock(blockId);
+            }
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleIndent: function(e) {
+        if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey) {
+
+            var blockWrapper = e.target.closest('.block-wrapper');
+            if (blockWrapper) {
+                e.preventDefault();
+                var blockId = blockWrapper.getAttribute('data-block-id');
+                var page = State.NOTES.find(n => n.id === this.activePageId);
+                var block = page ? page.blocks.find(b => b.id === blockId) : null;
+                if (block) {
+                    var newLevel = (block.level || 0) + (e.shiftKey ? -1 : 1);
+                    PageManager.updateBlock(this.activePageId, block.id, { level: newLevel });
+                    this.render(this.activePageId);
+                    saveData();
+                }
+                return true;
+            }
+        }
+        return false;
+    },
+
+    _kHandleAltArrowMove: function(e) {
+        if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+
+            e.preventDefault();
+            
+            // 🛡️ FIX 2: Allow moving selected blocks even if text focus is lost
+            var targetBlockId = null;
+            var blockWrapper = e.target.closest('.block-wrapper');
+            
+            if (blockWrapper) {
+                targetBlockId = blockWrapper.getAttribute('data-block-id');
+            } else if (this.selectedBlockIds.length === 1) {
+                targetBlockId = this.selectedBlockIds[0];
+            }
+
+            if (targetBlockId) {
+                HistoryManager.push(this.activePageId);
+                var page = State.NOTES.find(n => n.id === BlockEditor.activePageId);
+                var idx = page.blocks.findIndex(b => b.id === targetBlockId);
+                if (idx === -1) return true;
+                
+                var swapped = false;
+                if (e.key === 'ArrowUp' && idx > 0) {
+                    var temp = page.blocks[idx - 1];
+                    page.blocks[idx - 1] = page.blocks[idx];
+                    page.blocks[idx] = temp;
+                    swapped = true;
+                } else if (e.key === 'ArrowDown' && idx < page.blocks.length - 1) {
+                    var temp = page.blocks[idx + 1];
+                    page.blocks[idx + 1] = page.blocks[idx];
+                    page.blocks[idx] = temp;
+                    swapped = true;
+                }
+
+                if (swapped) {
+                    PageManager.reorderBlocks(page);
+                    PageManager.syncContent(this.activePageId);
+                    saveData();
+                    this.render(this.activePageId);
+                    
+                    // Keep the block selected instead of forcing a text cursor inside
+                    this.selectBlock(targetBlockId, false);
+                    this.flashBlock(targetBlockId);
+                }
+            }
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleEnterSplit: function(e, blockId, blockType) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+
+            if (blockType === 'code' || blockType === 'image' || blockType === 'table') return true;
+            e.preventDefault();
+            var page = State.NOTES.find(n => n.id === this.activePageId);
+            if (!page) return true;
+            
+            var sel = window.getSelection();
+            var range = sel.getRangeAt(0);
+            var contentEl = e.target;
+            
+            var beforeRange = document.createRange();
+            beforeRange.selectNodeContents(contentEl);
+            beforeRange.setEnd(range.startContainer, range.startOffset);
+            var textBefore = beforeRange.toString();
+            
+            var afterRange = document.createRange();
+            afterRange.selectNodeContents(contentEl);
+            afterRange.setStart(range.endContainer, range.endOffset);
+            var textAfter = afterRange.toString();
+            
+            PageManager.updateBlock(this.activePageId, blockId, { content: textBefore });
+            
+            // Enter on empty list item -> revert to paragraph
+            if (['bullet', 'numbered', 'task'].includes(blockType) && !textBefore.trim() && !textAfter.trim()) {
+                PageManager.updateBlock(this.activePageId, blockId, { type: 'p', level: 0 });
+                this.render(this.activePageId);
+                return true;
+            }
+            
+            var newType = ['bullet', 'numbered', 'task'].includes(blockType) ? blockType : 'p';
+            var currentBlock = page.blocks.find(b => b.id === blockId);
+            var newBlock = PageManager.addBlock(page, newType, textAfter, blockId);
+            if (currentBlock && currentBlock.level) {
+                PageManager.updateBlock(this.activePageId, newBlock.id, { level: currentBlock.level });
+            }
+            
+            this.focusedBlockId = newBlock.id;
+            this.render(this.activePageId);
+            
+            var self = this;
+            setTimeout(function() {
+                var newEl = self.container.querySelector('[data-block-id="' + newBlock.id + '"] .block-content');
+                if (newEl) {
+                    newEl.focus();
+                    var r = document.createRange();
+                    r.selectNodeContents(newEl);
+                    r.collapse(true);
+                    var s = window.getSelection();
+                    s.removeAllRanges();
+                    s.addRange(r);
+                }
+            }, 0);
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleBackspaceMerge: function(e, blockId, blockType) {
+        if (e.key === 'Backspace') {
+
+            if (blockType === 'image' || blockType === 'table') return true;
+            var sel = window.getSelection();
+            var atStart = false;
+            if (sel.rangeCount > 0) {
+                var range = sel.getRangeAt(0);
+                var startRange = range.cloneRange();
+                startRange.selectNodeContents(e.target);
+                startRange.setEnd(range.startContainer, range.startOffset);
+                atStart = startRange.toString().length === 0 && range.collapsed;
+            }
+            if (atStart) {
+                var page = State.NOTES.find(n => n.id === this.activePageId);
+                if (!page) return true;
+                var idx = page.blocks.findIndex(b => b.id === blockId);
+                if (idx > 0) {
+                    e.preventDefault();
+                    var prevBlock = page.blocks[idx - 1];
+                    var currentText = e.target.textContent || '';
+                    var prevText = prevBlock.content || '';
+                    var cursorPosition = prevText.length;
+                    PageManager.updateBlock(this.activePageId, prevBlock.id, { content: prevText + currentText });
+                    PageManager.deleteBlock(this.activePageId, blockId);
+                    this.focusedBlockId = prevBlock.id;
+                    this.render(this.activePageId);
+                    var self = this;
+                    setTimeout(function() {
+                        var prevEl = self.container.querySelector('[data-block-id="' + prevBlock.id + '"] .block-content');
+                        if (!prevEl) prevEl = self.container.querySelector('[data-block-id="' + prevBlock.id + '"] .task-text');
+                        if (prevEl) {
+                            prevEl.focus();
+                            var textNode = prevEl.firstChild;
+                            if (textNode && textNode.nodeType === 3) {
+                                var r = document.createRange();
+                                var pos = Math.min(cursorPosition, textNode.length);
+                                r.setStart(textNode, pos);
+                                r.collapse(true);
+                                var s = window.getSelection();
+                                s.removeAllRanges();
+                                s.addRange(r);
+                            }
+                        }
+                    }, 0);
+                }
+            }
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleArrowNav: function(e, blockId) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+
+            var page = State.NOTES.find(n => n.id === this.activePageId);
+            if (!page) return true;
+
+            // CMD+Arrow = Quick Navigation (Jump to Start/End)
+            if (e.metaKey || e.ctrlKey) {
+                e.preventDefault();
+                if (e.key === 'ArrowUp') {
+                     if (page.blocks.length > 0) this.focusBlock(page.blocks[0].id);
+                } else {
+                     if (page.blocks.length > 0) this.focusBlock(page.blocks[page.blocks.length - 1].id);
+                }
+                return true;
+            }
+            
+            var sel = window.getSelection();
+            var atStart = false, atEnd = false;
+            if (sel.rangeCount > 0) {
+                var range = sel.getRangeAt(0);
+                var startRange = range.cloneRange();
+                startRange.selectNodeContents(e.target);
+                startRange.setEnd(range.startContainer, range.startOffset);
+                atStart = startRange.toString().length === 0;
+                var endRange = range.cloneRange();
+                endRange.selectNodeContents(e.target);
+                endRange.setStart(range.endContainer, range.endOffset);
+                atEnd = endRange.toString().length === 0;
+            } else {
+                atStart = atEnd = true;
+            }
+            
+            var idx = page.blocks.findIndex(b => b.id === blockId);
+            
+            if (e.key === 'ArrowUp' && atStart) {
+                e.preventDefault();
+                var targetIdx = idx - 1;
+                while (targetIdx >= 0 && ['divider', 'image', 'kanban_ref', 'table'].includes(page.blocks[targetIdx].type)) {
+                    targetIdx--;
+                }
+                if (targetIdx >= 0) this.focusBlock(page.blocks[targetIdx].id);
+            } else if (e.key === 'ArrowDown' && atEnd) {
+                e.preventDefault();
+                var targetIdx = idx + 1;
+                while (targetIdx < page.blocks.length && ['divider', 'image', 'kanban_ref', 'table'].includes(page.blocks[targetIdx].type)) {
+                    targetIdx++;
+                }
+                if (targetIdx < page.blocks.length) {
+                    this.focusBlock(page.blocks[targetIdx].id);
+                } else {
+                    // Start V78: Fix for "Pushing Down" issue
+                    // Use the ID of the LAST block in the list to append AFTER it, 
+                    // instead of inserting after the current block.
+                    var lastBlockId = page.blocks[page.blocks.length - 1].id;
+                    var newBlock = PageManager.addBlock(page, 'p', '', lastBlockId);
+                    this.render(this.activePageId);
+                    if (newBlock) this.focusBlock(newBlock.id);
+                }
             }
             return true;
         }
