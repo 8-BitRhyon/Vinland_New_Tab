@@ -1076,60 +1076,9 @@ export const BlockEditor = {
         if (block._tempIndex) wrapper.setAttribute('data-number', block._tempIndex);
         wrapper.setAttribute('draggable', 'true');
 
-        var dragHandle = document.createElement('div');
-        dragHandle.className = 'block-drag-handle';
-        dragHandle.setAttribute('title', 'Drag to reorder');
-        var gripDots = document.createElement('span');
-        gripDots.className = 'grip-dots';
-        dragHandle.appendChild(gripDots);
-        var gripExpander = document.createElement('span');
-        gripExpander.className = 'grip-expander';
-        dragHandle.appendChild(gripExpander);
-
-        // Block-type badge (shows 'H1', 'P', '•', etc. on hover)
-        var typeBadge = document.createElement('span');
-        typeBadge.className = 'block-type-badge';
-        typeBadge.textContent = this._getTypeLabel(block.type);
-        wrapper.appendChild(typeBadge);
-
-        // Duplicate button (visible on hover in the drag-handle column)
-        var dupBtn = document.createElement('button');
-        dupBtn.className = 'block-dup-btn';
-        dupBtn.title = 'Duplicate block (Cmd+D)';
-        dupBtn.textContent = '⧉';
-        dupBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            self.duplicateBlock(block.id);
-        });
-        wrapper.appendChild(dupBtn);
-        
-        if (block.level) wrapper.style.paddingLeft = (block.level * 24) + 'px';
-        
-        // Alignment Logic
-        // For Editor Mode to match Preview:
-        // 1. Text blocks (p, h1, h2, h3): wrapper.style.textAlign works effectively.
-        // 2. Lists (bullet, numb): markers are usually ::before or absolute. 
-        //    If wrapper is text-align: center, the marker (if inline) might move?
-        //    We need to ensure content + marker move as a unit.
-        
-        if (block.align) {
-            wrapper.setAttribute('data-align', block.align);
-            // We do NOT set wrapper.style.textAlign anymore - CSS Flexbox handles it via data-align
-        } else {
-            wrapper.setAttribute('data-align', 'left');
-        }
-
-        // ── Block color ──
-        if (block.color) {
-            wrapper.style.setProperty('--block-color', block.color);
-            wrapper.classList.add('has-block-color');
-        }
-
-        wrapper.appendChild(dragHandle);
+        var dragHandle = this._createBlockChrome(block, wrapper);
 
         var content;
-        var self = this;
 
         wrapper.addEventListener('dragstart', function(e) {
             e.dataTransfer.setData('text/plain', block.id);
@@ -1220,6 +1169,67 @@ export const BlockEditor = {
         return wrapper;
     },
 
+
+    /**
+     * Build the shared block chrome: drag handle, type badge, duplicate button,
+     * level indent, alignment, and color. Appends chrome to the wrapper and
+     * returns the drag handle element (for DnD wiring + SlashMenu in renderBlock).
+     */
+    _createBlockChrome: function(block, wrapper) {
+        var self = this;
+        var dragHandle = document.createElement('div');
+        dragHandle.className = 'block-drag-handle';
+        dragHandle.setAttribute('title', 'Drag to reorder');
+        var gripDots = document.createElement('span');
+        gripDots.className = 'grip-dots';
+        dragHandle.appendChild(gripDots);
+        var gripExpander = document.createElement('span');
+        gripExpander.className = 'grip-expander';
+        dragHandle.appendChild(gripExpander);
+
+        // Block-type badge (shows 'H1', 'P', '•', etc. on hover)
+        var typeBadge = document.createElement('span');
+        typeBadge.className = 'block-type-badge';
+        typeBadge.textContent = this._getTypeLabel(block.type);
+        wrapper.appendChild(typeBadge);
+
+        // Duplicate button (visible on hover in the drag-handle column)
+        var dupBtn = document.createElement('button');
+        dupBtn.className = 'block-dup-btn';
+        dupBtn.title = 'Duplicate block (Cmd+D)';
+        dupBtn.textContent = '⧉';
+        dupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            self.duplicateBlock(block.id);
+        });
+        wrapper.appendChild(dupBtn);
+        
+        if (block.level) wrapper.style.paddingLeft = (block.level * 24) + 'px';
+        
+        // Alignment Logic
+        // For Editor Mode to match Preview:
+        // 1. Text blocks (p, h1, h2, h3): wrapper.style.textAlign works effectively.
+        // 2. Lists (bullet, numb): markers are usually ::before or absolute. 
+        //    If wrapper is text-align: center, the marker (if inline) might move?
+        //    We need to ensure content + marker move as a unit.
+        
+        if (block.align) {
+            wrapper.setAttribute('data-align', block.align);
+            // We do NOT set wrapper.style.textAlign anymore - CSS Flexbox handles it via data-align
+        } else {
+            wrapper.setAttribute('data-align', 'left');
+        }
+
+        // ── Block color ──
+        if (block.color) {
+            wrapper.style.setProperty('--block-color', block.color);
+            wrapper.classList.add('has-block-color');
+        }
+
+        wrapper.appendChild(dragHandle);
+        return dragHandle;
+    },
 
     _renderHeadingBlock: function(block, wrapper) {
         var self = this;
