@@ -466,70 +466,7 @@ export const BlockEditor = {
         var self = this;
         
         this._bindOutsideClickClear();
-        this.container.addEventListener('mousedown', function(e) {
-            if (e.button !== 0) return;
-            var blockEl = e.target.closest('.block-wrapper');
-            if (e.shiftKey && blockEl) {
-                e.preventDefault();
-                var blockId = blockEl.getAttribute('data-block-id');
-                if (!self.lastSelectedId) self.selectBlock(blockId, false);
-                else self.selectRange(blockId);
-                return;
-            }
-            if ((e.metaKey || e.ctrlKey) && blockEl) {
-                e.preventDefault();
-                var blockId = blockEl.getAttribute('data-block-id');
-                self.selectBlock(blockId, true);
-                return;
-            }
-            if (blockEl && !e.target.closest('.block-content, .task-text, .code-inner, .image-caption, input, .block-action-btn, .table-cell')) {
-                var blockId = blockEl.getAttribute('data-block-id');
-                
-                // Drag Handle Logic (Notion-Style)
-                // 1. Did they click the Drag Handle?
-                if (e.target.closest('.block-drag-handle')) {
-                    // Select the block visually, but DO NOT focus the text cursor
-                    self.selectBlock(blockId, false);
-                    self.lastSelectedId = blockId;
-                    
-                    // Blur any active text input so the block is purely "selected"
-                    if (document.activeElement && self.container.contains(document.activeElement)) {
-                        document.activeElement.blur();
-                    }
-                    // Do not preventDefault here, so the HTML5 Drag starts naturally
-                    return; 
-                }
-
-                // 2. Did they click the empty padding/wrapper?
-                // Allow multi-select if modifier or already selected
-                if (self.selectedBlockIds.length > 1 && self.selectedBlockIds.includes(blockId)) return;
-                
-                self.selectBlock(blockId, false);
-                self.lastSelectedId = blockId;
-                
-                // Auto-focus the text because they clicked the general block area
-                self.focusBlock(blockId);
-                e.preventDefault(); 
-                return;
-            }
-            if (!blockEl) {
-                self.clearSelection();
-                self.isSelecting = true;
-                var containerRect = self.container.getBoundingClientRect();
-                self.selectionStartX = e.clientX - containerRect.left;
-                self.selectionStartY = e.clientY - containerRect.top + self.container.scrollTop;
-                
-                var box = document.createElement('div');
-                box.className = 'block-selection-box';
-                box.id = 'block-selection-box';
-                box.style.left = self.selectionStartX + 'px';
-                box.style.top = self.selectionStartY + 'px';
-                box.style.width = '0px';
-                box.style.height = '0px';
-                self.container.appendChild(box);
-            }
-        });
-
+        this._bindBlockMouseDown();
         document.addEventListener('mousemove', function(e) {
             if (!self.isSelecting || !self.container) return;
             var box = document.getElementById('block-selection-box');
@@ -602,6 +539,73 @@ export const BlockEditor = {
         document.addEventListener('mousedown', function(e) {
             if (self.selectedBlockIds.length > 0 && self.container && !self.container.contains(e.target)) {
                 self.clearSelection();
+            }
+        });
+    },
+
+    _bindBlockMouseDown: function() {
+        var self = this;
+        this.container.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return;
+            var blockEl = e.target.closest('.block-wrapper');
+            if (e.shiftKey && blockEl) {
+                e.preventDefault();
+                var blockId = blockEl.getAttribute('data-block-id');
+                if (!self.lastSelectedId) self.selectBlock(blockId, false);
+                else self.selectRange(blockId);
+                return;
+            }
+            if ((e.metaKey || e.ctrlKey) && blockEl) {
+                e.preventDefault();
+                var blockId = blockEl.getAttribute('data-block-id');
+                self.selectBlock(blockId, true);
+                return;
+            }
+            if (blockEl && !e.target.closest('.block-content, .task-text, .code-inner, .image-caption, input, .block-action-btn, .table-cell')) {
+                var blockId = blockEl.getAttribute('data-block-id');
+                
+                // Drag Handle Logic (Notion-Style)
+                // 1. Did they click the Drag Handle?
+                if (e.target.closest('.block-drag-handle')) {
+                    // Select the block visually, but DO NOT focus the text cursor
+                    self.selectBlock(blockId, false);
+                    self.lastSelectedId = blockId;
+                    
+                    // Blur any active text input so the block is purely "selected"
+                    if (document.activeElement && self.container.contains(document.activeElement)) {
+                        document.activeElement.blur();
+                    }
+                    // Do not preventDefault here, so the HTML5 Drag starts naturally
+                    return; 
+                }
+
+                // 2. Did they click the empty padding/wrapper?
+                // Allow multi-select if modifier or already selected
+                if (self.selectedBlockIds.length > 1 && self.selectedBlockIds.includes(blockId)) return;
+                
+                self.selectBlock(blockId, false);
+                self.lastSelectedId = blockId;
+                
+                // Auto-focus the text because they clicked the general block area
+                self.focusBlock(blockId);
+                e.preventDefault(); 
+                return;
+            }
+            if (!blockEl) {
+                self.clearSelection();
+                self.isSelecting = true;
+                var containerRect = self.container.getBoundingClientRect();
+                self.selectionStartX = e.clientX - containerRect.left;
+                self.selectionStartY = e.clientY - containerRect.top + self.container.scrollTop;
+                
+                var box = document.createElement('div');
+                box.className = 'block-selection-box';
+                box.id = 'block-selection-box';
+                box.style.left = self.selectionStartX + 'px';
+                box.style.top = self.selectionStartY + 'px';
+                box.style.width = '0px';
+                box.style.height = '0px';
+                self.container.appendChild(box);
             }
         });
     },
