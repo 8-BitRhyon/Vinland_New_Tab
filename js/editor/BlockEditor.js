@@ -532,7 +532,7 @@ export const BlockEditor = {
         this.container.addEventListener('click', this.handleClick.bind(this));
         this.container.addEventListener('paste', this.handlePaste.bind(this));
         this.container.addEventListener('drop', this.handleDrop.bind(this));
-        
+
         this.container.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
