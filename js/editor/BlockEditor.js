@@ -463,10 +463,14 @@ export const BlockEditor = {
 
         this._bindKeydown();
         this._bindContainerEvents();
-        var self = this;
-        
         this._bindOutsideClickClear();
         this._bindBlockMouseDown();
+        this._bindMarqueeMove();
+        this._bindMarqueeUp();
+    },
+
+    _bindMarqueeMove: function() {
+        var self = this;
         document.addEventListener('mousemove', function(e) {
             if (!self.isSelecting || !self.container) return;
             var box = document.getElementById('block-selection-box');
@@ -499,7 +503,9 @@ export const BlockEditor = {
             });
             self.updateSelectionVisuals();
         });
-
+    },
+    _bindMarqueeUp: function() {
+        var self = this;
         document.addEventListener('mouseup', function(e) {
             if (!self.isSelecting) return;
             self.isSelecting = false;
@@ -522,7 +528,6 @@ export const BlockEditor = {
         });
     },
     _bindContainerEvents: function() {
-        var self = this;
         this.container.addEventListener('input', this.handleInput.bind(this));
         this.container.addEventListener('click', this.handleClick.bind(this));
         this.container.addEventListener('paste', this.handlePaste.bind(this));
