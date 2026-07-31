@@ -809,19 +809,7 @@ export const BlockEditor = {
         var link = this._drawLocalGraphLinks(g, links, connectedNotes);
         var node = this._drawLocalGraphNodes(g, nodes, connectedNotes);
 
-
-        simulation.on('tick', function() {
-            link
-                .attr('x1', function(d) { return d.source.x; })
-                .attr('y1', function(d) { return d.source.y; })
-                .attr('x2', function(d) { return d.target.x; })
-                .attr('y2', function(d) { return d.target.y; });
-
-            node.attr('transform', function(d) {
-                return 'translate(' + d.x + ',' + d.y + ')';
-            });
-        });
-
+        this._attachLocalGraphTick(simulation, link, node);
         // Store simulation reference so it can be stopped if needed
         this._localGraphSim = simulation;
     },
@@ -838,6 +826,7 @@ export const BlockEditor = {
             });
         }
     },
+
     _gatherLocalGraphConnections: function(noteId, note) {
         var connectedIds = new Set();
         var connectedNotes = [];
@@ -949,6 +938,20 @@ export const BlockEditor = {
             .style('pointer-events', 'none');
 
         return node;
+    },
+
+    _attachLocalGraphTick: function(simulation, link, node) {
+        simulation.on('tick', function() {
+            link
+                .attr('x1', function(d) { return d.source.x; })
+                .attr('y1', function(d) { return d.source.y; })
+                .attr('x2', function(d) { return d.target.x; })
+                .attr('y2', function(d) { return d.target.y; });
+
+            node.attr('transform', function(d) {
+                return 'translate(' + d.x + ',' + d.y + ')';
+            });
+        });
     },
 
     // ─── SELECTION ───
