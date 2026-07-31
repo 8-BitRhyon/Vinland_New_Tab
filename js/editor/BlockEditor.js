@@ -805,73 +805,10 @@ export const BlockEditor = {
 
         var g = svgSel.append('g');
 
-        var simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(120))
-            .force('charge', d3.forceManyBody().strength(-200))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(30));
+        var simulation = this._buildLocalGraphSim(nodes, links, width, height);
+        var link = this._drawLocalGraphLinks(g, links, connectedNotes);
+        var node = this._drawLocalGraphNodes(g, nodes, connectedNotes);
 
-        var link = g.append('g')
-            .selectAll('line')
-            .data(links)
-            .join('line')
-            .attr('stroke', function(d) {
-                var cn = connectedNotes.find(function(n) { return n.id === (d.target.id || d.target); });
-                return cn && cn.direction === 'incoming' ? 'var(--graph-col-3, #ff0055)' : 'var(--secondary-color, #555)';
-            })
-            .attr('stroke-width', '1.5px')
-            .attr('stroke-opacity', 0.6)
-            .attr('stroke-dasharray', function(d) {
-                var cn = connectedNotes.find(function(n) { return n.id === (d.target.id || d.target); });
-                return cn && cn.direction === 'incoming' ? '4,3' : 'none';
-            });
-
-        var node = g.append('g')
-            .selectAll('g')
-            .data(nodes)
-            .join('g')
-            .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; })
-            .attr('title', function(d) { return d.isCenter ? '' : 'Open "' + d.name + '"'; })
-            .on('click', function(event, d) {
-                if (!d.isCenter && window.Notes && window.Notes.open) {
-                    window.Notes.open(d.id);
-                }
-            })
-            .on('mouseenter', function() {
-                d3.select(this).select('circle').transition().duration(200).attr('r', function(d2) {
-                    return (d2.isCenter ? 8 : 5) * 1.3;
-                });
-            })
-            .on('mouseleave', function() {
-                d3.select(this).select('circle').transition().duration(200).attr('r', function(d2) {
-                    return d2.isCenter ? 8 : 5;
-                });
-            });
-
-        // Color: main color for center, graph colors for connected
-        var mainColor = 'var(--main-color, #00ff41)';
-        node.append('circle')
-            .attr('r', function(d) { return d.isCenter ? 8 : 5; })
-            .attr('fill', function(d) {
-                if (d.isCenter) return mainColor;
-                var cn = connectedNotes.find(function(n) { return n.id === d.id; });
-                return cn && cn.direction === 'incoming'
-                    ? 'var(--graph-col-3, #ff0055)'
-                    : 'var(--graph-col-2, #00e5ff)';
-            })
-            .attr('stroke', '#000')
-            .attr('stroke-width', '1px');
-
-        node.append('text')
-            .text(function(d) {
-                return d.name.length > 20 ? d.name.substring(0, 18) + '…' : d.name;
-            })
-            .attr('x', function(d) { return d.isCenter ? 12 : 9; })
-            .attr('y', 4)
-            .style('font-size', '9px')
-            .style('fill', function(d) { return d.isCenter ? 'var(--main-color, #00ff41)' : '#ccc'; })
-            .style('font-weight', function(d) { return d.isCenter ? 'bold' : 'normal'; })
-            .style('pointer-events', 'none');
 
         simulation.on('tick', function() {
             link
@@ -938,6 +875,80 @@ export const BlockEditor = {
         }
 
         return connectedNotes;
+    },
+
+    _buildLocalGraphSim: function(nodes, links, width, height) {
+        return d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(120))
+            .force('charge', d3.forceManyBody().strength(-200))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30));
+    },
+    _drawLocalGraphLinks: function(g, links, connectedNotes) {
+        return g.append('g')
+            .selectAll('line')
+            .data(links)
+            .join('line')
+            .attr('stroke', function(d) {
+                var cn = connectedNotes.find(function(n) { return n.id === (d.target.id || d.target); });
+                return cn && cn.direction === 'incoming' ? 'var(--graph-col-3, #ff0055)' : 'var(--secondary-color, #555)';
+            })
+            .attr('stroke-width', '1.5px')
+            .attr('stroke-opacity', 0.6)
+            .attr('stroke-dasharray', function(d) {
+                var cn = connectedNotes.find(function(n) { return n.id === (d.target.id || d.target); });
+                return cn && cn.direction === 'incoming' ? '4,3' : 'none';
+            });
+    },
+    _drawLocalGraphNodes: function(g, nodes, connectedNotes) {
+        var mainColor = 'var(--main-color, #00ff41)';
+        var node = g.append('g')
+            .selectAll('g')
+            .data(nodes)
+            .join('g')
+            .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; })
+            .attr('title', function(d) { return d.isCenter ? '' : 'Open \"' + d.name + '\"'; })
+            .on('click', function(event, d) {
+                if (!d.isCenter && window.Notes && window.Notes.open) {
+                    window.Notes.open(d.id);
+                }
+            })
+            .on('mouseenter', function() {
+                d3.select(this).select('circle').transition().duration(200).attr('r', function(d2) {
+                    return (d2.isCenter ? 8 : 5) * 1.3;
+                });
+            })
+            .on('mouseleave', function() {
+                d3.select(this).select('circle').transition().duration(200).attr('r', function(d2) {
+                    return d2.isCenter ? 8 : 5;
+                });
+            });
+
+        // Color: main color for center, graph colors for connected
+        node.append('circle')
+            .attr('r', function(d) { return d.isCenter ? 8 : 5; })
+            .attr('fill', function(d) {
+                if (d.isCenter) return mainColor;
+                var cn = connectedNotes.find(function(n) { return n.id === d.id; });
+                return cn && cn.direction === 'incoming'
+                    ? 'var(--graph-col-3, #ff0055)'
+                    : 'var(--graph-col-2, #00e5ff)';
+            })
+            .attr('stroke', '#000')
+            .attr('stroke-width', '1px');
+
+        node.append('text')
+            .text(function(d) {
+                return d.name.length > 20 ? d.name.substring(0, 18) + '…' : d.name;
+            })
+            .attr('x', function(d) { return d.isCenter ? 12 : 9; })
+            .attr('y', 4)
+            .style('font-size', '9px')
+            .style('fill', function(d) { return d.isCenter ? 'var(--main-color, #00ff41)' : '#ccc'; })
+            .style('font-weight', function(d) { return d.isCenter ? 'bold' : 'normal'; })
+            .style('pointer-events', 'none');
+
+        return node;
     },
 
     // ─── SELECTION ───
