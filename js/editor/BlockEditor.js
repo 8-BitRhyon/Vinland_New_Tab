@@ -1192,435 +1192,7 @@ export const BlockEditor = {
                 content = this._renderKanbanBlock(block, wrapper);
                 break;
             case 'table':
-                content = document.createElement('div');
-                content.classList.add('block-table');
-                content.classList.add('block-table');
-                content.contentEditable = false;
-                content.tabIndex = 0; // Allow focus for keyboard delete
-                
-                // Initialize tableData if missing
-                if (!block.tableData) {
-                    block.tableData = {
-                        headers: ['Header 1', 'Header 2', 'Header 3'],
-                        rows: [['', '', ''], ['', '', '']],
-                        columnAligns: ['left', 'left', 'left'],
-                        columnWidths: [],
-                        hasHeaderRow: true
-                    };
-                }
-                var tableData = block.tableData;
-                // Guard: ensure columnWidths exists (old data may lack this field)
-                if (!tableData.columnWidths) tableData.columnWidths = [];
-                if (!tableData.headers) tableData.headers = [];
-                // Ensure columnWidths array matches column count
-                while (tableData.columnWidths.length < tableData.headers.length) {
-                    tableData.columnWidths.push('');
-                }
-
-                var tableWrapper = document.createElement('div');
-                tableWrapper.className = 'table-wrapper';
-                
-                // Create toolbar
-                var toolbar = document.createElement('div');
-                toolbar.className = 'table-toolbar';
-                toolbar.innerHTML = 
-                    '<button class="table-toolbar-btn block-action-btn" data-action="align-left" title="Align Left">[=</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="align-center" title="Align Center">=</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="align-right" title="Align Right">=]</button>' +
-                    '<div class="table-toolbar-divider"></div>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-row-above" title="Insert Row Above">+ Row Up</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-row-below" title="Insert Row Below">+ Row Dn</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-col-left" title="Insert Column Left">+ Col L</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-col-right" title="Insert Column Right">+ Col R</button>' +
-                    '<div class="table-toolbar-divider"></div>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="delete-row" title="Delete Row">- Row</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="delete-col" title="Delete Column">- Col</button>' +
-                    '<div class="table-toolbar-divider"></div>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="sort-asc" title="Sort A-Z">A-Z</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="sort-desc" title="Sort Z-A">Z-A</button>' +
-                    '<div class="table-toolbar-divider"></div>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="reset-widths" title="Reset column widths to auto">⇔</button>' +
-                    '<button class="table-toolbar-btn block-action-btn" data-action="delete-table" title="Delete Table" style="color:#f44;">X</button>';
-                
-                // Create table element
-                var table = document.createElement('table');
-                table.className = 'table-grid';
-                
-                // Track focused cell for toolbar actions
-                var focusedCell = { row: -1, col: -1 };
-                
-                // Render header row
-                if (tableData.hasHeaderRow) {
-                    var thead = document.createElement('thead');
-                    var headerRow = document.createElement('tr');
-                    
-                    tableData.headers.forEach(function(headerText, colIdx) {
-                        var th = document.createElement('th');
-                        th.style.textAlign = tableData.columnAligns[colIdx] || 'left';
-                        if (tableData.columnWidths && tableData.columnWidths[colIdx]) {
-                            th.style.width = tableData.columnWidths[colIdx] + 'px';
-                            th.style.minWidth = tableData.columnWidths[colIdx] + 'px';
-                        }
-                        
-                        var cell = document.createElement('div');
-                        cell.className = 'table-cell table-header-cell';
-                        cell.contentEditable = 'true';
-                        cell.innerHTML = BlockEditor.markdownToHtml(headerText);
-                        cell.setAttribute('data-row', '-1');
-                        cell.setAttribute('data-col', colIdx);
-                        
-                        cell.addEventListener('focus', function() {
-                            focusedCell.row = -1;
-                            focusedCell.col = colIdx;
-                            toolbar.classList.add('visible');
-                        });
-                        
-                        cell.addEventListener('blur', function() {
-                            setTimeout(function() {
-                                if (!content.contains(document.activeElement)) {
-                                    toolbar.classList.remove('visible');
-                                }
-                            }, 100);
-                        });
-                        
-                        cell.addEventListener('keydown', function(e) {
-                            if (e.key === 'Tab') {
-                                e.preventDefault();
-                                var nextCol = e.shiftKey ? colIdx - 1 : colIdx + 1;
-                                if (nextCol >= 0 && nextCol < tableData.headers.length) {
-                                    var nextCell = table.querySelector('[data-row="-1"][data-col="' + nextCol + '"]');
-                                    if (nextCell) nextCell.focus();
-                                } else if (!e.shiftKey && tableData.rows.length > 0) {
-                                    var firstDataCell = table.querySelector('[data-row="0"][data-col="0"]');
-                                    if (firstDataCell) firstDataCell.focus();
-                                }
-                            }
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                var belowCell = table.querySelector('[data-row="0"][data-col="' + colIdx + '"]');
-                                if (belowCell) belowCell.focus();
-                            }
-                        });
-
-                        // Right-click context menu on header
-                        th.addEventListener('contextmenu', function(e) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Close any existing menu
-                            var existing = document.querySelector('.table-ctx-menu');
-                            if (existing) existing.remove();
-
-                            var menu = document.createElement('div');
-                            menu.className = 'table-ctx-menu';
-                            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;z-index:50000;';
-                            menu.innerHTML = `
-                                <div class="ctx-section-title">Align</div>
-                                <div class="ctx-item" data-action="align-left">[= Left</div>
-                                <div class="ctx-item" data-action="align-center">= Center</div>
-                                <div class="ctx-item" data-action="align-right">=] Right</div>
-                                <div class="ctx-divider"></div>
-                                <div class="ctx-section-title">Sort</div>
-                                <div class="ctx-item" data-action="sort-asc">A-Z Ascending</div>
-                                <div class="ctx-item" data-action="sort-desc">Z-A Descending</div>
-                                <div class="ctx-divider"></div>
-                                <div class="ctx-section-title">Insert</div>
-                                <div class="ctx-item" data-action="insert-col-left">+ Column Left</div>
-                                <div class="ctx-item" data-action="insert-col-right">+ Column Right</div>
-                                <div class="ctx-item" data-action="insert-row-above">+ Row Above</div>
-                                <div class="ctx-item" data-action="insert-row-below">+ Row Below</div>
-                                <div class="ctx-divider"></div>
-                                <div class="ctx-item ctx-danger" data-action="delete-col">- Delete Column</div>
-                                <div class="ctx-item ctx-danger" data-action="delete-row">- Delete Row</div>
-                            `;
-                            document.body.appendChild(menu);
-
-                            // Set focusedCell so the actions target the right column/row
-                            focusedCell.col = colIdx;
-                            focusedCell.row = -1;
-
-                            // Click handler: find toolbar button with matching action and click it
-                            menu.addEventListener('click', function(ce) {
-                                var item = ce.target.closest('.ctx-item');
-                                if (!item) return;
-                                var action = item.getAttribute('data-action');
-                                var tbBtn = toolbar.querySelector('[data-action="' + action + '"]');
-                                if (tbBtn) tbBtn.click();
-                                menu.remove();
-                            });
-
-                            // Close on outside click
-                            setTimeout(function() {
-                                var closeHandler = function(ce2) {
-                                    if (!menu.contains(ce2.target)) {
-                                        menu.remove();
-                                        document.removeEventListener('mousedown', closeHandler);
-                                    }
-                                };
-                                document.addEventListener('mousedown', closeHandler);
-                            }, 10);
-                        });
-
-                        // Column resize handle
-                        var resizeHandle = document.createElement('div');
-                        resizeHandle.className = 'col-resize-handle';
-                        resizeHandle.setAttribute('data-col', colIdx);
-                        resizeHandle.addEventListener('mousedown', function(e) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            var startX = e.clientX;
-                            var startWidth = th.offsetWidth;
-
-                            var onMouseMove = function(me) {
-                                var dx = me.clientX - startX;
-                                var newWidth = Math.max(80, startWidth + dx);
-                                th.style.width = newWidth + 'px';
-                                th.style.minWidth = newWidth + 'px';
-                                // Sync cells in same column
-                                table.querySelectorAll('.table-cell[data-col="' + colIdx + '"]').forEach(function(c) {
-                                    c.parentElement.style.width = newWidth + 'px';
-                                });
-                            };
-
-                            var onMouseUp = function() {
-                                window.removeEventListener('mousemove', onMouseMove);
-                                window.removeEventListener('mouseup', onMouseUp);
-                                // Save to columnWidths
-                                var newWidth = th.offsetWidth;
-                                if (!tableData.columnWidths) tableData.columnWidths = [];
-                                while (tableData.columnWidths.length < tableData.headers.length) {
-                                    tableData.columnWidths.push('');
-                                }
-                                tableData.columnWidths[colIdx] = newWidth;
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                if (window.saveData) saveData();
-                            };
-
-                            window.addEventListener('mousemove', onMouseMove);
-                            window.addEventListener('mouseup', onMouseUp);
-                        });
-
-                        th.appendChild(cell);
-                        th.appendChild(resizeHandle);
-                        headerRow.appendChild(th);
-                    });
-                    
-                    thead.appendChild(headerRow);
-                    table.appendChild(thead);
-                }
-                
-                // Render data rows
-                var tbody = document.createElement('tbody');
-                tableData.rows.forEach(function(rowData, rowIdx) {
-                    var tr = document.createElement('tr');
-                    tr.style.position = 'relative';
-                    
-                    rowData.forEach(function(cellText, colIdx) {
-                        var td = document.createElement('td');
-                        td.style.textAlign = tableData.columnAligns[colIdx] || 'left';
-                        if (tableData.columnWidths && tableData.columnWidths[colIdx]) {
-                            td.style.width = tableData.columnWidths[colIdx] + 'px';
-                            td.style.minWidth = tableData.columnWidths[colIdx] + 'px';
-                        }
-                        
-                        var cell = document.createElement('div');
-                        cell.className = 'table-cell';
-                        cell.contentEditable = 'true';
-                        cell.innerHTML = BlockEditor.markdownToHtml(cellText);
-                        cell.setAttribute('data-row', rowIdx);
-                        cell.setAttribute('data-col', colIdx);
-                        
-                        cell.addEventListener('focus', function() {
-                            focusedCell.row = rowIdx;
-                            focusedCell.col = colIdx;
-                            toolbar.classList.add('visible');
-                        });
-                        
-                        cell.addEventListener('blur', function() {
-                            setTimeout(function() {
-                                if (!content.contains(document.activeElement)) {
-                                    toolbar.classList.remove('visible');
-                                }
-                            }, 100);
-                        });
-                        
-                        cell.addEventListener('keydown', function(e) {
-                            if (e.key === 'Tab') {
-                                e.preventDefault();
-                                var nextCol = e.shiftKey ? colIdx - 1 : colIdx + 1;
-                                var nextRow = rowIdx;
-                                if (nextCol >= rowData.length) {
-                                    nextCol = 0;
-                                    nextRow = rowIdx + 1;
-                                } else if (nextCol < 0) {
-                                    nextCol = rowData.length - 1;
-                                    nextRow = rowIdx - 1;
-                                }
-                                if (nextRow >= 0 && nextRow < tableData.rows.length) {
-                                    var nextCell = table.querySelector('[data-row="' + nextRow + '"][data-col="' + nextCol + '"]');
-                                    if (nextCell) nextCell.focus();
-                                } else if (nextRow < 0 && tableData.hasHeaderRow) {
-                                    var headerCell = table.querySelector('[data-row="-1"][data-col="' + nextCol + '"]');
-                                    if (headerCell) headerCell.focus();
-                                }
-                            }
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                var belowRow = rowIdx + 1;
-                                if (belowRow < tableData.rows.length) {
-                                    var belowCell = table.querySelector('[data-row="' + belowRow + '"][data-col="' + colIdx + '"]');
-                                    if (belowCell) belowCell.focus();
-                                }
-                            }
-                            if (e.key === 'ArrowDown') {
-                                e.preventDefault();
-                                var belowCell = table.querySelector('[data-row="' + (rowIdx + 1) + '"][data-col="' + colIdx + '"]');
-                                if (belowCell) belowCell.focus();
-                            }
-                            if (e.key === 'ArrowUp') {
-                                e.preventDefault();
-                                var aboveRow = rowIdx - 1;
-                                var aboveCell = aboveRow >= 0 
-                                    ? table.querySelector('[data-row="' + aboveRow + '"][data-col="' + colIdx + '"]')
-                                    : table.querySelector('[data-row="-1"][data-col="' + colIdx + '"]');
-                                if (aboveCell) aboveCell.focus();
-                            }
-                        });
-                        
-                        td.appendChild(cell);
-                        tr.appendChild(td);
-                    });
-                    
-                    tbody.appendChild(tr);
-                });
-                table.appendChild(tbody);
-                
-                // Add Row button
-                var addRowBtn = document.createElement('button');
-                addRowBtn.className = 'table-add-row-btn';
-                addRowBtn.textContent = '+ Add Row';
-                addRowBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    var newRow = tableData.headers.map(function() { return ''; });
-                    tableData.rows.push(newRow);
-                    PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                    self.render(self.activePageId);
-                };
-                
-                // Add Column button
-                var addColBtn = document.createElement('button');
-                addColBtn.className = 'table-add-col-btn';
-                addColBtn.textContent = '+';
-                addColBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    tableData.headers.push('New Column');
-                    tableData.columnAligns.push('left');
-                    tableData.rows.forEach(function(row) { row.push(''); });
-                    PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                    self.render(self.activePageId);
-                };
-                
-                // Toolbar actions
-                toolbar.addEventListener('click', function(e) {
-                    var action = e.target.getAttribute('data-action');
-                    if (!action) return;
-                    
-                    var col = focusedCell.col;
-                    var row = focusedCell.row;
-                    
-                    switch(action) {
-                        case 'align-left':
-                        case 'align-center':
-                        case 'align-right':
-                            if (col >= 0) {
-                                tableData.columnAligns[col] = action.replace('align-', '');
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'insert-row-above':
-                            if (row >= 0) {
-                                var newRow = tableData.headers.map(function() { return ''; });
-                                tableData.rows.splice(row, 0, newRow);
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'insert-row-below':
-                            var insertAt = row >= 0 ? row + 1 : 0;
-                            var newRow = tableData.headers.map(function() { return ''; });
-                            tableData.rows.splice(insertAt, 0, newRow);
-                            PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                            self.render(self.activePageId);
-                            break;
-                        case 'insert-col-left':
-                            if (col >= 0) {
-                                tableData.headers.splice(col, 0, 'New');
-                                tableData.columnAligns.splice(col, 0, 'left');
-                                tableData.rows.forEach(function(r) { r.splice(col, 0, ''); });
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'insert-col-right':
-                            if (col >= 0) {
-                                tableData.headers.splice(col + 1, 0, 'New');
-                                tableData.columnAligns.splice(col + 1, 0, 'left');
-                                tableData.rows.forEach(function(r) { r.splice(col + 1, 0, ''); });
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'delete-row':
-                            if (row >= 0 && tableData.rows.length > 1) {
-                                tableData.rows.splice(row, 1);
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'delete-col':
-                            if (col >= 0 && tableData.headers.length > 1) {
-                                tableData.headers.splice(col, 1);
-                                tableData.columnAligns.splice(col, 1);
-                                tableData.rows.forEach(function(r) { r.splice(col, 1); });
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'sort-asc':
-                            if (col >= 0) {
-                                tableData.rows.sort(function(a, b) {
-                                    return (a[col] || '').localeCompare(b[col] || '');
-                                });
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'sort-desc':
-                            if (col >= 0) {
-                                tableData.rows.sort(function(a, b) {
-                                    return (b[col] || '').localeCompare(a[col] || '');
-                                });
-                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                                self.render(self.activePageId);
-                            }
-                            break;
-                        case 'reset-widths':
-                            tableData.columnWidths = [];
-                            PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
-                            self.render(self.activePageId);
-                            break;
-                        case 'delete-table':
-                            PageManager.deleteBlock(self.activePageId, block.id);
-                            self.render(self.activePageId);
-                            break;
-                    }
-                });
-                
-                tableWrapper.appendChild(table);
-                content.appendChild(toolbar);
-                content.appendChild(tableWrapper);
-                content.appendChild(addRowBtn);
-                content.appendChild(addColBtn);
+                content = this._renderTableBlock(block, wrapper);
                 break;
             case 'query':
                 content = document.createElement('div');
@@ -2335,6 +1907,442 @@ export const BlockEditor = {
                     setup.appendChild(delBtn);
                     content.appendChild(setup);
                 }
+        return content;
+    },
+
+
+    _renderTableBlock: function(block, wrapper) {
+        var self = this;
+        var content;
+                content = document.createElement('div');
+                content.classList.add('block-table');
+                content.classList.add('block-table');
+                content.contentEditable = false;
+                content.tabIndex = 0; // Allow focus for keyboard delete
+                
+                // Initialize tableData if missing
+                if (!block.tableData) {
+                    block.tableData = {
+                        headers: ['Header 1', 'Header 2', 'Header 3'],
+                        rows: [['', '', ''], ['', '', '']],
+                        columnAligns: ['left', 'left', 'left'],
+                        columnWidths: [],
+                        hasHeaderRow: true
+                    };
+                }
+                var tableData = block.tableData;
+                // Guard: ensure columnWidths exists (old data may lack this field)
+                if (!tableData.columnWidths) tableData.columnWidths = [];
+                if (!tableData.headers) tableData.headers = [];
+                // Ensure columnWidths array matches column count
+                while (tableData.columnWidths.length < tableData.headers.length) {
+                    tableData.columnWidths.push('');
+                }
+
+                var tableWrapper = document.createElement('div');
+                tableWrapper.className = 'table-wrapper';
+                
+                // Create toolbar
+                var toolbar = document.createElement('div');
+                toolbar.className = 'table-toolbar';
+                toolbar.innerHTML = 
+                    '<button class="table-toolbar-btn block-action-btn" data-action="align-left" title="Align Left">[=</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="align-center" title="Align Center">=</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="align-right" title="Align Right">=]</button>' +
+                    '<div class="table-toolbar-divider"></div>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-row-above" title="Insert Row Above">+ Row Up</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-row-below" title="Insert Row Below">+ Row Dn</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-col-left" title="Insert Column Left">+ Col L</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="insert-col-right" title="Insert Column Right">+ Col R</button>' +
+                    '<div class="table-toolbar-divider"></div>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="delete-row" title="Delete Row">- Row</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="delete-col" title="Delete Column">- Col</button>' +
+                    '<div class="table-toolbar-divider"></div>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="sort-asc" title="Sort A-Z">A-Z</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="sort-desc" title="Sort Z-A">Z-A</button>' +
+                    '<div class="table-toolbar-divider"></div>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="reset-widths" title="Reset column widths to auto">⇔</button>' +
+                    '<button class="table-toolbar-btn block-action-btn" data-action="delete-table" title="Delete Table" style="color:#f44;">X</button>';
+                
+                // Create table element
+                var table = document.createElement('table');
+                table.className = 'table-grid';
+                
+                // Track focused cell for toolbar actions
+                var focusedCell = { row: -1, col: -1 };
+                
+                // Render header row
+                if (tableData.hasHeaderRow) {
+                    var thead = document.createElement('thead');
+                    var headerRow = document.createElement('tr');
+                    
+                    tableData.headers.forEach(function(headerText, colIdx) {
+                        var th = document.createElement('th');
+                        th.style.textAlign = tableData.columnAligns[colIdx] || 'left';
+                        if (tableData.columnWidths && tableData.columnWidths[colIdx]) {
+                            th.style.width = tableData.columnWidths[colIdx] + 'px';
+                            th.style.minWidth = tableData.columnWidths[colIdx] + 'px';
+                        }
+                        
+                        var cell = document.createElement('div');
+                        cell.className = 'table-cell table-header-cell';
+                        cell.contentEditable = 'true';
+                        cell.innerHTML = BlockEditor.markdownToHtml(headerText);
+                        cell.setAttribute('data-row', '-1');
+                        cell.setAttribute('data-col', colIdx);
+                        
+                        cell.addEventListener('focus', function() {
+                            focusedCell.row = -1;
+                            focusedCell.col = colIdx;
+                            toolbar.classList.add('visible');
+                        });
+                        
+                        cell.addEventListener('blur', function() {
+                            setTimeout(function() {
+                                if (!content.contains(document.activeElement)) {
+                                    toolbar.classList.remove('visible');
+                                }
+                            }, 100);
+                        });
+                        
+                        cell.addEventListener('keydown', function(e) {
+                            if (e.key === 'Tab') {
+                                e.preventDefault();
+                                var nextCol = e.shiftKey ? colIdx - 1 : colIdx + 1;
+                                if (nextCol >= 0 && nextCol < tableData.headers.length) {
+                                    var nextCell = table.querySelector('[data-row="-1"][data-col="' + nextCol + '"]');
+                                    if (nextCell) nextCell.focus();
+                                } else if (!e.shiftKey && tableData.rows.length > 0) {
+                                    var firstDataCell = table.querySelector('[data-row="0"][data-col="0"]');
+                                    if (firstDataCell) firstDataCell.focus();
+                                }
+                            }
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                var belowCell = table.querySelector('[data-row="0"][data-col="' + colIdx + '"]');
+                                if (belowCell) belowCell.focus();
+                            }
+                        });
+
+                        // Right-click context menu on header
+                        th.addEventListener('contextmenu', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Close any existing menu
+                            var existing = document.querySelector('.table-ctx-menu');
+                            if (existing) existing.remove();
+
+                            var menu = document.createElement('div');
+                            menu.className = 'table-ctx-menu';
+                            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;z-index:50000;';
+                            menu.innerHTML = `
+                                <div class="ctx-section-title">Align</div>
+                                <div class="ctx-item" data-action="align-left">[= Left</div>
+                                <div class="ctx-item" data-action="align-center">= Center</div>
+                                <div class="ctx-item" data-action="align-right">=] Right</div>
+                                <div class="ctx-divider"></div>
+                                <div class="ctx-section-title">Sort</div>
+                                <div class="ctx-item" data-action="sort-asc">A-Z Ascending</div>
+                                <div class="ctx-item" data-action="sort-desc">Z-A Descending</div>
+                                <div class="ctx-divider"></div>
+                                <div class="ctx-section-title">Insert</div>
+                                <div class="ctx-item" data-action="insert-col-left">+ Column Left</div>
+                                <div class="ctx-item" data-action="insert-col-right">+ Column Right</div>
+                                <div class="ctx-item" data-action="insert-row-above">+ Row Above</div>
+                                <div class="ctx-item" data-action="insert-row-below">+ Row Below</div>
+                                <div class="ctx-divider"></div>
+                                <div class="ctx-item ctx-danger" data-action="delete-col">- Delete Column</div>
+                                <div class="ctx-item ctx-danger" data-action="delete-row">- Delete Row</div>
+                            `;
+                            document.body.appendChild(menu);
+
+                            // Set focusedCell so the actions target the right column/row
+                            focusedCell.col = colIdx;
+                            focusedCell.row = -1;
+
+                            // Click handler: find toolbar button with matching action and click it
+                            menu.addEventListener('click', function(ce) {
+                                var item = ce.target.closest('.ctx-item');
+                                if (!item) return;
+                                var action = item.getAttribute('data-action');
+                                var tbBtn = toolbar.querySelector('[data-action="' + action + '"]');
+                                if (tbBtn) tbBtn.click();
+                                menu.remove();
+                            });
+
+                            // Close on outside click
+                            setTimeout(function() {
+                                var closeHandler = function(ce2) {
+                                    if (!menu.contains(ce2.target)) {
+                                        menu.remove();
+                                        document.removeEventListener('mousedown', closeHandler);
+                                    }
+                                };
+                                document.addEventListener('mousedown', closeHandler);
+                            }, 10);
+                        });
+
+                        // Column resize handle
+                        var resizeHandle = document.createElement('div');
+                        resizeHandle.className = 'col-resize-handle';
+                        resizeHandle.setAttribute('data-col', colIdx);
+                        resizeHandle.addEventListener('mousedown', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            var startX = e.clientX;
+                            var startWidth = th.offsetWidth;
+
+                            var onMouseMove = function(me) {
+                                var dx = me.clientX - startX;
+                                var newWidth = Math.max(80, startWidth + dx);
+                                th.style.width = newWidth + 'px';
+                                th.style.minWidth = newWidth + 'px';
+                                // Sync cells in same column
+                                table.querySelectorAll('.table-cell[data-col="' + colIdx + '"]').forEach(function(c) {
+                                    c.parentElement.style.width = newWidth + 'px';
+                                });
+                            };
+
+                            var onMouseUp = function() {
+                                window.removeEventListener('mousemove', onMouseMove);
+                                window.removeEventListener('mouseup', onMouseUp);
+                                // Save to columnWidths
+                                var newWidth = th.offsetWidth;
+                                if (!tableData.columnWidths) tableData.columnWidths = [];
+                                while (tableData.columnWidths.length < tableData.headers.length) {
+                                    tableData.columnWidths.push('');
+                                }
+                                tableData.columnWidths[colIdx] = newWidth;
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                if (window.saveData) saveData();
+                            };
+
+                            window.addEventListener('mousemove', onMouseMove);
+                            window.addEventListener('mouseup', onMouseUp);
+                        });
+
+                        th.appendChild(cell);
+                        th.appendChild(resizeHandle);
+                        headerRow.appendChild(th);
+                    });
+                    
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+                }
+                
+                // Render data rows
+                var tbody = document.createElement('tbody');
+                tableData.rows.forEach(function(rowData, rowIdx) {
+                    var tr = document.createElement('tr');
+                    tr.style.position = 'relative';
+                    
+                    rowData.forEach(function(cellText, colIdx) {
+                        var td = document.createElement('td');
+                        td.style.textAlign = tableData.columnAligns[colIdx] || 'left';
+                        if (tableData.columnWidths && tableData.columnWidths[colIdx]) {
+                            td.style.width = tableData.columnWidths[colIdx] + 'px';
+                            td.style.minWidth = tableData.columnWidths[colIdx] + 'px';
+                        }
+                        
+                        var cell = document.createElement('div');
+                        cell.className = 'table-cell';
+                        cell.contentEditable = 'true';
+                        cell.innerHTML = BlockEditor.markdownToHtml(cellText);
+                        cell.setAttribute('data-row', rowIdx);
+                        cell.setAttribute('data-col', colIdx);
+                        
+                        cell.addEventListener('focus', function() {
+                            focusedCell.row = rowIdx;
+                            focusedCell.col = colIdx;
+                            toolbar.classList.add('visible');
+                        });
+                        
+                        cell.addEventListener('blur', function() {
+                            setTimeout(function() {
+                                if (!content.contains(document.activeElement)) {
+                                    toolbar.classList.remove('visible');
+                                }
+                            }, 100);
+                        });
+                        
+                        cell.addEventListener('keydown', function(e) {
+                            if (e.key === 'Tab') {
+                                e.preventDefault();
+                                var nextCol = e.shiftKey ? colIdx - 1 : colIdx + 1;
+                                var nextRow = rowIdx;
+                                if (nextCol >= rowData.length) {
+                                    nextCol = 0;
+                                    nextRow = rowIdx + 1;
+                                } else if (nextCol < 0) {
+                                    nextCol = rowData.length - 1;
+                                    nextRow = rowIdx - 1;
+                                }
+                                if (nextRow >= 0 && nextRow < tableData.rows.length) {
+                                    var nextCell = table.querySelector('[data-row="' + nextRow + '"][data-col="' + nextCol + '"]');
+                                    if (nextCell) nextCell.focus();
+                                } else if (nextRow < 0 && tableData.hasHeaderRow) {
+                                    var headerCell = table.querySelector('[data-row="-1"][data-col="' + nextCol + '"]');
+                                    if (headerCell) headerCell.focus();
+                                }
+                            }
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                var belowRow = rowIdx + 1;
+                                if (belowRow < tableData.rows.length) {
+                                    var belowCell = table.querySelector('[data-row="' + belowRow + '"][data-col="' + colIdx + '"]');
+                                    if (belowCell) belowCell.focus();
+                                }
+                            }
+                            if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                var belowCell = table.querySelector('[data-row="' + (rowIdx + 1) + '"][data-col="' + colIdx + '"]');
+                                if (belowCell) belowCell.focus();
+                            }
+                            if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                var aboveRow = rowIdx - 1;
+                                var aboveCell = aboveRow >= 0 
+                                    ? table.querySelector('[data-row="' + aboveRow + '"][data-col="' + colIdx + '"]')
+                                    : table.querySelector('[data-row="-1"][data-col="' + colIdx + '"]');
+                                if (aboveCell) aboveCell.focus();
+                            }
+                        });
+                        
+                        td.appendChild(cell);
+                        tr.appendChild(td);
+                    });
+                    
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                
+                // Add Row button
+                var addRowBtn = document.createElement('button');
+                addRowBtn.className = 'table-add-row-btn';
+                addRowBtn.textContent = '+ Add Row';
+                addRowBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    var newRow = tableData.headers.map(function() { return ''; });
+                    tableData.rows.push(newRow);
+                    PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                    self.render(self.activePageId);
+                };
+                
+                // Add Column button
+                var addColBtn = document.createElement('button');
+                addColBtn.className = 'table-add-col-btn';
+                addColBtn.textContent = '+';
+                addColBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    tableData.headers.push('New Column');
+                    tableData.columnAligns.push('left');
+                    tableData.rows.forEach(function(row) { row.push(''); });
+                    PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                    self.render(self.activePageId);
+                };
+                
+                // Toolbar actions
+                toolbar.addEventListener('click', function(e) {
+                    var action = e.target.getAttribute('data-action');
+                    if (!action) return;
+                    
+                    var col = focusedCell.col;
+                    var row = focusedCell.row;
+                    
+                    switch(action) {
+                        case 'align-left':
+                        case 'align-center':
+                        case 'align-right':
+                            if (col >= 0) {
+                                tableData.columnAligns[col] = action.replace('align-', '');
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'insert-row-above':
+                            if (row >= 0) {
+                                var newRow = tableData.headers.map(function() { return ''; });
+                                tableData.rows.splice(row, 0, newRow);
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'insert-row-below':
+                            var insertAt = row >= 0 ? row + 1 : 0;
+                            var newRow = tableData.headers.map(function() { return ''; });
+                            tableData.rows.splice(insertAt, 0, newRow);
+                            PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                            self.render(self.activePageId);
+                            break;
+                        case 'insert-col-left':
+                            if (col >= 0) {
+                                tableData.headers.splice(col, 0, 'New');
+                                tableData.columnAligns.splice(col, 0, 'left');
+                                tableData.rows.forEach(function(r) { r.splice(col, 0, ''); });
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'insert-col-right':
+                            if (col >= 0) {
+                                tableData.headers.splice(col + 1, 0, 'New');
+                                tableData.columnAligns.splice(col + 1, 0, 'left');
+                                tableData.rows.forEach(function(r) { r.splice(col + 1, 0, ''); });
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'delete-row':
+                            if (row >= 0 && tableData.rows.length > 1) {
+                                tableData.rows.splice(row, 1);
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'delete-col':
+                            if (col >= 0 && tableData.headers.length > 1) {
+                                tableData.headers.splice(col, 1);
+                                tableData.columnAligns.splice(col, 1);
+                                tableData.rows.forEach(function(r) { r.splice(col, 1); });
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'sort-asc':
+                            if (col >= 0) {
+                                tableData.rows.sort(function(a, b) {
+                                    return (a[col] || '').localeCompare(b[col] || '');
+                                });
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'sort-desc':
+                            if (col >= 0) {
+                                tableData.rows.sort(function(a, b) {
+                                    return (b[col] || '').localeCompare(a[col] || '');
+                                });
+                                PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                                self.render(self.activePageId);
+                            }
+                            break;
+                        case 'reset-widths':
+                            tableData.columnWidths = [];
+                            PageManager.updateBlock(self.activePageId, block.id, { tableData: tableData });
+                            self.render(self.activePageId);
+                            break;
+                        case 'delete-table':
+                            PageManager.deleteBlock(self.activePageId, block.id);
+                            self.render(self.activePageId);
+                            break;
+                    }
+                });
+                
+                tableWrapper.appendChild(table);
+                content.appendChild(toolbar);
+                content.appendChild(tableWrapper);
+                content.appendChild(addRowBtn);
+                content.appendChild(addColBtn);
         return content;
     },
 
