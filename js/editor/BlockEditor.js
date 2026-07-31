@@ -2758,78 +2758,29 @@ export const BlockEditor = {
         // If there IS a selection, we handle it globally (because drag-select blurs focus to body)
         if (this.selectedBlockIds.length === 0 && !this.container.contains(e.target)) return;
 
-        if (e.key === 'Escape' && this.selectedBlockIds.length > 0) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            this.clearSelection();
-            return;
-        }
+        if (this._kHandleEscapeClear(e)) return;
 
         // Tab/Shift+Tab indent/unindent in code blocks
-        if (window.CodeBlockTools && e.target.classList.contains('code-inner')) {
-            if (e.key === 'Tab') {
-                if (window.CodeBlockTools.handleKeydown(e)) return;
-            }
-        }
+        if (this._kHandleCodeTab(e)) return;
 
         // Ported Tab Shortcuts (Fix for missing functionality)
         // CMD+Shift+X: Close Tab
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'x') {
-            // Check if we have a selection -> Cut behavior?
-            // User convention: typically CMD+X is cut. CMD+Shift+X is Close Tab.
-            // But verify we don't conflict with Cut logic (which is CMD+X typically).
-            // BlockEditor handles CMD+X (Cut) separately.
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof TabManager !== 'undefined' && TabManager.tabs.length > 0) {
-                TabManager.closeTab(TabManager.activeIndex);
-            }
-            return;
-        }
+        if (this._kHandleCloseTab(e)) return;
 
         // CMD+F: Open Find/Replace
-        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-            e.preventDefault();
-            e.stopPropagation();
-            this._findOpen();
-            return;
-        }
+        if (this._kHandleFindOpen(e)) return;
 
         // CMD+H: Toggle replace row (when find bar is open)
-        if ((e.metaKey || e.ctrlKey) && e.key === 'h' && this._findState.open) {
-            e.preventDefault();
-            this._findToggleReplace();
-            return;
-        }
+        if (this._kHandleFindToggle(e)) return;
 
         // F3 / Shift+F3: Navigate Find matches
-        if (e.key === 'F3' && this._findState.open) {
-            e.preventDefault();
-            if (e.shiftKey) {
-                this._findPrev();
-            } else {
-                this._findNext();
-            }
-            return;
-        }
+        if (this._kHandleFindNavigate(e)) return;
 
         // Escape: Close find bar if open
-        if (e.key === 'Escape' && this._findState.open) {
-            e.preventDefault();
-            this._findClose();
-            return;
-        }
+        if (this._kHandleFindClose(e)) return;
 
         // CMD+1-9: Switch Tabs
-        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && /^[1-9]$/.test(e.key)) {
-            var tabIndex = parseInt(e.key, 10) - 1;
-            if (typeof TabManager !== 'undefined' && tabIndex < TabManager.tabs.length) {
-                e.preventDefault();
-                e.stopPropagation();
-                TabManager.switchTo(tabIndex);
-                return;
-            }
-        }
+        if (this._kHandleTabSwitch(e)) return;
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
             var blockWrapper = e.target.closest('.block-wrapper');
             if (blockWrapper && blockWrapper.getAttribute('data-block-type') === 'code') {
@@ -3239,6 +3190,103 @@ export const BlockEditor = {
     },
 
     // Flash a block briefly (visual feedback for reorder / type change)
+    _kHandleEscapeClear: function(e) {
+        if (e.key === 'Escape' && this.selectedBlockIds.length > 0) {
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.clearSelection();
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleCodeTab: function(e) {
+        if (window.CodeBlockTools && e.target.classList.contains('code-inner')) {
+
+            if (e.key === 'Tab') {
+                if (window.CodeBlockTools.handleKeydown(e)) return true;
+            }
+        }
+        return false;
+    },
+
+    _kHandleCloseTab: function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'x') {
+
+            // Check if we have a selection -> Cut behavior?
+            // User convention: typically CMD+X is cut. CMD+Shift+X is Close Tab.
+            // But verify we don't conflict with Cut logic (which is CMD+X typically).
+            // BlockEditor handles CMD+X (Cut) separately.
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof TabManager !== 'undefined' && TabManager.tabs.length > 0) {
+                TabManager.closeTab(TabManager.activeIndex);
+            }
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleTabSwitch: function(e) {
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && /^[1-9]$/.test(e.key)) {
+
+            var tabIndex = parseInt(e.key, 10) - 1;
+            if (typeof TabManager !== 'undefined' && tabIndex < TabManager.tabs.length) {
+                e.preventDefault();
+                e.stopPropagation();
+                TabManager.switchTo(tabIndex);
+                return true;
+            }
+        }
+        return false;
+    },
+
+    _kHandleFindOpen: function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+
+            e.preventDefault();
+            e.stopPropagation();
+            this._findOpen();
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleFindToggle: function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'h' && this._findState.open) {
+
+            e.preventDefault();
+            this._findToggleReplace();
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleFindNavigate: function(e) {
+        if (e.key === 'F3' && this._findState.open) {
+
+            e.preventDefault();
+            if (e.shiftKey) {
+                this._findPrev();
+            } else {
+                this._findNext();
+            }
+            return true;
+        }
+        return false;
+    },
+
+    _kHandleFindClose: function(e) {
+        if (e.key === 'Escape' && this._findState.open) {
+
+            e.preventDefault();
+            this._findClose();
+            return true;
+        }
+        return false;
+    },
+
     flashBlock: function(blockId) {
         var el = this.container.querySelector('[data-block-id="' + blockId + '"]');
         if (!el) return;
