@@ -461,31 +461,11 @@ export const BlockEditor = {
         this.container = document.getElementById(containerId);
         if (!this.container) return;
 
-        // Listen on document to catch keys even when focus is lost (e.g. after drag-select blur)
-        document.addEventListener('keydown', function(e) {
-            if (self.container && self.container.offsetParent !== null) {
-                self.handleKeydown(e);
-            }
-        });
-        this.container.addEventListener('input', this.handleInput.bind(this));
-        this.container.addEventListener('click', this.handleClick.bind(this));
-        this.container.addEventListener('paste', this.handlePaste.bind(this));
-        this.container.addEventListener('drop', this.handleDrop.bind(this));
-        
-        this.container.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
-
+        this._bindKeydown();
+        this._bindContainerEvents();
         var self = this;
         
-        // 🛡️ FIX 3: Clear selection when clicking outside the editor container
-        document.addEventListener('mousedown', function(e) {
-            if (self.selectedBlockIds.length > 0 && self.container && !self.container.contains(e.target)) {
-                self.clearSelection();
-            }
-        });
-
+        this._bindOutsideClickClear();
         this.container.addEventListener('mousedown', function(e) {
             if (e.button !== 0) return;
             var blockEl = e.target.closest('.block-wrapper');
@@ -591,6 +571,37 @@ export const BlockEditor = {
             if (self.selectedBlockIds.length > 0) {
                 self.lastSelectedId = self.selectedBlockIds[0];
                 if (document.activeElement && self.container.contains(document.activeElement)) document.activeElement.blur();
+            }
+        });
+    },
+
+    _bindKeydown: function() {
+        var self = this;
+        // Listen on document to catch keys even when focus is lost (e.g. after drag-select blur)
+        document.addEventListener('keydown', function(e) {
+            if (self.container && self.container.offsetParent !== null) {
+                self.handleKeydown(e);
+            }
+        });
+    },
+    _bindContainerEvents: function() {
+        var self = this;
+        this.container.addEventListener('input', this.handleInput.bind(this));
+        this.container.addEventListener('click', this.handleClick.bind(this));
+        this.container.addEventListener('paste', this.handlePaste.bind(this));
+        this.container.addEventListener('drop', this.handleDrop.bind(this));
+        
+        this.container.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+    },
+    _bindOutsideClickClear: function() {
+        var self = this;
+        // 🛡️ FIX 3: Clear selection when clicking outside the editor container
+        document.addEventListener('mousedown', function(e) {
+            if (self.selectedBlockIds.length > 0 && self.container && !self.container.contains(e.target)) {
+                self.clearSelection();
             }
         });
     },
