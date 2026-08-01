@@ -120,17 +120,26 @@ test('2. Sync tab shows backup interval dropdown and buttons', async ({ page }) 
 });
 
 // ══════════════════════════════════════════
-// Test 3: Changing backup interval persists
+// Test 3: Changing backup interval persists via the SAVE flow
 // ══════════════════════════════════════════
-test('3. Changing backup interval persists to config', async ({ page }) => {
+test('3. Changing backup interval persists via the settings SAVE flow', async ({ page }) => {
   await openSettings(page);
   await navigateToTab(page, 'sync');
 
   await page.locator('#cfg-auto-backup').selectOption('30');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
 
-  // Sync tab auto-saves on dropdown change; no separate save button needed
-  const interval = await page.evaluate(() => {
+  // Dirty tracking: the change is staged, not yet persisted (no immediate save)
+  let interval = await page.evaluate(() => {
+    return window.State && window.State.CONFIG ? window.State.CONFIG.auto_backup_interval : null;
+  });
+  expect(interval).not.toBe(30);
+
+  // The header SAVE button applies it (saveConfigFromUI reads the select)
+  await page.locator('#header-save-btn').click();
+  await page.waitForTimeout(800);
+
+  interval = await page.evaluate(() => {
     return window.State && window.State.CONFIG ? window.State.CONFIG.auto_backup_interval : null;
   });
   expect(interval).toBe(30);

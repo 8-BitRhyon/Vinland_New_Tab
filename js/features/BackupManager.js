@@ -36,7 +36,9 @@ export const BackupManager = {
         console.log('[Backup] Auto-backup scheduled every ' + interval + ' min');
 
         this.intervalId = setInterval(function() {
-            BackupManager.triggerBackup();
+            // Drive connected → push to Drive only (no Downloads-folder JSON
+            // spam on every interval). Not connected → local download fallback.
+            BackupManager.triggerBackup(BackupManager.driveConnected ? 'drive' : 'auto');
         }, ms);
     },
 

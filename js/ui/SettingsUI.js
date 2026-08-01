@@ -583,6 +583,10 @@ export const SettingsUI = {
     getConfigFromUI: function() {
         // Clone existing config to start (preserves detailed objects not in UI)
         var draft = JSON.parse(JSON.stringify(State.CONFIG));
+        // Volatile sync bookkeeping must not trip dirty tracking — a backup or
+        // Drive sync updating these while the modal is open is not a user edit.
+        delete draft.last_backup_time;
+        delete draft.drive_last_sync;
         var el;
 
         // Fonts
@@ -631,6 +635,7 @@ export const SettingsUI = {
 
         // Modules
         el = document.getElementById('cfg-auto-clear-interval'); if (el) draft.auto_clear_interval = el.value;
+        el = document.getElementById('cfg-auto-backup'); if (el) draft.auto_backup_interval = parseInt(el.value, 10) || 0;
         el = document.getElementById('cfg-habit'); if (el) draft.habit_id = el.value.trim();
         el = document.getElementById('cfg-life'); if (el) draft.life_id = el.value.trim();
         el = document.getElementById('cfg-trello'); if (el) draft.trello_board = el.value.trim();
@@ -674,6 +679,8 @@ export const SettingsUI = {
                     State.CONFIG = Object.assign(State.CONFIG, newConfig);
                     // Proceed to save directly, skipping UI field reading
                     Config.save();
+                    // Raw JSON may include auto_backup_interval — keep the timer in sync
+                    if (window.BackupManager) window.BackupManager.scheduleAutoBackup();
                     Config.applyTheme();
                     if (window.renderMissions) window.renderMissions();
                     State.WEATHER_CACHE = null; 
@@ -746,6 +753,7 @@ export const SettingsUI = {
 
         // Modules
         el = document.getElementById('cfg-auto-clear-interval'); if (el) CONFIG.auto_clear_interval = el.value;
+        el = document.getElementById('cfg-auto-backup'); if (el) CONFIG.auto_backup_interval = parseInt(el.value, 10) || 0;
         el = document.getElementById('cfg-habit'); if (el) CONFIG.habit_id = el.value.trim();
         el = document.getElementById('cfg-life'); if (el) CONFIG.life_id = el.value.trim();
         el = document.getElementById('cfg-trello'); if (el) CONFIG.trello_board = el.value.trim();
@@ -762,6 +770,8 @@ export const SettingsUI = {
         // Post-save re-renders
         if (window.renderMissions) window.renderMissions();
         if (window.TabManager) TabManager.init();
+        // Reschedule the auto-backup timer with the newly saved interval
+        if (window.BackupManager) window.BackupManager.scheduleAutoBackup();
         
         State.WEATHER_CACHE = null; 
         if (window.fetchWeather) window.fetchWeather();
@@ -1968,16 +1978,14 @@ export const SettingsUI = {
             };
         }
 
-        // Auto-backup interval change
+        // Auto-backup interval change — staged for the modal's SAVE flow.
+        // The global change listener → checkDirty() shows SAVE *; persistence
+        // happens in saveConfigFromUI, which also reschedules the timer.
+        // (Immediate save here previously bypassed dirty tracking entirely.)
         var intervalSelect = this._syncBtn('cfg-auto-backup');
         if (intervalSelect) {
             intervalSelect.onchange = function() {
-                State.CONFIG.auto_backup_interval = parseInt(this.value) || 0;
-                saveConfig();
-                if (window.BackupManager) {
-                    window.BackupManager.scheduleAutoBackup();
-                }
-                self._syncMsg('sync-backup-status', '⏱ Backup interval updated', 'info');
+                self._syncMsg('sync-backup-status', '⏱ Save to apply the backup interval', 'info');
                 setTimeout(function() { self._syncMsg('sync-backup-status', null); }, 3000);
             };
         }
