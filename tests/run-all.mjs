@@ -20,6 +20,7 @@ const suites = [
   'fuzzy-unit-tests.mjs',
   'missions-unit-tests.mjs',
   'attachments-unit-tests.mjs',
+  'backup-manager-unit-tests.mjs',
 ];
 
 let exitCode = 0;
