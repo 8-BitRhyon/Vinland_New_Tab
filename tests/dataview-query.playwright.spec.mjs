@@ -367,15 +367,13 @@ test('6. TASK query shows task items grouped by note (with task-type blocks)', a
   await runCLI(page, 'dv TASK FROM #sprint');
   await page.waitForTimeout(500);
 
-  // Should show task groups
+  // Should show task groups (auto-wait for the async render)
   const taskGroups = page.locator('.dv-task-group');
-  const groupCount = await taskGroups.count();
-  expect(groupCount).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => taskGroups.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
 
-  // Should show task items with checkboxes
+  // Should show task items with checkboxes (auto-wait for the async render)
   const taskItems = page.locator('.dv-task-item');
-  const taskCount = await taskItems.count();
-  expect(taskCount).toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => taskItems.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(2);
 
   // Completed task should have done class
   const doneTasks = page.locator('.dv-task-text.dv-task-done');
@@ -614,10 +612,9 @@ test('11. Auto-complete shows tag suggestions when typing #', async ({ page }) =
   const suggestions = page.locator('#dv-suggestions');
   await expect(suggestions).toHaveClass(/active/, { timeout: 2000 });
 
-  // Should show multiple tag suggestions
+  // Should show multiple tag suggestions (auto-wait)
   const items = page.locator('.dv-suggestion-item');
-  const itemCount = await items.count();
-  expect(itemCount).toBeGreaterThanOrEqual(4); // project, active, backlog, journal, personal
+  await expect.poll(async () => items.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(4); // project, active, backlog, journal, personal
 
   // Filter by typing more
   await dvInput.pressSequentially('pro');
@@ -625,15 +622,10 @@ test('11. Auto-complete shows tag suggestions when typing #', async ({ page }) =
 
   // Should now show only matching tags (active, backlog don't start with pro)
   const filteredItems = page.locator('.dv-suggestion-item');
-  const filteredCount = await filteredItems.count();
-  expect(filteredCount).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => filteredItems.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
 
-  // First suggestion should be "#project" (prefix match gets top score)
-  const firstLabel = await page.evaluate(() => {
-    const first = document.querySelector('.dv-suggestion-item');
-    return first ? first.textContent.trim() : '';
-  });
-  expect(firstLabel).toContain('project');
+  // First suggestion should be "#project" (prefix match gets top score) — auto-wait
+  await expect(page.locator('.dv-suggestion-item').first()).toContainText('project', { timeout: 3000 });
 
   // Press Enter to select the first suggestion
   await dvInput.press('Enter');
@@ -642,9 +634,8 @@ test('11. Auto-complete shows tag suggestions when typing #', async ({ page }) =
   // Suggestions should disappear
   await expect(suggestions).not.toHaveClass(/active/, { timeout: 2000 });
 
-  // Input should now contain #project with a space after
-  const inputValue = await dvInput.inputValue();
-  expect(inputValue).toContain('#project');
+  // Input should now contain #project with a space after (auto-wait)
+  await expect(dvInput).toHaveValue(/#project/, { timeout: 3000 });
 
   // Close the panel
   await page.keyboard.press('Escape');
@@ -679,19 +670,17 @@ test('12. Auto-complete shows folder suggestions when typing "', async ({ page }
   const suggestions = page.locator('#dv-suggestions');
   await expect(suggestions).toHaveClass(/active/, { timeout: 2000 });
 
-  // Should show folder suggestions
+  // Should show folder suggestions (auto-wait)
   const items = page.locator('.dv-suggestion-item');
-  const itemCount = await items.count();
-  expect(itemCount).toBeGreaterThanOrEqual(2); // Journal, Journal/Quick, Work
+  await expect.poll(async () => items.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(2); // Journal, Journal/Quick, Work
 
   // Filter by typing Jo
   await dvInput.pressSequentially('Jo');
   await page.waitForTimeout(300);
 
-  // Should show Journal-related folders
+  // Should show Journal-related folders (auto-wait)
   const filteredItems = page.locator('.dv-suggestion-item');
-  const filteredCount = await filteredItems.count();
-  expect(filteredCount).toBeGreaterThanOrEqual(2); // Journal, Journal/Quick
+  await expect.poll(async () => filteredItems.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(2); // Journal, Journal/Quick
 
   // Press Tab to select the first suggestion (Tab also selects)
   await dvInput.press('Tab');

@@ -309,10 +309,8 @@ test('16. Uploaded background shows a rendered thumbnail (not blank)', async ({ 
   await expect(cards).toHaveCount(1, { timeout: 5000 });
 
   const img = cards.first().locator('img');
-  await expect(img).toBeAttached({ timeout: 5000 });
-  const src = await img.getAttribute('src');
-  expect(src).toBeTruthy();
-  expect(src.startsWith('blob:')).toBeTruthy();
+  // Auto-wait for the blob URL — the img attaches before its src is assigned
+  await expect(img).toHaveAttribute('src', /blob:/, { timeout: 5000 });
   // The card should not be flagged as a failed load (red border).
   const border = await cards.first().evaluate((el) => el.style.borderColor);
   expect(border).not.toContain('255, 68, 68');

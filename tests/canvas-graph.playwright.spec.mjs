@@ -279,21 +279,16 @@ test('8. Graph mode toggle switches between LOCAL and GLOBAL', async ({ page }) 
   await expect(page.locator('#graph-modal')).toBeVisible({ timeout: 5000 });
 
   const toggle = page.locator('#graph-mode-toggle');
-  await expect(toggle).toBeVisible({ timeout: 2000 });
+  await expect(toggle).toHaveText(/GLOBAL|LOCAL/, { timeout: 2000 });
+  const initialMode = ((await toggle.textContent()) || '').toUpperCase();
 
-  // Should start in GLOBAL mode
-  const initialText = await toggle.textContent();
-  expect(initialText?.toUpperCase()).toMatch(/GLOBAL|LOCAL/);
-
-  // Click to toggle
+  // Click to toggle — auto-wait until the label flips to the OTHER real mode
+  // (guards against passing on a transient ''/stale value during re-render)
   await toggle.click();
-  await page.waitForTimeout(500);
-
-  const afterToggle = await toggle.textContent();
-  expect(afterToggle?.toUpperCase()).toMatch(/GLOBAL|LOCAL/);
-
-  // It should have changed
-  expect(afterToggle?.toUpperCase()).not.toBe(initialText?.toUpperCase());
+  await expect.poll(async () => {
+    const t = ((await toggle.textContent()) || '').toUpperCase();
+    return /GLOBAL|LOCAL/.test(t) && t !== initialMode;
+  }, { timeout: 3000 }).toBe(true);
 
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
@@ -331,15 +326,15 @@ test('9. Graph renders with D3 nodes when notes exist', async ({ page }) => {
   await expect(svg).toBeVisible({ timeout: 5000 });
 
   // The graph should have circle elements (nodes)
-  // D3 renders circles inside the SVG for each note
+  // D3 renders circles asynchronously — auto-wait for at least one
   const circles = svg.locator('circle');
-  const circleCount = await circles.count();
-  expect(circleCount).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => circles.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
 
-  // Should have legend items for the notes' groups
+  // Should have legend items for the notes' groups — positive auto-wait
+  // (requires presence AND non-empty text; a negative toHaveText would pass
+  // vacuously if the element were missing)
   const legend = page.locator('#graph-legend');
-  const legendText = await legend.textContent();
-  expect(legendText).toBeTruthy();
+  await expect(legend).toHaveText(/.+/, { timeout: 5000 });
 
   // Close
   await page.keyboard.press('Escape');

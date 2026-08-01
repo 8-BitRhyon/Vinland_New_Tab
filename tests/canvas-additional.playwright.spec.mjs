@@ -237,11 +237,9 @@ test('CA3. Edge label renders as SVG text element', async ({ page }) => {
 
   await expect(page.locator('.canvas-card')).toHaveCount(2);
 
-  // The edge SVG label should exist in the DOM
+  // The edge SVG label should exist in the DOM (auto-wait for text)
   const edgeLabel = page.locator('#canvas-svg-layer .canvas-edge-label');
-  await expect(edgeLabel).toBeVisible({ timeout: 3000 });
-  const labelText = await edgeLabel.textContent();
-  expect(labelText).toBe('Connects to');
+  await expect(edgeLabel).toHaveText('Connects to', { timeout: 3000 });
 
   // Verify data model has the label
   const modelCheck = await page.evaluate(() => {
@@ -261,9 +259,7 @@ test('CA3. Edge label renders as SVG text element', async ({ page }) => {
   await page.waitForTimeout(800);
 
   const persistentLabel = page.locator('#canvas-svg-layer .canvas-edge-label');
-  await expect(persistentLabel).toBeVisible({ timeout: 3000 });
-  const persistentText = await persistentLabel.textContent();
-  expect(persistentText).toBe('Connects to');
+  await expect(persistentLabel).toHaveText('Connects to', { timeout: 3000 });
 
   await closeEditor(page);
 });
@@ -761,12 +757,11 @@ test('CA6. Zoom to fit adjusts transform to encompass all nodes', async ({ page 
   expect(afterTransform.x).not.toBe(beforeTransform.x);
   expect(afterTransform.y).not.toBe(beforeTransform.y);
 
-  // The zoom label should reflect the new scale
+  // The zoom label should reflect the new scale (auto-wait, non-500%)
+  // Presence guard first — a negative toHaveText passes vacuously if absent
   const zoomLabel = page.locator('#canvas-zoom-label');
-  await expect(zoomLabel).toBeVisible();
-  const zoomText = await zoomLabel.textContent();
-  // Should show a non-500% zoom percentage
-  expect(zoomText).not.toBe('500%');
+  await expect(zoomLabel).toBeVisible({ timeout: 3000 });
+  await expect(zoomLabel).not.toHaveText('500%', { timeout: 3000 });
 
   // Verify the board transform reflects the zoom-to-fit
   const boardTransform = await page.evaluate(() => {

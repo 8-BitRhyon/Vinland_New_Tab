@@ -210,9 +210,8 @@ test('EC4. Rapid add and delete cycle leaves clean state', async ({ page }) => {
   await deleteSelectedViaKey(page);
   await page.waitForTimeout(300);
 
-  // Canvas should be empty
-  const remaining = await page.locator('.canvas-card').count();
-  expect(remaining).toBe(0);
+  // Canvas should be empty (auto-wait for the cards to be removed)
+  await expect(page.locator('.canvas-card')).toHaveCount(0, { timeout: 3000 });
   await expect(page.locator('#canvas-node-count')).toContainText('0 nodes');
 
   // Hint should reappear

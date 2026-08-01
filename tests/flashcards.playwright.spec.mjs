@@ -85,11 +85,9 @@ test('1. Cloze deletions in note content are extracted as flashcards in the revi
   const reviewModal = page.locator('#review-modal');
   await expect(reviewModal).toBeVisible({ timeout: 5000 });
 
-  // Should show progress indicator (visible) showing 1 card
+  // Should show progress indicator (visible) showing 1 card — auto-wait
   const progress = page.locator('.review-progress');
-  await expect(progress).toBeVisible();
-  const progressText = await progress.textContent();
-  expect(progressText).toMatch(/Card 1 of 1/);
+  await expect(progress).toHaveText(/Card 1 of 1/, { timeout: 3000 });
 });
 
 // ════════════════════════════════════════════════════════════
@@ -164,9 +162,7 @@ test('3. A note with multiple {c1::} and {c2::} creates separate flashcard entri
 
   // Should have 2 cards due (Card 1 of 2 shown on review-progress)
   const progress = page.locator('.review-progress');
-  await expect(progress).toBeVisible();
-  const progressText = await progress.textContent();
-  expect(progressText).toMatch(/Card 1 of 2/);
+  await expect(progress).toHaveText(/Card 1 of 2/, { timeout: 3000 });
 });
 
 // ════════════════════════════════════════════════════════════
@@ -190,9 +186,7 @@ test('4. Simple ::double-colon:: syntax is extracted as a flashcard', async ({ p
 
   // Should have 1 card due from ::capital:: (Card 1 of 1 shown)
   const progress = page.locator('.review-progress');
-  await expect(progress).toBeVisible();
-  const progressText = await progress.textContent();
-  expect(progressText).toMatch(/Card 1 of 1/);
+  await expect(progress).toHaveText(/Card 1 of 1/, { timeout: 3000 });
 });
 
 // ════════════════════════════════════════════════════════════
@@ -258,9 +252,7 @@ test('6. `flashcards` CLI command shows stats notification and opens the review 
   await expect(reviewModal).toBeVisible({ timeout: 5000 });
 
   const progress = page.locator('.review-progress');
-  await expect(progress).toBeVisible();
-  const progressText = await progress.textContent();
-  expect(progressText).toMatch(/Card 1 of 3/);
+  await expect(progress).toHaveText(/Card 1 of 3/, { timeout: 3000 });
 
   // Verify we can grade cards (proves the session is functional after stats)
   const flipBtn = page.locator('#review-flip-btn');
@@ -275,7 +267,5 @@ test('6. `flashcards` CLI command shows stats notification and opens the review 
 
   // Should now show Card 2 of 3 (grading advanced to next card)
   const progress2 = page.locator('.review-progress');
-  await expect(progress2).toBeVisible({ timeout: 3000 });
-  const progressText2 = await progress2.textContent();
-  expect(progressText2).toMatch(/Card 2 of 3/);
+  await expect(progress2).toHaveText(/Card 2 of 3/, { timeout: 3000 });
 });

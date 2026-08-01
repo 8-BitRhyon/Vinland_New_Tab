@@ -157,9 +157,9 @@ test('4. Backup Now button sets last_backup_time', async ({ page }) => {
   // real timestamp rather than the 'never' placeholder.
   await expect(page.locator('.sync-status-item').filter({ hasText: 'LAST BACKUP' })).toBeVisible();
   const lastBackupEl = page.locator('#sync-last-backup');
-  const text = (await lastBackupEl.textContent()) || '';
-  expect(text).not.toContain('never');
-  expect(text.trim().length).toBeGreaterThan(0);
+  // Auto-wait: value must resolve to a real timestamp, not the placeholder
+  await expect(lastBackupEl).not.toContainText('never', { timeout: 3000 });
+  await expect(lastBackupEl).not.toHaveText('', { timeout: 3000 });
 
   await closeSettings(page);
 });
@@ -180,11 +180,11 @@ test('5. Sync tab displays last backup and drive sync status', async ({ page }) 
 
   const lastBackupEl = page.locator('#sync-last-backup');
   await expect(lastBackupEl).toBeVisible();
-  expect(await lastBackupEl.textContent()).not.toContain('never');
+  await expect(lastBackupEl).not.toContainText('never');
 
   const lastDriveEl = page.locator('#sync-last-drive');
   await expect(lastDriveEl).toBeVisible();
-  expect(await lastDriveEl.textContent()).not.toContain('never');
+  await expect(lastDriveEl).not.toContainText('never');
 
   await closeSettings(page);
 });

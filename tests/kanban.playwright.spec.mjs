@@ -211,10 +211,8 @@ test('3. Add cards to columns and verify they appear', async ({ page }) => {
   expect(await getCardCount(page, 1)).toBe(1);
   expect(await getCardCount(page, 2)).toBe(0);
 
-  // Verify cards are rendered in the DOM
-  const cardElements = page.locator('.kanban-card');
-  const cardCount = await cardElements.count();
-  expect(cardCount).toBe(3);
+  // Verify cards are rendered in the DOM (auto-wait for the count)
+  await expect(page.locator('.kanban-card')).toHaveCount(3, { timeout: 3000 });
 
   // Close modal
   await closeBoardModal(page);
@@ -237,9 +235,8 @@ test('4. Edit card content inline', async ({ page }) => {
   await cardContent.click();
   await page.waitForTimeout(300);
 
-  // The card should now be contenteditable
-  const isEditable = await cardContent.getAttribute('contenteditable');
-  expect(isEditable).toBe('true');
+  // The card should now be contenteditable (auto-wait for the attribute)
+  await expect(cardContent).toHaveAttribute('contenteditable', 'true', { timeout: 3000 });
 
   // Type new content
   await cardContent.fill('Edited content');

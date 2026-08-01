@@ -161,23 +161,16 @@ test('local graph toggles collapse/expand on header click', async ({ page }) => 
   await expect(graphEl).toBeVisible({ timeout: 3000 });
 
   // Should NOT have 'collapsed' initially
-  const initialClass = await graphEl.getAttribute('class');
-  expect(initialClass).not.toContain('collapsed');
+  await expect(graphEl).not.toHaveClass(/collapsed/);
 
-  // Click the header to collapse
+  // Click the header to collapse — auto-wait for the class to apply
   const header = page.locator('#local-graph-toggle');
   await header.click();
-  await page.waitForTimeout(200);
+  await expect(graphEl).toHaveClass(/collapsed/, { timeout: 3000 });
 
-  const afterCollapse = await graphEl.getAttribute('class');
-  expect(afterCollapse).toContain('collapsed');
-
-  // Click again to expand
+  // Click again to expand — auto-wait for the class to be removed
   await header.click();
-  await page.waitForTimeout(200);
-
-  const afterExpand = await graphEl.getAttribute('class');
-  expect(afterExpand).not.toContain('collapsed');
+  await expect(graphEl).not.toHaveClass(/collapsed/, { timeout: 3000 });
 });
 
 test('local graph shows multiple connections', async ({ page }) => {

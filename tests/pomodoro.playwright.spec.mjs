@@ -77,9 +77,8 @@ test('1. Start pomodoro via CLI command', async ({ page }) => {
   const timeDisplay = page.locator('#pomodoro-time');
   await expect(timeDisplay).toBeVisible({ timeout: 2000 });
 
-  // Should show ~30 seconds (could be 00:30 or 00:29 depending on timing)
-  const timeText = await timeDisplay.textContent();
-  expect(timeText).toMatch(/^00:([2-3]\d)$/);
+  // Should show ~30 seconds (auto-wait; could be 00:30 or 00:29 depending on timing)
+  await expect(timeDisplay).toHaveText(/^00:[23]\d$/, { timeout: 3000 });
 
   // Pause button should say PAUSE
   const pauseBtn = page.locator('#pomodoro-pause');
@@ -101,9 +100,8 @@ test('2. Start pomodoro with custom time via evaluate', async ({ page }) => {
   const timeDisplay = page.locator('#pomodoro-time');
   await expect(timeDisplay).toBeVisible({ timeout: 2000 });
 
-  // Should show ~1 minute
-  const timeText = await timeDisplay.textContent();
-  expect(timeText).toMatch(/^(00:59|01:00)$/);
+  // Should show ~1 minute (auto-wait with tick tolerance)
+  await expect(timeDisplay).toHaveText(/^(00:5[89]|01:00)$/, { timeout: 3000 });
 });
 
 test('3. Pause a running pomodoro', async ({ page }) => {
@@ -170,22 +168,19 @@ test('6. Timer display updates as time passes', async ({ page }) => {
 
   await expect(page.locator('#pomodoro-container')).toBeVisible({ timeout: 3000 });
 
-  // Get initial display
+  // Capture the initial display, then auto-wait for it to advance
   const timeDisplay = page.locator('#pomodoro-time');
-  const initialText = await timeDisplay.textContent();
+  const initialText = (await timeDisplay.textContent()) || '';
 
-  // Wait 2 seconds
-  await page.waitForTimeout(2000);
-
-  // Get new display
-  const afterText = await timeDisplay.textContent();
+  // Auto-wait: the timer display must tick past its initial value
+  await expect.poll(async () => timeDisplay.textContent(), { timeout: 5000 })
+    .not.toBe(initialText);
 
   // Container should still be visible (timer hasn't expired yet)
   await expect(page.locator('#pomodoro-container')).toBeVisible();
 
-  // Time should have changed / decreased (format MM:SS)
-  expect(initialText).not.toBe(afterText);
-  expect(afterText).toMatch(/^00:2\d$/);
+  // Display should match a 30s timer still in the 10-29s window
+  await expect(timeDisplay).toHaveText(/^00:[12]\d$/, { timeout: 2000 });
 });
 
 test('7. Start, stop, then start again with different duration', async ({ page }) => {
@@ -202,9 +197,8 @@ test('7. Start, stop, then start again with different duration', async ({ page }
   await startPomodoro(page, '1m');
   await expect(page.locator('#pomodoro-container')).toBeVisible({ timeout: 3000 });
 
-  // Should show ~1 minute (fresh timer)
-  const timeText = await page.locator('#pomodoro-time').textContent();
-  expect(timeText).toMatch(/^(00:59|01:00)$/);
+  // Should show ~1 minute (fresh timer) — auto-wait with tick tolerance
+  await expect(page.locator('#pomodoro-time')).toHaveText(/^(00:5[89]|01:00)$/, { timeout: 3000 });
 
   // Clean up
   await page.locator('#pomodoro-stop').click();
@@ -221,9 +215,8 @@ test('8. Starting pomodoro while one is already running resets it', async ({ pag
   // Start a different duration - this should reset the timer
   await startPomodoro(page, '1m');
 
-  // Should now show 1 minute, not the remaining ~28s
-  const timeText = await page.locator('#pomodoro-time').textContent();
-  expect(timeText).toMatch(/^(00:59|01:00)$/);
+  // Should now show 1 minute, not the remaining ~28s — auto-wait with tolerance
+  await expect(page.locator('#pomodoro-time')).toHaveText(/^(00:5[89]|01:00)$/, { timeout: 3000 });
 
   // Clean up
   await page.locator('#pomodoro-stop').click();
