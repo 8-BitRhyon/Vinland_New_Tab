@@ -152,7 +152,8 @@ test('1. Export creates downloadable JSON with all data types', async ({ page })
   expect(data).toHaveProperty('canvases');
   expect(Array.isArray(data.canvases)).toBe(true);
 
-  // ── 1l. Verify history ──
+  // ── 1l. Verify history — the CLI export path (NotesController.downloadNotes)
+  // still emits the legacy 'history' key at exportVersion 1. ──
   expect(data).toHaveProperty('history');
   expect(Array.isArray(data.history)).toBe(true);
 });
@@ -251,7 +252,7 @@ test('3. Settings panel export button downloads all data', async ({ page }) => {
 
   expect(data).toHaveProperty('boards');
   expect(data).toHaveProperty('canvases');
-  expect(data).toHaveProperty('history');
+  expect(data).toHaveProperty('commands');
 
   // Close settings
   await page.evaluate(() => {
