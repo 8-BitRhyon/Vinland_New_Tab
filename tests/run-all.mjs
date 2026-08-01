@@ -21,6 +21,7 @@ const suites = [
   'missions-unit-tests.mjs',
   'attachments-unit-tests.mjs',
   'backup-manager-unit-tests.mjs',
+  'package-exclusions-unit-tests.mjs',
 ];
 
 let exitCode = 0;
