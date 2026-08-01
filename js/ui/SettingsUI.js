@@ -1461,13 +1461,15 @@ export const SettingsUI = {
 
         var bgList = CONFIG.backgrounds && CONFIG.backgrounds.length > 0 ? CONFIG.backgrounds : [];
 
-        // No backgrounds configured — fall back to solid color. Do NOT request
-        // the missing background.mp4 (that 404 fired on every boot; mirrors the
-        // guard in js/ui/background.js).
+        // No backgrounds configured — hide the custom background layers and let
+        // the active theme's surface (CSS var --bg-color) show through. Do NOT
+        // request the missing background.mp4 (that 404 fired on every boot) and
+        // do NOT set an inline body color: an inline style would override the
+        // theme's CSS variable and break light/paper themes like retroma
+        // (regression caught by tests/ui-polish retroma test).
         if (bgList.length === 0) {
             if (video) video.style.display = 'none';
             bgImage.style.display = 'none';
-            document.body.style.backgroundColor = CONFIG.background_color || '#000';
             return;
         }
 
