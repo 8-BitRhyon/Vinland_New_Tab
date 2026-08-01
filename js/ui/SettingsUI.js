@@ -1552,14 +1552,18 @@ export const SettingsUI = {
        ========================================= */
 
     exportAllData: function() {
-        var exportData = { 
-            config: State.CONFIG, 
-            tasks: State.TASKS, 
-            notes: State.NOTES, 
-            boards: State.BOARDS, 
-            canvases: State.CANVASES, 
-            history: State.COMMAND_HISTORY 
-        };
+        // Single canonical backup builder — same payload as BackupManager's
+        // downloadBackup() (config/tasks/notes/boards/canvases/commands).
+        var exportData = (window.BackupManager && window.BackupManager.buildBackupData)
+            ? window.BackupManager.buildBackupData()
+            : {
+                config: State.CONFIG,
+                tasks: State.TASKS,
+                notes: State.NOTES,
+                boards: State.BOARDS,
+                canvases: State.CANVASES,
+                commands: State.COMMAND_HISTORY
+            };
         var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var dlNode = document.createElement('a');
@@ -1599,7 +1603,9 @@ export const SettingsUI = {
                 if (imported.notes) State.NOTES = imported.notes;
                 if (imported.boards) State.BOARDS = imported.boards;
                 if (imported.canvases) State.CANVASES = imported.canvases;
-                if (imported.history) State.COMMAND_HISTORY = imported.history;
+                // Canonical key is 'commands'; accept legacy 'history' key too.
+                var importedHistory = imported.commands || imported.history;
+                if (importedHistory) State.COMMAND_HISTORY = importedHistory;
                 
                 // Save Everything
                 saveData(); // Persist tasks/notes/history
@@ -2109,6 +2115,11 @@ export const SettingsUI = {
         if (data.canvases && Array.isArray(data.canvases)) {
             State.CANVASES = data.canvases;
         }
+        // Canonical key is 'commands'; accept legacy 'history' key too.
+        var syncedHistory = data.commands || data.history;
+        if (syncedHistory && Array.isArray(syncedHistory)) {
+            State.COMMAND_HISTORY = syncedHistory;
+        }
 
         // Persist and re-render
         saveConfig();
@@ -2120,6 +2131,13 @@ export const SettingsUI = {
             window.Notes.renderNotes();
             window.Notes.renderSidebar();
         }
+
+        // Full vault restore — reload so every module picks up the new state
+        // (mirrors the local importDataFile flow).
+        showNotification('DATA RESTORED FROM DRIVE // RELOAD RECOMMENDED');
+        setTimeout(function() {
+            if (typeof location !== 'undefined') location.reload();
+        }, 1500);
 
         console.log('[SettingsUI] Data imported from Drive sync');
     },

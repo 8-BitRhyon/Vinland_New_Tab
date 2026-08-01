@@ -217,7 +217,7 @@ export const BackupManager = {
             });
         } else {
             // Search for existing backup file first
-            this._findDriveBackupFile(function(existingId) {
+            this._findDriveBackupFile(function(existingId, errorCode) {
                 if (existingId) {
                     self.driveFileId = existingId;
                     self._updateDriveFile(data, function(success, fileId) {
@@ -229,8 +229,8 @@ export const BackupManager = {
                             if (callback) callback(false);
                         }
                     });
-                } else {
-                    // Create new file
+                } else if (errorCode === 'not_found') {
+                    // No existing backup — create new file
                     self._createDriveFile(data, function(success, fileId) {
                         if (success) {
                             self.driveFileId = fileId;
@@ -240,6 +240,15 @@ export const BackupManager = {
                             if (callback) callback(false);
                         }
                     });
+                } else {
+                    // Auth/network failure during the search — do NOT create a
+                    // duplicate. The old code treated any failure as "no file".
+                    if (window.showNotification) {
+                        window.showNotification(errorCode === 'auth'
+                            ? 'DRIVE SYNC FAILED: Auth expired — reconnect Drive'
+                            : 'DRIVE SYNC FAILED: Could not reach Drive');
+                    }
+                    if (callback) callback(false);
                 }
             });
         }
@@ -256,7 +265,7 @@ export const BackupManager = {
             return;
         }
 
-        this._getDriveFileContent(function(success, content) {
+        this._getDriveFileContent(function(success, content, errorCode) {
             if (success && content) {
                 try {
                     var data = JSON.parse(content);
@@ -265,9 +274,6 @@ export const BackupManager = {
                         window.SettingsUI.importFromSync(data);
                     }
                     self._onSyncComplete('pull');
-                    if (window.showNotification) {
-                        window.showNotification('DATA RESTORED FROM DRIVE');
-                    }
                     if (callback) callback(true);
                 } catch (e) {
                     console.error('[Backup] Failed to parse Drive backup:', e);
@@ -277,9 +283,13 @@ export const BackupManager = {
                     if (callback) callback(false);
                 }
             } else {
-                if (window.showNotification) {
-                    window.showNotification('NO BACKUP FOUND ON DRIVE');
+                var msg = 'NO BACKUP FOUND ON DRIVE';
+                if (errorCode === 'auth') {
+                    msg = 'DRIVE SYNC FAILED: Auth expired — reconnect Drive';
+                } else if (errorCode === 'error') {
+                    msg = 'DRIVE SYNC FAILED: Could not reach Drive';
                 }
+                if (window.showNotification) window.showNotification(msg);
                 if (callback) callback(false);
             }
         });
@@ -294,22 +304,39 @@ export const BackupManager = {
         };
     },
 
+    // Classify Drive API HTTP status into a user-facing error code.
+    _driveErrorCode: function(status) {
+        if (status === 401 || status === 403) return 'auth';
+        if (status === 404) return 'not_found';
+        return 'error';
+    },
+
     _findDriveBackupFile: function(callback) {
         var query = encodeURIComponent("name='" + BACKUP_FILE_NAME + "' and trashed=false");
         var url = 'https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id,name)';
 
+        var self = this;
         fetch(url, { headers: { 'Authorization': 'Bearer ' + this.driveAccessToken } })
-            .then(function(res) { return res.json(); })
+            .then(function(res) {
+                if (!res.ok) {
+                    // Distinguish auth failures from 'no file exists' so the
+                    // caller never misreports a dead token as 'no backup'.
+                    callback(null, self._driveErrorCode(res.status));
+                    return null; // stop the chain
+                }
+                return res.json();
+            })
             .then(function(json) {
+                if (json === null) return; // handled by the !res.ok branch above
                 if (json.files && json.files.length > 0) {
                     callback(json.files[0].id);
                 } else {
-                    callback(null);
+                    callback(null, 'not_found');
                 }
             })
             .catch(function(err) {
                 console.error('[Backup] Error finding Drive file:', err);
-                callback(null);
+                callback(null, 'error');
             });
     },
 
@@ -492,32 +519,38 @@ export const BackupManager = {
         if (this.driveFileId) {
             this._downloadFile(this.driveFileId, callback);
         } else {
-            this._findDriveBackupFile(function(fileId) {
+            this._findDriveBackupFile(function(fileId, errorCode) {
                 if (fileId) {
                     self.driveFileId = fileId;
                     self.saveDriveState();
                     self._downloadFile(fileId, callback);
                 } else {
-                    callback(false, null);
+                    // Thread the honest error code through unchanged
+                    // ('auth' | 'not_found' | 'error').
+                    callback(false, null, errorCode || 'not_found');
                 }
             });
         }
     },
 
     _downloadFile: function(fileId, callback) {
+        var self = this;
         var url = 'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media';
 
         fetch(url, { headers: { 'Authorization': 'Bearer ' + this.driveAccessToken } })
             .then(function(res) {
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                if (!res.ok) {
+                    callback(false, null, self._driveErrorCode(res.status));
+                    return null; // stop the chain
+                }
                 return res.text();
             })
             .then(function(content) {
-                callback(true, content);
+                if (content !== null) callback(true, content);
             })
             .catch(function(err) {
                 console.error('[Backup] Error downloading Drive file:', err);
-                callback(false, null);
+                callback(false, null, 'error');
             });
     },
 
