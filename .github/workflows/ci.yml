@@ -126,3 +126,27 @@ jobs:
           name: playwright-report-release-candidate
           path: playwright-report/
           retention-days: 7
+
+  # Store-package gate — builds the Chrome-Web-Store zip via
+  # scripts/package-release.sh so packaging failures break CI instead of
+  # shipping. The script's 80MB size guard (CWS caps at 100MB) exits 1 on
+  # silent asset bloat, and its composition report prints the 10 largest
+  # included paths so the top offenders are visible right in the run log.
+  # Fast job: only needs python3 + zip/unzip (no Node deps).
+  package-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install zip tools
+        run: sudo apt-get update && sudo apt-get install -y zip unzip
+
+      - name: Build store zip (80MB size guard + composition report)
+        run: bash scripts/package-release.sh
+
+      - name: Upload store zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vinland-store-zip
+          path: dist/*.zip
+          retention-days: 7
