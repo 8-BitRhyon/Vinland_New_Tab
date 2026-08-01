@@ -46,5 +46,15 @@ zip -r "$OUT_ZIP" . \
   > /dev/null
 
 SIZE=$(du -h "$OUT_ZIP" | cut -f1)
+
+# Size guard: the Chrome Web Store hard-caps packages at 100MB. Fail loudly
+# here instead of shipping a zip that would be rejected (or balloon silently
+# from asset bloat). Threshold: 80MB = 80*1024 KB.
+SIZE_KB=$(du -k "$OUT_ZIP" | cut -f1)
+if [ "$SIZE_KB" -gt 81920 ]; then
+  echo "ERROR: $OUT_ZIP is ${SIZE} (>80MB) - the Chrome Web Store rejects packages over 100MB; prune assets." >&2
+  exit 1
+fi
+
 echo "✔ Packaged $OUT_ZIP ($SIZE)"
 echo "  → Load unpacked: chrome://extensions → Developer mode → Load unpacked → select the unzipped folder"
