@@ -144,7 +144,11 @@ jobs:
       - name: Build store zip (80MB size guard + composition report)
         run: bash scripts/package-release.sh
 
+      # Upload on success AND failure: when the 80MB guard trips, the zip was
+      # already built (the guard runs after zip -r), so a maintainer can
+      # download the bloated zip from a failed run and inspect it directly.
       - name: Upload store zip artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: vinland-store-zip
