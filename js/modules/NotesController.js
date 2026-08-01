@@ -396,10 +396,17 @@ export const Notes = {
             var textarea = document.getElementById('active-note-content');
             var blockEditorEl = document.getElementById('block-editor');
             var preview = document.getElementById('note-preview');
+            // Hide standard-note chrome so the canvas fills the editor column
+            var localGraphEl = document.getElementById('editor-local-graph');
+            var statsBarEl = document.getElementById('editor-stats-bar');
+            var tagsBarEl = document.getElementById('editor-tags-bar');
             if (textarea) textarea.style.display = 'none';
             if (preview) { preview.classList.remove('active'); preview.style.display = 'none'; }
             if (blockEditorEl) blockEditorEl.style.display = 'none';
             if (toggleBtn) toggleBtn.style.display = 'none';
+            if (localGraphEl) localGraphEl.style.display = 'none';
+            if (statsBarEl) statsBarEl.style.display = 'none';
+            if (tagsBarEl) tagsBarEl.style.display = 'none';
             if (canvasContainer) {
                 canvasContainer.style.display = 'flex';
                 console.log('[Notes] Canvas container shown. offsetHeight:', canvasContainer.offsetHeight, '| offsetWidth:', canvasContainer.offsetWidth);
@@ -412,9 +419,15 @@ export const Notes = {
             return true;
         }
 
-        // Standard note: hide canvas, show toggle
+        // Standard note: hide canvas, show toggle, restore note chrome
         if (canvasContainer) canvasContainer.style.display = 'none';
         if (toggleBtn) toggleBtn.style.display = 'inline-block';
+        var localGraphEl = document.getElementById('editor-local-graph');
+        var statsBarEl = document.getElementById('editor-stats-bar');
+        var tagsBarEl = document.getElementById('editor-tags-bar');
+        if (localGraphEl) localGraphEl.style.display = '';
+        if (statsBarEl) statsBarEl.style.display = '';
+        if (tagsBarEl) tagsBarEl.style.display = '';
         return false;
     },
 

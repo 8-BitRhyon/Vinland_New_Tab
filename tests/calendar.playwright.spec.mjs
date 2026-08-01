@@ -159,9 +159,15 @@ test('3. TODAY button jumps to current month', async ({ page }) => {
 // Test 4: Days with notes show dot indicators
 // ══════════════════════════════════════════
 test('4. Days with notes show dot indicators in the grid', async ({ page }) => {
-  const threeDaysAgo = new Date();
-  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-  const dateStr = threeDaysAgo.toISOString().split('T')[0];
+  // Use a date guaranteed to render in the currently-shown month. The calendar
+  // grid always opens on the current month, so "3 days ago" can fall into the
+  // previous month at month boundaries (e.g. Aug 1 - 3 = July 29) and never
+  // appear. Build the date with LOCAL parts to match the calendar's indexing.
+  const d = new Date();
+  const dayInMonth = Math.max(1, d.getDate() - 3);
+  const dateStr = d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(dayInMonth).padStart(2, '0');
 
   await createNoteWithContent(page, `Daily Log ${dateStr}`, 'A daily log entry for testing.');
 

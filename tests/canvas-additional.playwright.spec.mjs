@@ -561,12 +561,13 @@ test('CS1. ? toolbar button opens the shortcuts reference panel', async ({ page 
   const overlay = page.locator('#canvas-shortcuts-overlay');
   await expect(overlay).toBeVisible({ timeout: 2000 });
 
-  // Sections should be present
-  await expect(panel.locator('.canvas-shortcuts-section-title')).toHaveCount(4);
+  // Sections should be present (5: Node Alignment was added with the align tools)
+  await expect(panel.locator('.canvas-shortcuts-section-title')).toHaveCount(5);
   const sectionTitles = await panel.locator('.canvas-shortcuts-section-title').allTextContents();
   expect(sectionTitles).toContain('Nodes & Selection');
   expect(sectionTitles).toContain('Create Connections');
   expect(sectionTitles).toContain('Clipboard & History');
+  expect(sectionTitles).toContain('Node Alignment');
   expect(sectionTitles).toContain('View & Navigation');
 
   // Close shortcuts panel first so overlay doesn't block editor close button

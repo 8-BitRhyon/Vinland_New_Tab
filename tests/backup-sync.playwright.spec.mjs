@@ -152,10 +152,14 @@ test('4. Backup Now button sets last_backup_time', async ({ page }) => {
   expect(lastBackup).not.toBeNull();
   expect(typeof lastBackup).toBe('number');
 
+  // The HTML splits the label ('LAST BACKUP') and value (#sync-last-backup)
+  // into sibling spans — assert the label element exists and the value is a
+  // real timestamp rather than the 'never' placeholder.
+  await expect(page.locator('.sync-status-item').filter({ hasText: 'LAST BACKUP' })).toBeVisible();
   const lastBackupEl = page.locator('#sync-last-backup');
-  await expect(lastBackupEl).toContainText('LAST BACKUP');
-  const text = await lastBackupEl.textContent();
+  const text = (await lastBackupEl.textContent()) || '';
   expect(text).not.toContain('never');
+  expect(text.trim().length).toBeGreaterThan(0);
 
   await closeSettings(page);
 });

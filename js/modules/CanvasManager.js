@@ -20,6 +20,7 @@ export const CanvasManager = {
     marqueeEl: null,
     historyStack: [],
     redoStack: [],
+    _historyRestoring: false,
     clipboard: null,
     lastMouseCoords: null,
     _backlinksPanel: null,
@@ -396,6 +397,9 @@ export const CanvasManager = {
     },
 
     _saveHistoryState: function() {
+        // While restoring from the history stacks (undo/redo), load() re-adds
+        // cards which would otherwise call this and clobber redoStack.
+        if (this._historyRestoring) return;
         const note = this._getActiveNote();
         if (!note || !note.canvasData) return;
 
@@ -420,7 +424,12 @@ export const CanvasManager = {
         const previousState = this.historyStack.pop();
         note.canvasData = previousState;
 
-        this.load(this.activeNoteId);
+        this._historyRestoring = true;
+        try {
+            this.load(this.activeNoteId);
+        } finally {
+            this._historyRestoring = false;
+        }
         this._saveData();
         console.log('[CanvasManager] Undo complete.');
     },
@@ -436,7 +445,12 @@ export const CanvasManager = {
         const nextState = this.redoStack.pop();
         note.canvasData = nextState;
 
-        this.load(this.activeNoteId);
+        this._historyRestoring = true;
+        try {
+            this.load(this.activeNoteId);
+        } finally {
+            this._historyRestoring = false;
+        }
         this._saveData();
         console.log('[CanvasManager] Redo complete.');
     },
@@ -1356,13 +1370,21 @@ export const CanvasManager = {
             }
         }, 10);
 
-        // Route existing wiki-links in text nodes to existing file nodes
+        // Route existing wiki-links in text nodes to existing file nodes.
+        // Suppress history during this automatic load-time pass: it fires in a
+        // 150ms timeout that can outlive undo()/redo()'s _historyRestoring
+        // window, and _routeWikiLinks' history save would clobber redoStack.
         setTimeout(() => {
-            if (note && note.canvasData && note.canvasData.nodes) {
-                note.canvasData.nodes.forEach(node => {
-                    if (node.type && (node.type === 'file' || node.type === 'embed' || node.type === 'group')) return;
-                    this._routeWikiLinks(node.id, false);
-                });
+            this._historyRestoring = true;
+            try {
+                if (note && note.canvasData && note.canvasData.nodes) {
+                    note.canvasData.nodes.forEach(node => {
+                        if (node.type && (node.type === 'file' || node.type === 'embed' || node.type === 'group')) return;
+                        this._routeWikiLinks(node.id, false);
+                    });
+                }
+            } finally {
+                this._historyRestoring = false;
             }
         }, 150);
 
@@ -4339,9 +4361,6 @@ export const CanvasManager = {
     _routeWikiLinks: function(textNodeId, createFileNodes) {
         if (createFileNodes === undefined) createFileNodes = true;
 
-        // Save undo state before any modifications
-        this._saveHistoryState();
-
         var note = this._getActiveNote();
         if (!note || !note.canvasData || !note.canvasData.nodes) return;
 
@@ -4352,6 +4371,7 @@ export const CanvasManager = {
         var wikiLinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
         var match;
         var changed = false;
+        var historySaved = false;
 
         while ((match = wikiLinkRegex.exec(textNode.preview || '')) !== null) {
             var linkTarget = match[1].trim();
@@ -4387,6 +4407,7 @@ export const CanvasManager = {
                     height: 160
                 };
 
+                if (!historySaved) { this._saveHistoryState(); historySaved = true; }
                 note.canvasData.nodes.push(fileNode);
                 this.addCard(fileNode);
                 changed = true;
@@ -4401,6 +4422,7 @@ export const CanvasManager = {
 
             if (!existingEdge) {
                 if (!note.canvasData.edges) note.canvasData.edges = [];
+                if (!historySaved) { this._saveHistoryState(); historySaved = true; }
                 var newEdge = {
                     id: 'edge_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                     fromNode: textNode.id,
