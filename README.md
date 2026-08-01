@@ -100,17 +100,48 @@ I use it every day. Every tab I open lands here. The pomodoro keeps me honest, m
 
 It's not trying to be the next big thing. It's just my terminal for the browser - and it works exactly how I want it to.
 
-## Build / run
+## Release / install
+
+### From a release zip (recommended)
+
+Grab the latest `vinland-v<version>.zip` from the [Releases page](https://github.com/8-BitRhyon/Vinland_New_Tab/releases):
+
+1. Download `vinland-v<version>.zip`
+2. Unzip it anywhere (e.g. `~/Downloads/vinland/`)
+3. Open `chrome://extensions`
+4. Enable **Developer mode** (top-right toggle)
+5. Click **Load unpacked** and select the unzipped `vinland` folder
+6. Open a new tab - Vinland replaces the new-tab page
+
+The release zip is ~540KB and ships only what the store ships - dev/test tooling
+is excluded. An 80MB size guard, a composition report (10 largest paths), and a
+dedicated exclusion test suite run on every push, so bloat can't silently ship.
+
+### From source
 
 ```
 git clone https://github.com/8-BitRhyon/Vinland_New_Tab
 # no install step - it's vanilla
-# Load as unpacked extension in Chrome:
-# chrome://extensions → Load unpacked → select this folder
+# chrome://extensions → Load unpacked → select the repo folder
 ```
 
-Tests: `npm test` (436 unit tests across 10 suites) • `npm run test:e2e` (30 Playwright E2E specs).
-CI runs both on every push via [GitHub Actions](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml).
+### Build a store zip
+
+```bash
+bash scripts/package-release.sh
+# → dist/vinland-v<version>.zip (~541KB)
+```
+
+The script prints the 10 largest included paths, enforces an 80MB size guard
+(Chrome Web Store caps at 100MB), and excludes dev/tooling (tests, docs,
+node_modules, .git, .venv, ...). Guarded by `tests/package-exclusions-unit-tests.mjs`
+and the `package-check` CI job on every push.
+
+## Tests / CI
+
+- **Unit**: `npm test` - 678 tests across 16 zero-dependency suites
+- **E2E**: `npm run test:e2e` - 34 Playwright specs against a local static server
+- **CI**: both run on every push via [GitHub Actions](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml) - 8 jobs: unit-tests, 4 E2E shards, CLI command sweep, real-extension release-candidate smoke, and the store-zip `package-check` gate
 
 ## Design
 
