@@ -173,7 +173,8 @@ test('6. Timer display updates as time passes', async ({ page }) => {
   const initialText = (await timeDisplay.textContent()) || '';
 
   // Auto-wait: the timer display must tick past its initial value
-  await expect.poll(async () => timeDisplay.textContent(), { timeout: 5000 })
+  // (|| '' guards against a transient null read passing the poll prematurely)
+  await expect.poll(async () => ((await timeDisplay.textContent()) || ''), { timeout: 5000 })
     .not.toBe(initialText);
 
   // Container should still be visible (timer hasn't expired yet)
