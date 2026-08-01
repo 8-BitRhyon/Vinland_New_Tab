@@ -26,6 +26,9 @@ jobs:
   # E2E tests (Playwright) — split into 4 parallel shards so the suite
   # finishes well within job time limits. The Playwright config auto-starts
   # `python3 -m http.server 9999` as the web server (see playwright.config.mjs).
+  # The CLI command sweep is excluded here and runs in its own dedicated job
+  # (cli-sweep) so it has isolated runtime, clear failure attribution, and
+  # doesn't double-run inside the sharded matrix.
   e2e-tests:
     runs-on: ubuntu-latest
     strategy:
@@ -47,7 +50,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests (shard ${{ matrix.shard }}/4)
-        run: npx playwright test --shard=${{ matrix.shard }}/4
+        run: npx playwright test --grep-invert "CLI command sweep" --shard=${{ matrix.shard }}/4
         timeout-minutes: 30
 
       - name: Upload Playwright report on failure
@@ -55,5 +58,38 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-shard-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 7
+
+  # CLI command sweep — dedicated job. Runs all 34 registered commands via
+  # the CLI input with deterministic assertions (weather APIs are mocked via
+  # Playwright route interception, so no network flake). Isolated here so the
+  # sharded E2E suite above stays fast and the sweep gets its own timeout +
+  # failure artifacts.
+  cli-sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run CLI command sweep
+        run: npx playwright test tests/cli-commands.playwright.spec.mjs
+        timeout-minutes: 15
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-cli-sweep
           path: playwright-report/
           retention-days: 7

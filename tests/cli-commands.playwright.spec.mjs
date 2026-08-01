@@ -36,20 +36,18 @@ async function runCLI(page, command) {
 
 /** Assert the command did NOT produce an ERROR toast, then close any overlay. */
 async function expectCommandOk(page, command, targetSelector, opts = {}) {
-  const { timeout = 7000, skipToast = false } = opts;
+  const { timeout = 7000 } = opts;
   await clearToasts(page);
   await runCLI(page, command);
 
   // CommandLine.execute always shows `COMMAND: <title>` synchronously on
   // success and `ERROR: <msg>` on a thrown exception — so wait for the toast
   // to actually render, then assert it is not an error.
-  if (!skipToast) {
-    const toast = page.locator('#notif-toast');
-    await toast.waitFor({ state: 'visible', timeout: 3000 }).catch(function() {});
-    if (await toast.count() > 0) {
-      const text = (await toast.textContent()) || '';
-      expect(text, `command "${command}" should not show an ERROR toast`).not.toContain('ERROR');
-    }
+  const toast = page.locator('#notif-toast');
+  await toast.waitFor({ state: 'visible', timeout: 3000 }).catch(function() {});
+  if (await toast.count() > 0) {
+    const text = (await toast.textContent()) || '';
+    expect(text, `command "${command}" should not show an ERROR toast`).not.toContain('ERROR');
   }
 
   if (targetSelector) {
@@ -171,9 +169,32 @@ test.describe('CLI command sweep', () => {
     // pomo:start — starts pomodoro (no crash)
     await expectCommandOk(page, 'pomo 25', null);
 
-    // info:weather — fetch weather. Async network work can surface an error
-    // toast slightly outside the check window in CI, so skip the toast assert.
-    await expectCommandOk(page, 'weather', null, { skipToast: true });
+    // info:weather — fetch weather. The external open-meteo APIs are mocked
+    // with route interception so the assertion is fully deterministic in CI
+    // (no live network, no async error toast race). We then assert both the
+    // COMMAND toast (no ERROR) and that the widget rendered a temperature.
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ results: [{ name: 'London', latitude: 51.5, longitude: -0.12 }] }),
+      });
+    });
+    await page.route('https://api.open-meteo.com/**', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          current: { temperature_2m: 18.5, relative_humidity_2m: 65, precipitation: 0, weather_code: 1, wind_speed_10m: 12 },
+        }),
+      });
+    });
+    await expectCommandOk(page, 'weather London', null, { timeout: 9000 });
+    // The mocked fetch must render a real temperature into the widget.
+    // (Weather.render() rebuilds the widget with class="weather-temp" — the
+    // id="weather-temp" only exists in the initial static HTML, so select
+    // by class, not id.)
+    await expect(page.locator('.weather-temp')).toHaveText(/\d+°/, { timeout: 5000 });
 
     // bm:search — no bookmarks in test env → "not found" toast, no crash
     await expectCommandOk(page, 'b nonexistentbookmark', null);
