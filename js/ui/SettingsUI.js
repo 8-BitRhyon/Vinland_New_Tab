@@ -2106,6 +2106,9 @@ export const SettingsUI = {
         if (data.boards && Array.isArray(data.boards)) {
             State.BOARDS = data.boards;
         }
+        if (data.canvases && Array.isArray(data.canvases)) {
+            State.CANVASES = data.canvases;
+        }
 
         // Persist and re-render
         saveConfig();

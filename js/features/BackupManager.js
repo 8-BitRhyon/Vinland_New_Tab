@@ -51,12 +51,13 @@ export const BackupManager = {
 
     buildBackupData: function() {
         return {
-            exportVersion: 1,
+            exportVersion: 2,
             exportedAt: new Date().toISOString(),
             config: State.CONFIG,
             tasks: State.TASKS,
             notes: State.NOTES,
             boards: State.BOARDS,
+            canvases: State.CANVASES,
             commands: State.COMMAND_HISTORY
         };
     },
@@ -119,6 +120,20 @@ export const BackupManager = {
         if (typeof chrome === 'undefined' || !chrome.identity || !chrome.identity.getAuthToken) {
             if (window.showNotification) {
                 window.showNotification('ERROR: chrome.identity not available (not in extension context)');
+            }
+            if (callback) callback(false);
+            return;
+        }
+
+        // Fail fast with an actionable message when OAuth is not configured.
+        // chrome.identity.getAuthToken requires an oauth2 block (with a real
+        // client_id) in manifest.json — otherwise it fails with an opaque error.
+        var manifest = (typeof chrome.runtime !== 'undefined' && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : null;
+        var oauthClientId = manifest && manifest.oauth2 && manifest.oauth2.client_id;
+        if (!oauthClientId || /YOUR_OAUTH_CLIENT_ID|REPLACE_ME|CHANGE_ME/i.test(oauthClientId)) {
+            console.error('[Backup] Drive auth unavailable: manifest.json has no oauth2.client_id');
+            if (window.showNotification) {
+                window.showNotification('ERROR: Add your OAuth client ID to manifest.json — see docs/google-drive-sync.md');
             }
             if (callback) callback(false);
             return;
@@ -360,7 +375,7 @@ export const BackupManager = {
         });
     },
 
-    _updateDriveFile: function(data, callback) {
+    _updateDriveFile: function(data, callback, retried) {
         var self = this;
         var url = 'https://www.googleapis.com/upload/drive/v3/files/' + this.driveFileId + '?uploadType=media';
 
@@ -372,16 +387,51 @@ export const BackupManager = {
             },
             body: JSON.stringify(data)
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) {
+            if (res.status === 404) {
+                // File was deleted/trashed — reset id and re-create.
+                self.driveFileId = null;
+                self._createDriveFile(data, callback);
+                return null; // stop the chain; _createDriveFile owns the callback
+            }
+            if (res.status === 401 || res.status === 403) {
+                // Auth expired/revoked. Refresh the token once and retry.
+                // Never treat this as "file deleted" — that caused duplicate
+                // files to be created on every failed sync.
+                if (retried) {
+                    // Auth is genuinely dead — stop lying to the UI badge.
+                    self.driveConnected = false;
+                    self.driveAccessToken = null;
+                    self.driveFileId = null;
+                    self.saveDriveState();
+                    if (window.showNotification) {
+                        window.showNotification('DRIVE SYNC FAILED: Auth rejected — reconnect Drive');
+                    }
+                    if (callback) callback(false, null);
+                    return null;
+                }
+                self.refreshDriveToken(function(ok) {
+                    if (!ok) {
+                        if (window.showNotification) {
+                            window.showNotification('DRIVE SYNC FAILED: Auth expired — reconnect Drive');
+                        }
+                        if (callback) callback(false, null);
+                        return;
+                    }
+                    self._updateDriveFile(data, callback, true);
+                });
+                return null; // retry path owns the callback
+            }
+            return res.json();
+        })
         .then(function(json) {
+            if (!json) return; // handled by 404/401 branches above
             if (json.id) {
                 console.log('[Backup] Drive file updated:', json.id);
                 if (callback) callback(true, json.id);
             } else {
-                // File may have been deleted/trashed - reset fileId
-                self.driveFileId = null;
-                // Retry as create
-                self._createDriveFile(data, callback);
+                console.error('[Backup] Error updating Drive file:', json);
+                if (callback) callback(false, null);
             }
         })
         .catch(function(err) {
@@ -502,6 +552,39 @@ export const BackupManager = {
                 self.driveConnected = result.vinland_drive.connected || false;
                 self.driveFileId = result.vinland_drive.fileId || null;
             }
+            // Re-validate a stored "connected" flag against a real cached token:
+            // the OAuth access token is never persisted, so after a restart the
+            // flag alone would leave the UI showing Connected while every sync
+            // fails. Silently refresh (no popup); if the token is gone, mark
+            // disconnected so the user is asked to reconnect.
+            if (self.driveConnected) {
+                self.refreshDriveToken();
+            }
+        });
+    },
+
+    // Silently refresh the cached OAuth token (no interactive popup).
+    // Used on init to validate restored state and on 401/403 to recover.
+    refreshDriveToken: function(callback) {
+        var self = this;
+        if (!this.driveConnected || typeof chrome === 'undefined' || !chrome.identity || !chrome.identity.getAuthToken) {
+            if (callback) callback(false);
+            return;
+        }
+        var scopes = this.getDriveAuthScopes().join(' ');
+        chrome.identity.getAuthToken({ interactive: false, scopes: scopes }, function(token) {
+            if (chrome.runtime.lastError || !token) {
+                console.warn('[Backup] Drive token refresh failed:', chrome.runtime.lastError && chrome.runtime.lastError.message);
+                self.driveConnected = false;
+                self.driveAccessToken = null;
+                self.driveFileId = null;
+                self.saveDriveState();
+                if (callback) callback(false);
+                return;
+            }
+            self.driveAccessToken = token;
+            console.log('[Backup] Drive token refreshed (cached)');
+            if (callback) callback(true);
         });
     }
 };
