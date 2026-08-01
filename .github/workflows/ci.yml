@@ -50,7 +50,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests (shard ${{ matrix.shard }}/4)
-        run: npx playwright test --grep-invert "CLI command sweep" --shard=${{ matrix.shard }}/4
+        run: npx playwright test --grep-invert "CLI command sweep|Release Candidate" --shard=${{ matrix.shard }}/4
         timeout-minutes: 30
 
       - name: Upload Playwright report on failure
@@ -91,5 +91,38 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-cli-sweep
+          path: playwright-report/
+          retention-days: 7
+
+  # Release-candidate smoke — the ONLY job that runs the real unpacked
+  # extension in a persistent Chromium profile (chrome-extension:// origin,
+  # MV3 service worker, chrome.identity/storage present). Excluded from the
+  # sharded E2E matrix above via --grep-invert "Release Candidate". Slow
+  # (boots a full extension profile) so it gets its own job + timeout.
+  release-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run release-candidate smoke (real extension context)
+        run: npx playwright test tests/release-candidate.playwright.spec.mjs
+        timeout-minutes: 15
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-release-candidate
           path: playwright-report/
           retention-days: 7

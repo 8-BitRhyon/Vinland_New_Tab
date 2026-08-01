@@ -20,5 +20,9 @@ _metadata/
 playwright-report/
 test-results/
 
+# Release artifacts
+/dist/
+test-results/
+
 # Dependencies
 node_modules/

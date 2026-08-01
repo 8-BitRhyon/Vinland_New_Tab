@@ -369,6 +369,8 @@ Hardcoded z-index values used outside the CSS variable system:
 
 ## 10. Recent changes
 
+- **V19.57** (2026-08-01): **Release-candidate pass — real extension-context smoke gate + packaging**. New `tests/release-candidate.playwright.spec.mjs` (7 tests) is the ONLY spec that loads the actual unpacked extension in a persistent Chromium profile (`chrome-extension://` origin, MV3 service worker, `chrome.identity`/`chrome.storage`/`chrome.runtime` present, `runtime.id` matches). It gates: zero uncaught page errors + zero console errors + zero failed resource requests on boot; note lifecycle persisting in real extension storage; canvas board render; task CLI → mission list; quick-open search; settings SYNC tab + Drive fail-fast toast (placeholder client ID) + BACKUP NOW updating `last_backup_time`; notes surviving a full reload. The gate immediately caught a real bug: `SettingsUI.initBackground()` requested the non-existent `background.mp4` on every boot (`net::ERR_FILE_NOT_FOUND`) when no backgrounds were configured — fixed to mirror the `background.js` solid-color fallback. New `scripts/package-release.sh` zips the extension root to `dist/vinland-v<version>.zip` (excludes dev/tooling: tests, docs, .crush 38MB DB, node_modules, etc.). New dedicated `release-candidate` CI job (excluded from the sharded matrix via `--grep-invert "Release Candidate"`). `manifest.json` version aligned to changelog (**19.57**). `.gitignore` gains `dist/` + `test-results/`.
+
 - **V19.56** (2026-08-01): **Cloud Sync overhaul + auto-backup Drive-first** — sync series (4 commits + test-fix) resolving the settings-audit blockers:
   - **OAuth config** (71f4157): `manifest.json` ships an `oauth2` block (`drive.file` scope); `connectDrive()` fails fast with an actionable toast when the client ID is missing/placeholder. Setup walkthrough in `docs/google-drive-sync.md`. `loadDriveState()` re-validates the stored `connected` flag via `getAuthToken({interactive:false})` on init and marks itself disconnected when the cached token is gone — no more lying "Connected" badge.
   - **Canvas parity** (71f4157): `buildBackupData()` (v2) and `importFromSync()` now include/restore `State.CANVASES` — Drive backups previously dropped all canvas boards.
@@ -541,6 +543,7 @@ Playwright config auto-starts `python3 -m http.server 9999` (kills 8080/8181/999
 | `pomodoro.playwright.spec.mjs` | Pomodoro timer |
 | `quick-capture.playwright.spec.mjs` | Quick Capture overlay |
 | `quickopen.playwright.spec.mjs` | Quick Open palette |
+| `release-candidate.playwright.spec.mjs` | **Real unpacked-extension smoke** (chrome-extension:// origin, MV3 SW, extension APIs) — runs in its own `release-candidate` CI job |
 | `settings-ui.playwright.spec.mjs` | Settings UI interaction |
 | `tasks.playwright.spec.mjs` | Task management |
 | `template-browser.playwright.spec.mjs` | Template browser |

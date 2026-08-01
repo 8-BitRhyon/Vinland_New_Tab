@@ -1461,8 +1461,13 @@ export const SettingsUI = {
 
         var bgList = CONFIG.backgrounds && CONFIG.backgrounds.length > 0 ? CONFIG.backgrounds : [];
 
+        // No backgrounds configured — fall back to solid color. Do NOT request
+        // the missing background.mp4 (that 404 fired on every boot; mirrors the
+        // guard in js/ui/background.js).
         if (bgList.length === 0) {
-            this.tryLoadVideo(video, 'background.mp4', bgImage);
+            if (video) video.style.display = 'none';
+            bgImage.style.display = 'none';
+            document.body.style.backgroundColor = CONFIG.background_color || '#000';
             return;
         }
 

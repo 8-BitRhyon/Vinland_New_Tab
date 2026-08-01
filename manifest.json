@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vinland",
-  "version": "19.35",
+  "version": "19.57",
   "description": "Vinland Command Interface - Terminal New Tab By Rhyon",
   "icons": {
     "16": "assets/brand/v2-icon-16.png",
