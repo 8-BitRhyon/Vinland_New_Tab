@@ -39,7 +39,7 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 - Mission log with priority flags and streak tracking
 - Bookmark browser (Chrome bookmarks indexed into a bottom bar)
 - Dock (quick-launch links)
-- Command palette (fuzzy search, 33 built-in commands, custom ones too)
+- Command palette (fuzzy search, 34 built-in commands, custom ones too)
 - Zen mode
 - Editable themes (11 presets)
 
@@ -56,10 +56,8 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 - Quick Notes sidebar with folder tree and trash
 - Daily notes under `/Journal`
 
-**33 CLI commands:**
+**34 CLI commands:**
 
-| Command | What it does |
-|---|---|
 | Command | What it does |
 |---|---|
 | `note <title>` | Quick-create and open a note |
@@ -76,14 +74,17 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 | `zen` | Toggle distraction-free |
 | `kill` | Close all modals |
 | `board` | Open kanban |
+| `kanban` | Open kanban (alias) |
 | `reload` | Reload extension |
 | `help` / `man` | Show command reference |
 | `find <query>` | Search notes via QuickOpen |
+| `search <query>` | Search notes (alias) |
 | `calendar` | Open calendar view |
 | `agenda` | Open daily agenda |
 | `template <name>` | Browse/create from template |
 | `tags <query>` | Browse/filter by tag |
 | `dv <query>` | Open Dataview query panel |
+| `dataview <query>` | Open Dataview query panel (alias) |
 | `review` | Start flashcard review |
 | `flashcards` | Show flashcard stats |
 | `versions` | View note version history |
@@ -91,6 +92,7 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 | `workspace <cmd>` | Save/load/delete workspace snapshots |
 | `export` | Download all data as JSON |
 | `import` | Import from JSON backup |
+| `attachments` | Open attachment browser |
 
 ## Why it works
 

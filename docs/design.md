@@ -40,7 +40,7 @@ _Verified against `js/boot.js` lines 422–516. 42 steps._
 8. `Notes.init()` + `Notes.renderNotes()` + `Notes.renderSidebar()`
 9. `KanbanManager.init()`
 10. `SettingsUI.init()` — bind config modal events
-11. `SystemCommands.register()` — populate `CommandRegistry` with all **33 commands**
+11. `SystemCommands.register()` — populate `CommandRegistry` with all **34 commands**
 12. `QuickOpen.init()`
 13. `Calendar.init()`
 14. `DailyAgenda.init()`
@@ -161,7 +161,7 @@ _Verified against `js/boot.js` lines 422–516. 42 steps._
 
 | File | Exports | Purpose |
 |---|---|---|
-| `SystemCommands.js` | `SystemCommands` | Registers all **33 CLI commands** into `CommandRegistry`. |
+| `SystemCommands.js` | `SystemCommands` | Registers all **34 CLI commands** into `CommandRegistry`. |
 
 ### `js/background/` - Extension service worker
 
@@ -200,7 +200,7 @@ CanvasSearch, initKeyboardShortcuts.
 
 ## 5. Command system (AUTHORITATIVE list)
 
-Registered in `js/config/SystemCommands.js`. **33 commands total.**
+Registered in `js/config/SystemCommands.js`. **34 commands total.**
 
 | Trigger | ID | Hint | What it does |
 |---|---|---|---|
@@ -237,6 +237,7 @@ Registered in `js/config/SystemCommands.js`. **33 commands total.**
 | `workspace` | `workspace:manage` | `save\|load\|delete\|list` | Manage workspace snapshots |
 | `export` | `data:export` | — | Download all data as JSON |
 | `import` | `data:import` | — | Import from JSON backup |
+| `attachments` | `attachments:list` | `[upload\|list]` | Open attachment browser (insert into active note) |
 
 **Fallback chain** (when no trigger matches):
 1. Custom commands from `State.CONFIG.custom_commands` (defaults: `gh`→github.com, `reddit`→reddit.com)

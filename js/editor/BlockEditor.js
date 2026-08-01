@@ -3514,6 +3514,13 @@ export const BlockEditor = {
                 SlashMenu.hide();
             }
         }
+        // Show saving indicator — placed AFTER all early returns so every path
+        // that reaches the debounced save below is covered (and none get stuck)
+        var statusEl = document.getElementById('save-status');
+        if (statusEl) {
+            statusEl.textContent = 'SAVING...';
+            statusEl.classList.add('saving');
+        }
         
         clearTimeout(this.saveTimeout);
         var self = this;
@@ -3527,6 +3534,13 @@ export const BlockEditor = {
             // Update MetadataCache so backlinks/wiki links are indexed
             if (window.MetadataCache && window.MetadataCache.updateNote) {
                 window.MetadataCache.updateNote(self.activePageId);
+            }
+            // Update save-status indicator (mirrors Notes.save())
+            var statusEl = document.getElementById('save-status');
+            if (statusEl) {
+                statusEl.textContent = 'SAVED';
+                statusEl.classList.add('saved');
+                setTimeout(function() { statusEl.classList.remove('saved'); }, 2000);
             }
         }, 500);
 

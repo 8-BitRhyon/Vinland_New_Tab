@@ -9160,11 +9160,16 @@
         color: #555;
         transition: color 0.3s;
         flex-shrink: 1;
-        min-width: 0;
+        min-width: 60px;
         max-width: 80px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      #save-status::before {
+        content: '';
+        display: inline-block;
+        height: 1em;
       }
 
       #save-status.saving {

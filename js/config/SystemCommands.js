@@ -97,8 +97,11 @@ export const SystemCommands = {
       title: "Open Random Note",
       action: () => {
         if (window.State && State.NOTES && State.NOTES.length > 0) {
-          const rnd = Math.floor(Math.random() * State.NOTES.length);
-          window.Notes.open(State.NOTES[rnd].id);
+          // Skip canvas boards — random note should surface text notes
+          const candidates = State.NOTES.filter(function(n) { return n.type !== 'canvas'; });
+          if (candidates.length === 0) return;
+          const rnd = Math.floor(Math.random() * candidates.length);
+          window.Notes.open(candidates[rnd].id);
         }
       },
     });
@@ -180,22 +183,33 @@ export const SystemCommands = {
     });
 
     // --- KANBAN ---
+    // KanbanManager.open(boardId) early-returns when no board exists, so the
+    // CLI must resolve a board first: open the most recent board, or create
+    // a default one when the collection is empty (mirrors the sidebar/boot path).
+    const openKanbanBoard = () => {
+      if (!window.KanbanManager) return;
+      // createBoard() pushes and persists internally (kanbanmanager.js), so
+      // the last element is always the most recently created board.
+      if (State.BOARDS.length > 0) {
+        window.KanbanManager.open(State.BOARDS[State.BOARDS.length - 1].id);
+      } else if (window.KanbanManager.createBoard) {
+        const board = window.KanbanManager.createBoard('MAIN BOARD');
+        if (board) window.KanbanManager.open(board.id);
+      }
+    };
+
     CommandRegistry.register({
       id: "kanban:open",
       trigger: "board",
       title: "Open Kanban Board",
-      action: () => {
-        if (window.KanbanManager) window.KanbanManager.open();
-      },
+      action: openKanbanBoard,
     });
 
     CommandRegistry.register({
       id: "kanban:quick",
       trigger: "kanban",
       title: "Open Kanban Board",
-      action: () => {
-        if (window.KanbanManager) window.KanbanManager.open();
-      },
+      action: openKanbanBoard,
     });
 
     // --- BOOKMARKS ---
@@ -215,7 +229,7 @@ export const SystemCommands = {
         if (matches.length > 0) {
             window.location.href = matches[0].url;
         } else {
-             if (window.showNotification) showNotification(`No bookmark found for "${args}"`, 'error');
+             if (window.showNotification) window.showNotification(`No bookmark found for "${args}"`, 'error');
         }
       },
     });
