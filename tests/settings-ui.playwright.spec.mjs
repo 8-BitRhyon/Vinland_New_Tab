@@ -340,8 +340,8 @@ test('17. Uploaded background persists and applies after reload', async ({ page 
   // Thumbnail should render a blob image immediately (live, in-session).
   const thumbImg = page.locator('#bg-thumbnails .bg-thumb-card img').first();
   await expect(thumbImg).toBeAttached({ timeout: 5000 });
-  const thumbSrc = await thumbImg.getAttribute('src');
-  expect(thumbSrc || '').toContain('blob:');
+  // Auto-wait for the blob URL — the img element attaches before its src is assigned.
+  await expect(thumbImg).toHaveAttribute('src', /blob:/, { timeout: 5000 });
 
   // Save the configuration.
   await page.locator('#header-save-btn').click();

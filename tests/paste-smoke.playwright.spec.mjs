@@ -47,10 +47,21 @@ function blockCount(page) {
   return page.locator('#block-editor .block-wrapper').count();
 }
 
-/** Real clipboard paste: write text to clipboard, focus, press Meta+V. */
+/**
+ * Native paste key differs by OS: Meta+V (⌘V) on macOS, Control+V on
+ * Linux/Windows. Using the wrong one means the browser never performs its
+ * native paste default action, so handlePaste never fires in CI.
+ */
+const PASTE_KEY = process.platform === 'darwin' ? 'Meta+V' : 'Control+V';
+
+/**
+ * Real clipboard paste: write text to clipboard, focus, press the native paste key.
+ * The 500ms settle wait is redundant for P1-P3 (they auto-wait via assertions)
+ * but P4 relies on it to capture paste-triggered console errors — keep it.
+ */
 async function realPaste(page, text) {
   await page.evaluate((txt) => navigator.clipboard.writeText(txt), text);
-  await page.keyboard.press('Meta+V');
+  await page.keyboard.press(PASTE_KEY);
   await page.waitForTimeout(500);
 }
 
@@ -90,8 +101,9 @@ test('P1. Single-line paste inserts text at the cursor', async ({ page }) => {
   await firstBlock.click();
 
   await realPaste(page, 'Hello pasted line');
-  const text = await firstBlock.textContent();
-  expect(text).toContain('Hello pasted line');
+  // Auto-wait: the paste lands async (browser-native default action), so poll
+  // instead of a single read after a fixed timeout — timing-proof on slow CI.
+  await expect(firstBlock).toContainText('Hello pasted line', { timeout: 5000 });
 });
 
 test('P2. Multi-line bullet paste splits into one block per line', async ({ page }) => {
@@ -104,16 +116,14 @@ test('P2. Multi-line bullet paste splits into one block per line', async ({ page
 
   const before = await blockCount(page);
   await realPaste(page, '- one\n- two\n- three');
-  const after = await blockCount(page);
 
-  // Bullets create one block per line -> 3 new bullet blocks
-  expect(after).toBe(before + 3);
-
-  const allText = await page.locator('#block-editor .block-wrapper').allTextContents();
-  const joined = allText.join('\n');
-  expect(joined).toContain('one');
-  expect(joined).toContain('two');
-  expect(joined).toContain('three');
+  // Auto-wait for the 3 new bullet blocks (paste is async).
+  await expect(page.locator('#block-editor .block-wrapper')).toHaveCount(before + 3, { timeout: 5000 });
+  await expect.poll(async () => {
+    const allText = await page.locator('#block-editor .block-wrapper').allTextContents();
+    const joined = allText.join('\n');
+    return joined.includes('one') && joined.includes('two') && joined.includes('three');
+  }, { timeout: 5000 }).toBe(true);
 });
 
 test('P3. Multi-line plain text merges into a single paragraph block', async ({ page }) => {
@@ -126,18 +136,19 @@ test('P3. Multi-line plain text merges into a single paragraph block', async ({ 
 
   const before = await blockCount(page);
   await realPaste(page, 'Line one\nLine two\nLine three');
-  const after = await blockCount(page);
 
-  // Contiguous plain lines buffer into one paragraph block
+  // Auto-wait: contiguous plain lines buffer into one paragraph block
   // (tolerant: a trailing newline in the pasted text would split an extra
-  // empty line into its own paragraph, so exact equality is brittle)
-  expect(after).toBeGreaterThanOrEqual(before + 1);
+  // empty line into its own paragraph, so a lower bound is used).
+  await expect.poll(async () => page.locator('#block-editor .block-wrapper').count(), {
+    timeout: 5000,
+  }).toBeGreaterThanOrEqual(before + 1);
 
-  const allText = await page.locator('#block-editor .block-wrapper').allTextContents();
-  const joined = allText.join('\n');
-  expect(joined).toContain('Line one');
-  expect(joined).toContain('Line two');
-  expect(joined).toContain('Line three');
+  await expect.poll(async () => {
+    const allText = await page.locator('#block-editor .block-wrapper').allTextContents();
+    const joined = allText.join('\n');
+    return joined.includes('Line one') && joined.includes('Line two') && joined.includes('Line three');
+  }, { timeout: 5000 }).toBe(true);
 });
 
 test('P4. No console errors during paste operations', async ({ page }) => {
