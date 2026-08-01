@@ -123,7 +123,7 @@ _Verified against `js/boot.js` lines 422–516. 42 steps._
 | `TagBrowser.js` | `TagBrowser` | Tag browser modal (Cmd+Shift+T / `tags` CLI): lists all tags with counts, real-time search/filter, click-to-filter notes in sidebar. |
 | `TemplateBrowser.js` | `TemplateBrowser` | Template browser (Cmd+Shift+N / `template` CLI): opens modal showing all notes in `/Templates` folder, creates new notes pre-populated from selected template. Supports YAML frontmatter in templates. |
 | `QuickCapture.js` | `QuickCapture` | Quick Capture overlay (Cmd+Shift+I): minimal input for instantly capturing thoughts into `/Inbox` folder. Inbox preview for triaging captures. Chrome context menu "Send to Vinland Inbox". |
-| `BackupManager.js` | `BackupManager` | Auto-backup and Google Drive sync. Configurable interval, "Backup Now" button, backup status display, Drive integration buttons. Persists backup config to `OPERATOR_CONFIG_V3`. |
+| `BackupManager.js` | `BackupManager` | Auto-backup and Google Drive sync (V19.56: Drive-first). Canonical backup payload via `buildBackupData()` (v2: config/tasks/notes/boards/canvases/commands) shared by top-bar download, BACKUP NOW, and Drive push. Auto-backup interval fires `triggerBackup(driveConnected ? 'drive' : 'auto')` per tick — Drive connected → push to Drive only; disconnected → local download. OAuth `drive.file` scope in manifest; `loadDriveState()` re-validates the token on init (marks disconnected when stale). 401/403-aware `_updateDriveFile` (refresh once → retry once → invalidate; 404 is the only recreate path) with `_driveErrorCode()` classification threading honest auth/not_found/error messages through `syncFromDrive`. Setup: `docs/google-drive-sync.md`. Persists backup config to `OPERATOR_CONFIG_V3`. |
 | `DataviewQuery.js` | `DataviewQuery` | Live Dataview query panel inside the block editor. Executes `QUERY ...` blocks against `QueryEngine`. `init()` sets up keyboard shortcut (`Cmd+Shift+O`). |
 | `CanvasSearch.js` | `CanvasSearch` | Full-text search across canvas nodes and edge labels within the active canvas. Exposed as `window.CanvasSearch` (assigned in boot, no `.init()` call — invoked on demand). |
 | `CodeBlockTools.js` | `CodeBlockTools` | Code block enhancement tools: copy-button overlay, language badge, line numbers for `<pre><code>` blocks. Exposed as `window.CodeBlockTools` (assigned in boot, no `.init()` call — DOM-based). |
@@ -369,6 +369,17 @@ Hardcoded z-index values used outside the CSS variable system:
 
 ## 10. Recent changes
 
+- **V19.56** (2026-08-01): **Cloud Sync overhaul + auto-backup Drive-first** — sync series (4 commits + test-fix) resolving the settings-audit blockers:
+  - **OAuth config** (71f4157): `manifest.json` ships an `oauth2` block (`drive.file` scope); `connectDrive()` fails fast with an actionable toast when the client ID is missing/placeholder. Setup walkthrough in `docs/google-drive-sync.md`. `loadDriveState()` re-validates the stored `connected` flag via `getAuthToken({interactive:false})` on init and marks itself disconnected when the cached token is gone — no more lying "Connected" badge.
+  - **Canvas parity** (71f4157): `buildBackupData()` (v2) and `importFromSync()` now include/restore `State.CANVASES` — Drive backups previously dropped all canvas boards.
+  - **401/403-aware `_updateDriveFile`** (71f4157): auth errors refresh the token once and retry a single time, then invalidate the connection — never treated as "file deleted" (which silently created duplicate backup files on every failed sync). 404 remains the only recreate path.
+  - **Canonical backup builder** (9080ab3): `SettingsUI.exportAllData()` now delegates to `BackupManager.buildBackupData()` — one canonical payload (config/tasks/notes/boards/canvases/commands) shared by the top-bar download, BACKUP NOW, and Drive push.
+  - **Honest Drive messages** (9080ab3): `_driveErrorCode()` classifies HTTP status into `auth` (401/403) | `not_found` (404) | `error`; the code threads through the find→get→download→`syncFromDrive` chain, so a dead token toasts "Auth expired — reconnect Drive" instead of the misleading "NO BACKUP FOUND ON DRIVE". `syncToDrive` aborts on auth/network instead of creating a duplicate file.
+  - **Restore reload hint** (9080ab3): `importFromSync` shows "DATA RESTORED FROM DRIVE // RELOAD RECOMMENDED" and reloads after 1.5s; also restores `COMMAND_HISTORY`. Both importers accept `commands` (canonical) or `history` (legacy) keys.
+  - **Auto-backup Drive-first** (afb9807): `scheduleAutoBackup()` fires `triggerBackup(driveConnected ? 'drive' : 'auto')` per tick — no more Downloads-folder JSON spam when Drive is connected (local download fallback when not). `driveConnected` is evaluated at fire-time, so connecting mid-interval switches on the next tick.
+  - **Interval through the SAVE flow** (afb9807): the `cfg-auto-backup` onchange no longer immediate-saves (which bypassed dirty tracking entirely); it stages the change → `checkDirty()` shows `SAVE *` → `saveConfigFromUI()` persists + reschedules the timer (saving OFF stops it). `getConfigFromUI()` strips volatile `last_backup_time`/`drive_last_sync` so a background backup/sync no longer trips a false `SAVE *`; the raw-JSON path also reschedules.
+  - **Tests**: `tests/backup-manager-unit-tests.mjs` (020f252, 7 tests, mocked fetch) covers `_driveErrorCode` classification, 200 success, 404 recreate, 401 refresh+retry-once-no-duplicate, refresh-fail, retried-still-401 disconnect, fetch rejection. Export spec fixed for the canonical key (`1187a32`). Backup-sync E2E 8/8; full unit suite + CI green.
+
 - **V19.55** (2026-07-29): **Attachment Manager** — new `js/core/AttachmentsManager.js` (562 lines) backed by the existing IndexedDB `media_assets` store (`OPERATOR_VAULT`). `attachments` CLI command opens the Attachment Browser modal (upload button, thumbnail grid, per-file delete, count + total-size footer, empty state). Selecting an attachment inserts an image block into the active note via `getDataURL()` (the block renderer reads `block.content`/`url`, not an IDB key). Object URL lifecycle: cached per attachment, revoked on delete and on `beforeunload`. 18 new unit tests (`tests/attachments-unit-tests.mjs`, registered in `run-all.mjs`). **Canvas-tag indexing started** — `MetadataCache` now includes canvas node body/tag content in per-note full-text + tag indexing (first half of the TagBrowser integration roadmap item; click-to-filter side still pending).
 
 - **V19.54** (2026-07-29): Canvas edge style picker — color swatches (6 colors), width picker (1–4), dashed toggle via edge right-click context menu. Canvas tag filter bar — filter visible nodes by #tag, tag dropdown with counts. GitHub Actions CI fixed (Node.js 24, no E2E test breaking, green across 14 suites). Design doc reconciled to V19.54.
@@ -440,6 +451,8 @@ Hardcoded z-index values used outside the CSS variable system:
   per-note full-text + tag index). The remaining half of the integration —
   making canvas tags **clickable/filterable from the global TagBrowser**
   (`Cmd+Shift+T`) — is still pending.
+- **Export-path asymmetry (V19.56, intentional)**: three export paths emit two payload shapes — the CLI `export` (`NotesController.downloadNotes`) still emits v1/`history`, while settings EXPORT CONFIG and BACKUP NOW emit v2/`commands` via the canonical `buildBackupData()`. Both importers accept `commands` || `history`, so round-trips are safe. `export.playwright.spec.mjs` tests 1/2 assert the CLI shape, test 3 asserts the canonical shape — do not "unify" the CLI path without updating those assertions.
+- **Live Drive round-trip not verifiable in CI (V19.56)**: the Playwright/browser-use environment is a plain-HTTP page with no `chrome.identity`, so the real OAuth connect → sync → restore cycle can only be verified manually with a real client ID in `manifest.json` (`oauth2.client_id`) inside a loaded unpacked extension. The fail-fast guard (actionable toast on placeholder ID) and all 401/404 paths are unit- and E2E-covered.
 
 ## 12. (RESOLVED) GitHub Actions CI
 
@@ -497,6 +510,7 @@ Tests live in `tests/`. Two families — do NOT confuse them:
 | `snap-grid-unit-tests.mjs` | Canvas snap-to-grid rounding and DOM updates |
 | `table-column-unit-tests.mjs` | Table column syncColumnWidths, clamp, lifecycle (36 tests) |
 | `import-unit-tests.mjs` | ObsidianImporter / backup import logic tests |
+| `backup-manager-unit-tests.mjs` | BackupManager._updateDriveFile 401/404/refresh paths with mocked fetch (7 tests) |
 | `helpers.mjs` | Shared test utility functions |
 
 ### Playwright E2E tests (headless browser against static server)
