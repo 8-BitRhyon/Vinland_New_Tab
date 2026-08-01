@@ -22,8 +22,12 @@ mkdir -p "$OUT_DIR"
 rm -f "$OUT_ZIP"
 
 # Zip the extension root, excluding everything not shipped in the store.
+# NOTE: .Git/ (capital G) is the .git/ variant on case-insensitive APFS — the
+# case-sensitive *.git* pattern misses it, and it once shipped a 17MB pack
+# file (surfaced by the composition report below). Keep both exclusions.
 zip -r "$OUT_ZIP" . \
   -x "*.git*" \
+  -x ".Git/*" \
   -x "node_modules/*" \
   -x "tests/*" \
   -x "docs/*" \
@@ -38,6 +42,8 @@ zip -r "$OUT_ZIP" . \
   -x "_metadata/*" \
   -x ".agents/*" \
   -x ".codelens/*" \
+  -x ".venv-brand/*" \
+  -x ".venv/*" \
   -x "skills-lock.json" \
   -x "__pycache__/*" \
   -x "playwright.config.mjs" \
@@ -55,6 +61,18 @@ if [ "$SIZE_KB" -gt 81920 ]; then
   echo "ERROR: $OUT_ZIP is ${SIZE} (>80MB) - the Chrome Web Store rejects packages over 100MB; prune assets." >&2
   exit 1
 fi
+
+# Composition report: the 10 largest included paths (uncompressed), so
+# asset bloat is visible at a glance before shipping.
+echo "  Largest included paths:"
+unzip -l "$OUT_ZIP" | awk 'NF >= 4 && $1 ~ /^[0-9]+$/ {printf "%d %s\n", $1, substr($0, index($0, $4))}' | sort -rn | head -10 | awk '{
+    n = $1;
+    if (n >= 1048576)      h = sprintf("%.1f MB", n / 1048576);
+    else if (n >= 1024)    h = sprintf("%.1f KB", n / 1024);
+    else                   h = n " B";
+    name = substr($0, index($0, $2));
+    printf "    %8s  %s\n", h, name;
+}'
 
 echo "✔ Packaged $OUT_ZIP ($SIZE)"
 echo "  → Load unpacked: chrome://extensions → Developer mode → Load unpacked → select the unzipped folder"
