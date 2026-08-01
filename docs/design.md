@@ -2,7 +2,7 @@
 
 > Single source of truth for the Vinland Chrome new-tab extension.
 > All facts verified against source code (`js/*` and `index.html`).
-> Last verified: 2026-07-29.
+> Last verified: 2026-08-01.
 
 ## 1. What Vinland is
 
@@ -356,7 +356,7 @@ Hardcoded z-index values used outside the CSS variable system:
 - **Tests**: `npm test` runs `tests/run-all.mjs`, which aggregates unit tests
   and Playwright E2E tests. See §14 for full test inventory.
 - **CI**: GitHub Actions runs on every push/PR to `main`. See §12 for workflow details.
-  **12 consecutive green runs** as of 2026-07-29.
+  Consecutive green runs maintained since V19.48+ (2026-08-01).
 - **Refactoring pattern**: Large functions (`open()`, `bindEvents()`, `renderEdge()`,
   `_showEdgeContextMenu()`) are decomposed via **pure extraction** into `_`-prefixed helper
   methods. No behavioral changes — each extraction commit is a pure move of inline code
@@ -369,7 +369,7 @@ Hardcoded z-index values used outside the CSS variable system:
 
 ## 10. Recent changes
 
-- **V19.57** (2026-08-01): **Release-candidate pass — real extension-context smoke gate + packaging**. New `tests/release-candidate.playwright.spec.mjs` (7 tests) is the ONLY spec that loads the actual unpacked extension in a persistent Chromium profile (`chrome-extension://` origin, MV3 service worker, `chrome.identity`/`chrome.storage`/`chrome.runtime` present, `runtime.id` matches). It gates: zero uncaught page errors + zero console errors + zero failed resource requests on boot; note lifecycle persisting in real extension storage; canvas board render; task CLI → mission list; quick-open search; settings SYNC tab + Drive fail-fast toast (placeholder client ID) + BACKUP NOW updating `last_backup_time`; notes surviving a full reload. The gate immediately caught a real bug: `SettingsUI.initBackground()` requested the non-existent `background.mp4` on every boot (`net::ERR_FILE_NOT_FOUND`) when no backgrounds were configured — fixed to hide the background layers and let the active theme's surface (CSS `--bg-color`) show through. (An earlier revision set an inline body color as a solid fallback, but that overrode light themes like retroma — caught by the `ui-polish` retroma E2E and corrected; no inline color is set, matching the effective pre-existing behavior without the 404.) New `scripts/package-release.sh` zips the extension root to `dist/vinland-v<version>.zip` (excludes dev/tooling: tests, docs, .crush 38MB DB, node_modules, etc.). New dedicated `release-candidate` CI job (excluded from the sharded matrix via `--grep-invert "Release Candidate"`). `manifest.json` version aligned to changelog (**19.57**). `.gitignore` gains `dist/` + `test-results/`.
+- **V19.57** (2026-08-01): **Release-candidate pass — real extension-context smoke gate + packaging**. New `tests/release-candidate.playwright.spec.mjs` (7 tests) is the ONLY spec that loads the actual unpacked extension in a persistent Chromium profile (`chrome-extension://` origin, MV3 service worker, `chrome.identity`/`chrome.storage`/`chrome.runtime` present, `runtime.id` matches). It gates: zero uncaught page errors + zero console errors + zero failed resource requests on boot; note lifecycle persisting in real extension storage; canvas board render; task CLI → mission list; quick-open search; settings SYNC tab + Drive fail-fast toast (placeholder client ID) + BACKUP NOW updating `last_backup_time`; notes surviving a full reload. The gate immediately caught a real bug: `SettingsUI.initBackground()` requested the non-existent `background.mp4` on every boot (`net::ERR_FILE_NOT_FOUND`) when no backgrounds were configured — fixed to hide the background layers and let the active theme's surface (CSS `--bg-color`) show through. (An earlier revision set an inline body color as a solid fallback, but that overrode light themes like retroma — caught by the `ui-polish` retroma E2E and corrected; no inline color is set, matching the effective pre-existing behavior without the 404.) New `scripts/package-release.sh` zips the extension root to `dist/vinland-v<version>.zip` (excludes dev/tooling: tests, docs, .crush 38MB DB, node_modules, etc.). New dedicated `release-candidate` CI job (excluded from the sharded matrix via `--grep-invert "Release Candidate"`). `manifest.json` version aligned to changelog (**19.57**). `.gitignore` gains `dist/` + `test-results/`. **Release pipeline hardened same day** — `scripts/package-release.sh` gained an 80MB size guard (CWS caps at 100MB), a composition report (10 largest included paths), and junk exclusions surfaced by it: `.Git/*` (capital-G APFS variant — a 17.7MB pack file was shipping past the case-sensitive `*.git*` pattern) and `.venv*` (~7MB Python venv), cutting the store zip from **27MB → 541KB**. New `package-check` CI job builds the zip on every push (exit 1 on bloat; artifact uploaded `if: always()` for failure inspection). Gate proven by a bloat drill: a temporary 85MB `/dev/urandom` asset failed `package-check` with `ERROR: ... is 86M (>80MB)` while all other 7 jobs passed; removal restored full green. Exclusions pinned by new `tests/package-exclusions-unit-tests.mjs` (6 tests). v19.57 release asset re-uploaded with the lean zip (SHA-256 verified).
 
 - **V19.56** (2026-08-01): **Cloud Sync overhaul + auto-backup Drive-first** — sync series (4 commits + test-fix) resolving the settings-audit blockers:
   - **OAuth config** (71f4157): `manifest.json` ships an `oauth2` block (`drive.file` scope); `connectDrive()` fails fast with an actionable toast when the client ID is missing/placeholder. Setup walkthrough in `docs/google-drive-sync.md`. `loadDriveState()` re-validates the stored `connected` flag via `getAuthToken({interactive:false})` on init and marks itself disconnected when the cached token is gone — no more lying "Connected" badge.
@@ -431,7 +431,7 @@ Hardcoded z-index values used outside the CSS variable system:
   Guarded by `tests/wikilink-routing.playwright.spec.mjs`.
 - IndexedDB (`OPERATOR_VAULT`) holds media assets + canvas offload + version
   history. Over time, the version history store may need a compaction strategy.
-- **(RESOLVED 2026-07-28) No CI**: GitHub Actions CI was set up and is now fully green (all 14 test suites pass, Node.js 24). Runs on push/PR to `main`. See `.github/workflows/ci.yml`.
+- **(RESOLVED 2026-07-28) No CI**: GitHub Actions CI was set up and is now fully green (all 16 unit suites + 34 E2E specs pass, Node.js 24). Runs on push/PR to `main`. See `.github/workflows/ci.yml` and §12.
 - **(RESOLVED 2026-07-28) Config.loadFromSync() duplicate removed** — was
   called twice in boot (lines 499–500, 509–510). Now a single call (line 500).
   _(Already marked resolved in V19.47+, re-verified.)_
@@ -456,17 +456,32 @@ Hardcoded z-index values used outside the CSS variable system:
 - **Export-path asymmetry (V19.56, intentional)**: three export paths emit two payload shapes — the CLI `export` (`NotesController.downloadNotes`) still emits v1/`history`, while settings EXPORT CONFIG and BACKUP NOW emit v2/`commands` via the canonical `buildBackupData()`. Both importers accept `commands` || `history`, so round-trips are safe. `export.playwright.spec.mjs` tests 1/2 assert the CLI shape, test 3 asserts the canonical shape — do not "unify" the CLI path without updating those assertions.
 - **Live Drive round-trip not verifiable in CI (V19.56)**: the Playwright/browser-use environment is a plain-HTTP page with no `chrome.identity`, so the real OAuth connect → sync → restore cycle can only be verified manually with a real client ID in `manifest.json` (`oauth2.client_id`) inside a loaded unpacked extension. The fail-fast guard (actionable toast on placeholder ID) and all 401/404 paths are unit- and E2E-covered.
 
-## 12. (RESOLVED) GitHub Actions CI
+## 12. GitHub Actions CI + release pipeline
 
 **Status: Operational on all commits since V19.48+.**
 
 - Workflow: `.github/workflows/ci.yml`
 - Runs on `push` and `pull_request` to `main`
-- Steps: `actions/checkout@v4` → `actions/setup-node@v4` with Node.js 24 → `npm ci` → `npm test`
-- Node.js 24 is pinned (20 was deprecated by GitHub Actions runners in 2025-09)
-- 14 unit test suites pass (0 failures) on every push
-- E2E tests are NOT included in CI (Python HTTP server dependency, requires headed browser)
-- **12 consecutive green runs** as of 2026-07-29.
+- Actions: `actions/checkout@v5` / `actions/setup-node@v5`, Node.js 24 pinned (20 was deprecated by GitHub Actions runners in 2025-09)
+- **8 jobs, all green on every push:**
+
+| Job | What it runs | Purpose |
+|---|---|---|
+| `unit-tests` | `npm test` (16 unit suites) | Zero-dependency `node:assert` suites |
+| `e2e-tests` (1–4) | `npx playwright test --grep-invert "CLI command sweep\|Release Candidate" --shard=N/4` | 32 E2E specs split across 4 parallel shards |
+| `cli-sweep` | `tests/cli-commands.playwright.spec.mjs` | All 34 CLI commands with deterministic assertions (dedicated job — isolated runtime) |
+| `release-candidate` | `tests/release-candidate.playwright.spec.mjs` | ONLY job that loads the real unpacked extension (chrome-extension:// origin, MV3 SW, chrome.identity/storage) |
+| `package-check` | `bash scripts/package-release.sh` | Builds the store zip; **exit 1 if it exceeds 80MB** — bloat breaks CI instead of shipping |
+
+**Store-package pipeline (`scripts/package-release.sh`):**
+
+- Zips the extension root to `dist/vinland-v<version>.zip` — excludes dev/tooling: `tests/`, `docs/`, `node_modules/`, `.git*`/`.Git/*` (APFS quirk), `.venv*`, `scripts/`, `playwright-report/`, `test-results/`, `dist/`, `__pycache__/`, `package.json`, `package-lock.json`, ...
+- **80MB size guard**: exits 1 if the zip exceeds 80MB (Chrome Web Store caps at 100MB)
+- **Composition report**: prints the 10 largest included paths (human-readable) so asset bloat is visible in the run log
+- Zip artifact uploaded with `if: always()` so a bloated zip stays downloadable for inspection after a failed run
+- **Real payload is ~541KB** (was 27MB before the `.Git`/`.venv` junk exclusions, 2026-08-01)
+- **Proven by the bloat drill** (2026-08-01): a temporary 85MB `/dev/urandom` asset failed `package-check` with `ERROR: ... is 86M (>80MB)` while all other 7 jobs passed; removal restored full green
+- **Pinned by `tests/package-exclusions-unit-tests.mjs`** (6 tests): static exclusion-pattern check + behavioral build/unzip assertions + direct 80MB size check
 
 ## 13. (RESOLVED) Module filename casing normalization
 
@@ -513,6 +528,7 @@ Tests live in `tests/`. Two families — do NOT confuse them:
 | `table-column-unit-tests.mjs` | Table column syncColumnWidths, clamp, lifecycle (36 tests) |
 | `import-unit-tests.mjs` | ObsidianImporter / backup import logic tests |
 | `backup-manager-unit-tests.mjs` | BackupManager._updateDriveFile 401/404/refresh paths with mocked fetch (7 tests) |
+| `package-exclusions-unit-tests.mjs` | Store-zip exclusions: static pattern check + behavioral build/unzip assertions + 80MB size check (6 tests) |
 | `helpers.mjs` | Shared test utility functions |
 
 ### Playwright E2E tests (headless browser against static server)
@@ -531,6 +547,7 @@ Playwright config auto-starts `python3 -m http.server 9999` (kills 8080/8181/999
 | `canvas-graph.playwright.spec.mjs` | Canvas: force-directed graph |
 | `canvas-idb.playwright.spec.mjs` | Canvas: IndexedDB offload |
 | `canvas-search.playwright.spec.mjs` | Canvas: node search |
+| `cli-commands.playwright.spec.mjs` | CLI command sweep — all 34 commands (dedicated `cli-sweep` CI job) |
 | `code-blocks.playwright.spec.mjs` | Code block tools |
 | `dataview-query.playwright.spec.mjs` | Dataview query panel |
 | `export.playwright.spec.mjs` | Data export/import |
@@ -540,6 +557,7 @@ Playwright config auto-starts `python3 -m http.server 9999` (kills 8080/8181/999
 | `kanban-persist.playwright.spec.mjs` | Kanban: persistence |
 | `notes.playwright.spec.mjs` | Notes CRUD workflow |
 | `obsidian-import.playwright.spec.mjs` | Obsidian vault import |
+| `paste-smoke.playwright.spec.mjs` | Paste pipeline smoke (images, code blocks, text-to-blocks) |
 | `pomodoro.playwright.spec.mjs` | Pomodoro timer |
 | `quick-capture.playwright.spec.mjs` | Quick Capture overlay |
 | `quickopen.playwright.spec.mjs` | Quick Open palette |
@@ -555,7 +573,7 @@ Playwright config auto-starts `python3 -m http.server 9999` (kills 8080/8181/999
 | `wikilink-routing.playwright.spec.mjs` | Canvas wiki-link auto-routing |
 | `local-graph.playwright.spec.mjs` | Per-note local graph (D3 force rendering) |
 
-**31 Playwright spec files total.**
+**34 Playwright spec files total.**
 
 ### Running tests
 
