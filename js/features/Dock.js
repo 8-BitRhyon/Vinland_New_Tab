@@ -12,7 +12,7 @@ export const Dock = {
     },
 
     render: function() {
-        var dock = document.getElementById('dock-links');
+        var dock = document.getElementById('dock-list');
         if (!dock) return;
         dock.innerHTML = '';
         

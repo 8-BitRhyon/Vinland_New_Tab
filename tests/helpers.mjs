@@ -74,6 +74,9 @@ export async function createNoteWithContent(page, title, content) {
 
 /**
  * Create a note with content, then move it to a specific path.
+ *
+ * Path editing uses the breadcrumb UI (932e68f): the editable path input
+ * #note-path-edit is hidden by default and revealed via #breadcrumb-toggle-btn.
  */
 export async function createNoteWithContentAndPath(page, title, content, path) {
   await createNoteWithContent(page, title, content);
@@ -83,10 +86,14 @@ export async function createNoteWithContentAndPath(page, title, content, path) {
   }, title);
   await page.waitForTimeout(500);
   await waitForEditor(page);
-  const pathInput = page.locator('#note-current-path');
-  await pathInput.waitFor({ state: 'visible', timeout: 3000 });
-  await pathInput.fill(path || '/');
-  await pathInput.press('Enter');
+  // Toggle breadcrumb edit mode to reveal the path input
+  const bcToggle = page.locator('#breadcrumb-toggle-btn');
+  await bcToggle.waitFor({ state: 'visible', timeout: 3000 });
+  await bcToggle.click();
+  const pathEdit = page.locator('#note-path-edit');
+  await pathEdit.waitFor({ state: 'visible', timeout: 3000 });
+  await pathEdit.fill(path || '/');
+  await pathEdit.press('Enter');
   await page.waitForTimeout(300);
   await closeEditor(page);
 }

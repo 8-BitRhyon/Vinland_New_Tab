@@ -547,10 +547,18 @@ export const PageActions = {
     },
 
     focusPathInput: function() {
-        var pathInput = document.getElementById('note-current-path');
-        if (pathInput) {
-            pathInput.focus();
-            pathInput.select();
+        // The breadcrumb rework (932e68f) replaced the old #note-current-path
+        // input with a hidden #note-path-edit revealed by #breadcrumb-toggle-btn.
+        var toggleBtn = document.getElementById('breadcrumb-toggle-btn');
+        var pathEdit = document.getElementById('note-path-edit');
+        if (toggleBtn && pathEdit) {
+            var isHidden = pathEdit.style.display === 'none' || !pathEdit.style.display;
+            if (isHidden) {
+                toggleBtn.click(); // Reveals the input and focuses it
+            } else {
+                pathEdit.focus();
+                pathEdit.select();
+            }
         }
     }
 };

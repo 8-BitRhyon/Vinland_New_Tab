@@ -674,19 +674,36 @@ export const GraphManager = {
 
         // ─── EMPTY STATE ──────────────────────────────────────────
         if (nodes.length === 0) {
-            var container = document.getElementById(this.containerId);
-            if (container) {
-                container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--secondary-color,#555);font-size:0.85rem;font-family:var(--font-mono,monospace);opacity:0.6;">' +
-                    (this.filterQuery.trim()
-                        ? 'No nodes match &quot;' + this._escapeHtml(this.filterQuery) + '&quot;'
-                        : 'No notes to display') +
-                    '</div>';
-            }
+            // Always create the SVG surface so the graph container is
+            // renderable even with zero notes (zoom, tests, and re-renders
+            // all expect #graph-container svg to exist).
+            var emptySvg = d3.select('#' + this.containerId).append("svg")
+                .attr("width", '100%')
+                .attr("height", '100%')
+                .attr('viewBox', [0, 0, this.width, this.height]);
+            var emptyG = emptySvg.append("g");
+            var emptyZoom = d3.zoom().on("zoom", function (event) {
+                emptyG.attr("transform", event.transform);
+            });
+            emptySvg.call(emptyZoom);
+            this.svgSelection = emptySvg;
+            this.zoomBehavior = emptyZoom;
+            this.svg = emptyG;
+            emptyG.append("text")
+                .attr("x", this.width / 2)
+                .attr("y", this.height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "var(--secondary-color,#555)")
+                .attr("font-size", "0.85rem")
+                .attr("font-family", "var(--font-mono,monospace)")
+                .style("opacity", 0.6)
+                .text(this.filterQuery.trim()
+                    ? 'No nodes match "' + this.filterQuery + '"'
+                    : 'No notes to display');
             if (this.simulation) {
                 this.simulation.stop();
                 this.simulation = null;
             }
-            this.svg = null;
             return;
         }
 

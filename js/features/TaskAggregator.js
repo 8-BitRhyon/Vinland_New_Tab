@@ -35,8 +35,6 @@ export const TaskAggregator = {
 
     toggle: function () {
         this.active = !this.active;
-        var btn = document.getElementById('master-tasks-btn');
-        if (btn) btn.classList.toggle('active', this.active);
 
         if (this.active) {
             this.render();

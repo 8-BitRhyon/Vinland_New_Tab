@@ -8292,6 +8292,7 @@
         gap: 12px;
         flex: 1;
         min-width: 0;
+        overflow: hidden;
       }
 
       .note-path {
@@ -8515,6 +8516,8 @@
         color: #555;
         white-space: nowrap;
         overflow: hidden;
+        min-width: 0;
+        flex-shrink: 1;
         max-width: 380px;
         flex-shrink: 0;
       }
@@ -8556,6 +8559,7 @@
         font-size: 0.6rem;
         padding: 2px 4px;
         opacity: 0;
+        flex-shrink: 0;
         transition: opacity 0.15s ease, color 0.15s ease;
         line-height: 1;
         font-family: var(--font-primary);
@@ -8578,7 +8582,7 @@
         font-size: 1.4rem;
         font-weight: bold;
         flex: 1;
-        min-width: 100px;
+        min-width: 40px;
         max-width: calc(100% - 220px);
         padding: 4px 0;
         outline: none;
@@ -8598,6 +8602,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
       }
 
       #preview-toggle {
@@ -8617,6 +8622,11 @@
         font-size: 0.7rem;
         color: #555;
         font-family: var(--font-secondary);
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
 
       #active-note-content {
@@ -9149,6 +9159,12 @@
       #save-status {
         color: #555;
         transition: color 0.3s;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       #save-status.saving {
@@ -13612,6 +13628,7 @@
             </div>
             <div class="editor-header-right">
               <span id="note-timestamp">--</span>
+              <span id="save-status"></span>
               <button id="pin-note-btn" class="text-btn" title="Pin Note">
                 PIN
               </button>
@@ -14194,7 +14211,7 @@
           <div id="error-modal-detail" style="display:none;background:rgba(255,51,85,0.06);border:1px solid rgba(255,51,85,0.15);border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:0.65rem;color:var(--dim-color,#555);font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto;"></div>
         </div>
         <div style="display:flex;gap:8px;padding:12px 24px 20px;flex-wrap:wrap;">
-          <button class="btn primary-btn" onclick="window.location.reload()" style="flex:1;">&#x21BB; Reload</button>
+          <button class="btn primary-btn" id="error-modal-reload" onclick="window.location.reload()" style="flex:1;">&#x21BB; Reload</button>
           <button class="btn" id="error-modal-backup" onclick="var d=Date.now();var blob=new Blob([JSON.stringify(window.State&&window.State.NOTES||[])]);var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vinland-backup-'+d+'.json';a.click();" style="flex:1;">&#x2B07; Download Data</button>
           <button class="btn" id="error-modal-dismiss" onclick="if(window.ModalManager)window.ModalManager.close('error-modal');" style="flex:1;">&#x2716; Dismiss</button>
         </div>

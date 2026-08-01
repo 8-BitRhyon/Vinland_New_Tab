@@ -308,89 +308,49 @@ test('6. searchFromCLI searches and finds matching notes', async ({ page }) => {
 // ══════════════════════════════════════════
 // Test 7: Open with Cmd+Shift+F (search mode) and type a content query
 // ══════════════════════════════════════════
-test('7. Cmd+Shift+F opens in search mode and finds content matches', async ({ page }) => {
+test('7. Cmd+Shift+F opens the search results page and finds content matches', async ({ page }) => {
   // Create notes with distinct content for searching
   await createNoteWithContent(page, 'Meeting Notes', 'Discussed the Q3 roadmap with the team.');
   await createNoteWithContent(page, 'Project Alpha', 'Architecture review for project roadmap.');
   await createNoteWithContent(page, 'Shopping List', 'Buy milk, eggs, and bread.');
 
-  // Open Quick Open via Cmd+Shift+F (search mode)
+  // Cmd+Shift+F opens the full-page Search Results Page (SRP) overlay
   await page.keyboard.press('Meta+Shift+f');
   await page.waitForTimeout(600);
 
-  // Verify palette is visible
-  const visible = await isQuickOpenVisible(page);
-  expect(visible).toBe(true);
+  // ── SRP overlay is visible with a search input ──
+  const srpOverlay = page.locator('#srp-overlay');
+  await expect(srpOverlay).toBeVisible({ timeout: 5000 });
+  await expect(srpOverlay).toHaveClass(/active/);
+  const input = page.locator('#srp-input');
+  await expect(input).toBeVisible({ timeout: 3000 });
 
-  // ── Search mode should NOT show recent notes or commands sections ──
-  const hasResults = await page.evaluate(() => {
-    const results = document.getElementById('quick-open-results');
-    if (!results) return { items: 0, headers: [] };
-    const items = results.querySelectorAll('.qo-result');
-    const headers = Array.from(results.querySelectorAll('.qo-section-header'))
-      .map(h => h.textContent);
-    // In search mode, there should be a search prompt instead of results
-    const emptyPrompt = results.querySelector('.qo-result-empty');
-    return {
-      items: items.length,
-      headers: headers,
-      hasSearchPrompt: !!emptyPrompt && emptyPrompt.textContent.includes('Type to search')
-    };
-  });
-
-  // Should show the search prompt, not recent notes
-  expect(hasResults.items).toBe(0);
-  expect(hasResults.hasSearchPrompt).toBe(true);
-
-  // ── Check the placeholder is search-focused ──
-  const placeholder = await page.locator('#quick-open-input').getAttribute('placeholder');
-  expect(placeholder).toBe('Search notes by content...');
+  // ── Empty query shows the search prompt (not recent notes) ──
+  await expect(page.locator('#srp-results .srp-prompt')).toBeVisible({ timeout: 3000 });
 
   // ── Type a query that matches note content (not just title) ──
-  const input = page.locator('#quick-open-input');
   await input.fill('roadmap');
-  await page.waitForTimeout(600); // Wait for debounce (150ms) + render
+  await page.waitForTimeout(600); // Debounce (150ms) + render
 
   // Should find content matches with excerpts
-  const contentResults = await getQuickOpenResults(page);
-  expect(contentResults.length).toBeGreaterThan(0);
+  const srpResults = page.locator('#srp-results .srp-result');
+  await expect(srpResults).toHaveCount(2, { timeout: 3000 });
 
   // Both Meeting Notes and Project Alpha contain 'roadmap' in content
-  const roadmapTitles = contentResults
-    .filter(r => r.title === 'Meeting Notes' || r.title === 'Project Alpha')
-    .map(r => r.title);
+  const titles = await srpResults.locator('.srp-result-title').allTextContents();
+  const roadmapTitles = titles.filter(t => t === 'Meeting Notes' || t === 'Project Alpha');
   expect(roadmapTitles.length).toBeGreaterThanOrEqual(2);
 
   // Verify excerpts are shown (content search mode shows matched lines)
-  const hasExcerpts = await page.evaluate(() => {
-    const results = document.getElementById('quick-open-results');
-    if (!results) return false;
-    const excerpts = results.querySelectorAll('.qo-result-excerpt');
-    return excerpts.length > 0;
-  });
-  expect(hasExcerpts).toBe(true);
+  await expect(page.locator('#srp-results .srp-result-excerpt').first()).toBeVisible({ timeout: 3000 });
 
   // ── Clear the query and verify search prompt returns ──
   await input.fill('');
   await page.waitForTimeout(300);
-
-  const afterClear = await page.evaluate(() => {
-    const results = document.getElementById('quick-open-results');
-    if (!results) return { items: 0, hasPrompt: false };
-    const items = results.querySelectorAll('.qo-result');
-    const emptyPrompt = results.querySelector('.qo-result-empty');
-    return {
-      items: items.length,
-      hasPrompt: !!emptyPrompt && emptyPrompt.textContent.includes('Type to search')
-    };
-  });
-
-  // Should return to search prompt, not to recent notes + commands
-  expect(afterClear.items).toBe(0);
-  expect(afterClear.hasPrompt).toBe(true);
+  await expect(page.locator('#srp-results .srp-prompt')).toBeVisible({ timeout: 3000 });
 
   // ── Close with Escape ──
-  await closeQuickOpen(page);
-  const stillVisible = await isQuickOpenVisible(page);
-  expect(stillVisible).toBe(false);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await expect(srpOverlay).not.toHaveClass(/active/);
 });

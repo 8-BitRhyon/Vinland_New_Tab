@@ -285,13 +285,7 @@ function bindGlobals() {
       window.ModalManager.toggle("note-help-modal");
     };
 
-  // 5. Config Actions
-  const saveBtn = document.getElementById("config-save-btn");
-  if (saveBtn)
-    saveBtn.onclick = function () {
-      window.SettingsUI.saveConfigFromUI();
-    };
-
+  // 5. Config Actions (settings modal has a single SAVE button: #header-save-btn)
   const headerSaveBtn = document.getElementById("header-save-btn");
   if (headerSaveBtn)
     headerSaveBtn.onclick = function () {

@@ -611,6 +611,20 @@ export const Notes = {
 
         var titleInput = document.getElementById('active-note-title');
         if (titleInput) titleInput.value = note.title || '';
+
+        // Reset breadcrumb/path-edit toggle state so every note open starts
+        // in breadcrumb view (path-edit input hidden). Without this, the
+        // toggle state leaks across note opens and the ✎ button behaves
+        // inverted on the next note (clicking it hides instead of showing).
+        var bcToggle = document.getElementById('breadcrumb-toggle-btn');
+        var bcContainer = document.getElementById('note-breadcrumb');
+        var pathEdit = document.getElementById('note-path-edit');
+        if (bcToggle && bcContainer && pathEdit) {
+            bcContainer.style.display = 'inline-flex';
+            pathEdit.style.display = 'none';
+            bcToggle.textContent = '✎';
+            bcToggle.title = 'Edit path';
+        }
     },
 
     // Push note state into browser history so back/forward navigates between notes

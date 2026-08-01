@@ -9,6 +9,16 @@
 
 import { test, expect } from '@playwright/test';
 
+const APP_URL = 'http://127.0.0.1:9999';
+
+// ── Hooks ───────────────────────────────────────────────────
+
+test.beforeEach(async ({ page }) => {
+  await page.goto(APP_URL);
+  await expect(page.locator('#cmd-input')).toBeVisible({ timeout: 15000 });
+  await page.waitForTimeout(500);
+});
+
 // ── Helpers ──────────────────────────────────────────────────
 
 /**
@@ -32,6 +42,7 @@ async function setupCanvasWithNodes(page, nodes) {
     const id = 'note_canvas_' + Date.now();
     const note = {
       id,
+      type: 'canvas',
       title: 'Search Test Canvas',
       blocks: [{ id: 'blk_1', type: 'canvas', content: '' }],
       canvasData: { nodes: nodes || [], edges: [] },

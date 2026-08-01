@@ -14,8 +14,8 @@ for media).
 ## Commands
 
 ```bash
-# Unit tests (Node, zero deps, built-in assert) - 3 aggregated suites:
-#   notes-unit-tests.mjs, notes-editor-open.test.mjs, storage-shard.test.mjs
+# Unit tests (Node, zero deps, built-in assert) - 14 suites, run sequentially
+# by tests/run-all.mjs (see that file for the full suite list):
 npm test
 #   OR directly: node tests/run-all.mjs
 #   Single suite: node tests/notes-unit-tests.mjs
@@ -31,7 +31,11 @@ npm run test:all
 
 There is **no build, lint, or format step** and no eslint/prettier config.
 Loading the extension is done manually in Chrome: `chrome://extensions` →
-"Load unpacked" → select the project folder. There is no CI.
+"Load unpacked" → select the project folder.
+
+CI (`.github/workflows/ci.yml`) runs the 14 unit suites **and** the Playwright
+E2E suite (split into 4 parallel shards) on push/PR to `main`. Run the full
+E2E suite locally with `npm run test:e2e`.
 
 ## Architecture (the non-obvious parts)
 
