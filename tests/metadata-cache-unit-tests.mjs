@@ -863,7 +863,9 @@ test('saveCache persists to localStorage', () => {
     assert.ok(parsed.tagIndex, 'should have tagIndex');
     assert.ok(parsed.linkIndex, 'should have linkIndex');
     assert.ok(parsed.backlinks, 'should have backlinks');
-    assert.equal(parsed.version, 1);
+    assert.ok(parsed.index, 'v2 should persist the main index');
+    assert.ok(parsed.fingerprint, 'v2 should persist the vault fingerprint');
+    assert.equal(parsed.version, 2);
 });
 
 test('loadCache reconstructs Maps from localStorage', () => {
@@ -894,6 +896,49 @@ test('loadCache handles corrupted data gracefully', () => {
     localStorageShim.setItem('VINLAND_METADATA_CACHE', 'not valid json{{{');
     var loaded = MetadataCache.loadCache();
     assert.equal(loaded, false, 'should handle parse error gracefully');
+});
+
+test('loadCache rejects a cache whose fingerprint does not match the vault (staleness guard)', () => {
+    freshCache();
+    setupAndInit();
+    MetadataCache.saveCache();
+    // Mutate the vault WITHOUT going through updateNote (e.g. import/restore
+    // path) — the fingerprint must catch it and force a rebuild.
+    State.NOTES[0].content = 'changed without updateNote';
+    State.NOTES[0].modified = 999999;
+    MetadataCache.initialized = false;
+    var loaded = MetadataCache.loadCache();
+    assert.equal(loaded, false, 'stale cache must be rejected');
+});
+
+test('init loads from a fresh persisted cache instead of rebuilding', () => {
+    freshCache();
+    setupTestNotes();
+    MetadataCache.init(); // full rebuild + persist
+    assert.equal(MetadataCache.index.size, 5);
+    // Simulate a new boot: reset maps + initialized, keep localStorage cache
+    MetadataCache.index = new Map();
+    MetadataCache.tagIndex = new Map();
+    MetadataCache.linkIndex = new Map();
+    MetadataCache.backlinks = new Map();
+    MetadataCache.initialized = false;
+    MetadataCache.init();
+    assert.ok(MetadataCache.initialized, 'init should have initialized');
+    assert.equal(MetadataCache.index.size, 5, 'index should be restored from cache, not rebuilt');
+    assert.ok(MetadataCache.get('n1'), 'n1 restored from cache');
+    assert.ok(MetadataCache.get('n2'), 'n2 restored from cache');
+});
+
+test('init rebuilds when the persisted cache is stale (vault changed between sessions)', () => {
+    freshCache();
+    setupTestNotes();
+    MetadataCache.init(); // persist with fingerprint of 5 notes
+    // Vault changes on disk between sessions (new note, no cache write)
+    State.NOTES.push({ id: 'n6', title: 'New', path: '/', content: '#newtag', created: 3000, modified: 3001 });
+    MetadataCache.initialized = false;
+    MetadataCache.init();
+    assert.equal(MetadataCache.index.size, 6, 'should rebuild to include n6');
+    assert.ok(MetadataCache.get('n6'), 'n6 indexed after rebuild');
 });
 
 

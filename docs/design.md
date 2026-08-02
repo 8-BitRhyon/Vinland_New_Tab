@@ -430,7 +430,10 @@ Hardcoded z-index values used outside the CSS variable system:
   `isWikiLink` edge on edit (and wires to existing file nodes on load).
   Guarded by `tests/wikilink-routing.playwright.spec.mjs`.
 - IndexedDB (`OPERATOR_VAULT`) holds media assets + canvas offload + version
-  history. Over time, the version history store may need a compaction strategy.
+  history. **(RESOLVED 2026-08-02) Version history compaction**: per-note cap
+  (MAX_VERSIONS_PER_NOTE = 50) plus a boot-time `prune()` sweep that removes
+  orphaned stores (deleted notes) and trims oversized ones; `removeNote()` is
+  wired into every deletion path.
 - **(RESOLVED 2026-07-28) No CI**: GitHub Actions CI was set up and is now fully green (all 16 unit suites + 34 E2E specs pass, Node.js 24). Runs on push/PR to `main`. See `.github/workflows/ci.yml` and §12.
 - **(RESOLVED 2026-07-28) Config.loadFromSync() duplicate removed** — was
   called twice in boot (lines 499–500, 509–510). Now a single call (line 500).

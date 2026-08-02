@@ -86,6 +86,70 @@ export const State = {
     CANVASES: [], // Phase 3: Visual Canvas data
     COMMAND_HISTORY: [],
     FLAT_BOOKMARKS: [],
+
+    // ── Sprint C (M1): O(1) note lookups ────────────────────────
+    // id -> note reference cache. Holds REFERENCES to the same objects in
+    // State.NOTES, so in-place edits (content, title, blocks) stay in sync
+    // automatically. Rebuilt lazily when the array reference or length changes
+    // (covers push/unshift/splice/filter/reassignment), or when invalidated
+    // by Storage (loadData/saveData/imports) via _invalidateNoteMaps().
+    NOTE_MAP: null,
+    // lowercased title -> note reference (first match wins, mirrors find()).
+    NOTE_TITLE_MAP: null,
+    _notesRef: null,   // last-seen State.NOTES array reference
+    _notesLen: -1,     // last-seen length (catches push/splice without ref change)
+    _notesDirty: false, // set by Storage after saves/imports (title renames)
+
+    /** Rebuild both lookup maps from the current State.NOTES. O(n), rare. */
+    _rebuildNoteMaps: function() {
+        var map = new Map();
+        var titleMap = new Map();
+        (this.NOTES || []).forEach(function(n) {
+            if (!n || !n.id) return;
+            map.set(n.id, n);
+            var t = String(n.title || '').toLowerCase();
+            if (t && !titleMap.has(t)) titleMap.set(t, n); // first match wins
+        });
+        this.NOTE_MAP = map;
+        this.NOTE_TITLE_MAP = titleMap;
+        this._notesRef = this.NOTES;
+        this._notesLen = (this.NOTES || []).length;
+        this._notesDirty = false;
+    },
+
+    /** Mark the TITLE map stale (Storage calls this after saves/imports). The
+     *  id map needs no invalidation here: ids never mutate in place, and the
+     *  ref+length check already catches structural adds/removes. */
+    _invalidateNoteMaps: function() {
+        this._notesDirty = true;
+    },
+
+    /** Ensure the maps reflect the current array. */
+    _ensureNoteMaps: function() {
+        if (!this.NOTE_MAP || this._notesRef !== this.NOTES ||
+            this._notesLen !== (this.NOTES || []).length) {
+            this._rebuildNoteMaps();
+        }
+    },
+
+    /** O(1) note lookup by id. Returns the note or undefined. */
+    getNote: function(noteId) {
+        if (!noteId) return undefined;
+        this._ensureNoteMaps();
+        return this.NOTE_MAP.get(noteId);
+    },
+
+    /** O(1) note lookup by (lowercased) title. First match wins, or undefined. */
+    getNoteByTitle: function(title) {
+        if (!title) return undefined;
+        this._ensureNoteMaps();
+        // The title map is rebuilt only when structural OR title state changed
+        // (_notesDirty set by Storage after saves — catches in-place renames).
+        if (this._notesDirty || !this.NOTE_TITLE_MAP) {
+            this._rebuildNoteMaps();
+        }
+        return this.NOTE_TITLE_MAP.get(String(title).toLowerCase());
+    },
     
     // Core State
     IS_PREVIEW_MODE: false,

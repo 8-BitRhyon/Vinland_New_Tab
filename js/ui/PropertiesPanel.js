@@ -522,6 +522,7 @@ export const PropertiesPanel = {
                 var note = State.NOTES.find(function(n) { return n.id === PropertiesPanel.activeNoteId; });
                 if (note && window.Notes) {
                     PropertiesPanel.syncToNote(note);
+                    if (window.markNoteDirty) window.markNoteDirty(note.id);
                     saveData();
                     if (window.MetadataCache) window.MetadataCache.updateNote(note.id);
                 }

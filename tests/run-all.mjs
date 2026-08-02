@@ -7,7 +7,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const suites = [
   'metadata-cache-unit-tests.mjs',
+  'note-maps-unit-tests.mjs',
   'quickopen-unit-tests.mjs',
+  'security-unit-tests.mjs',
+  'blockeditor-xss-guard.test.mjs',
   'notes-unit-tests.mjs',
   'import-unit-tests.mjs',
   'notes-editor-open.test.mjs',
@@ -19,6 +22,7 @@ const suites = [
   'table-column-unit-tests.mjs',
   'fuzzy-unit-tests.mjs',
   'missions-unit-tests.mjs',
+  'version-history-unit-tests.mjs',
   'attachments-unit-tests.mjs',
   'backup-manager-unit-tests.mjs',
   'package-exclusions-unit-tests.mjs',

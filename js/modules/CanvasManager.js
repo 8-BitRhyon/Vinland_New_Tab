@@ -50,7 +50,21 @@ export const CanvasManager = {
         return window.State.NOTES.find(function(n) { return n.id === this.activeNoteId; }.bind(this));
     },
     _saveData: function() {
-        if (window.saveData) window.saveData();
+        var activeNote = this._getActiveNote();
+        if (window.saveData && activeNote && activeNote.id) {
+            // Mark the active canvas note dirty so saveData() skips the rest
+            // of the vault (canvas payloads live in IndexedDB, so the shard
+            // stringify is cheap but the full-vault scan is not).
+            if (window.markNoteDirty) window.markNoteDirty(activeNote.id);
+            window.saveData();
+            // Keep the MetadataCache index warm: canvas edits don't bump
+            // note.modified, so without an explicit updateNote the persisted
+            // cache would go stale AND the vault fingerprint would not detect
+            // it (false-fresh) — stale tags/links/backlinks across boots.
+            if (window.MetadataCache && window.MetadataCache.updateNote) {
+                window.MetadataCache.updateNote(activeNote.id);
+            }
+        }
         this._lastSaveTime = Date.now();
         this._autoSaveDirty = false;
         this._setAutoSaveStatus('saved');

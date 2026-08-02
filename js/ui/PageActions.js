@@ -259,6 +259,7 @@ export const PageActions = {
             };
             
             State.NOTES.push(newNote);
+            if (window.markNoteDirty) window.markNoteDirty(newNote.id);
             saveData();
             Notes.renderSidebar();
             Notes.open(newNote.id);
@@ -349,6 +350,7 @@ export const PageActions = {
                     State.NOTES.push(newNote);
                     lastNoteId = newNote.id;
                     importedCount++;
+                    if (window.markNoteDirty) window.markNoteDirty(newNote.id);
                     
                     // When all files processed, save and render
                     if (importedCount === files.length) {
@@ -389,6 +391,7 @@ export const PageActions = {
                     note.originalPath = note.path || '/';
                     note.path = '/.trash';
                     note.modified = Date.now();
+                    if (window.markNoteDirty) window.markNoteDirty(note.id);
                     saveData();
                     
                     // Close tab for this note
@@ -418,6 +421,11 @@ export const PageActions = {
             
             if (window.MetadataCache && window.MetadataCache.removeNote) {
                 window.MetadataCache.removeNote(id);
+            }
+            // H5: drop the note's version history so its IndexedDB keys don't
+            // accumulate forever as orphans (belt: prune() sweeps at boot too).
+            if (window.VersionHistoryManager && window.VersionHistoryManager.removeNote) {
+                window.VersionHistoryManager.removeNote(id);
             }
             
             saveData();
@@ -449,6 +457,7 @@ export const PageActions = {
         var note = State.NOTES.find(n => n.id === Notes.activeNoteId);
         if (note) {
             note.pinned = !note.pinned;
+            if (window.markNoteDirty) window.markNoteDirty(note.id);
             saveData();
             Notes.renderSidebar();
             

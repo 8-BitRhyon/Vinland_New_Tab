@@ -491,6 +491,7 @@ export function renderTrashView() {
                 trashNotes.forEach(function(n) {
                     trashIds[n.id] = true;
                     if (window.MetadataCache) window.MetadataCache.removeNote(n.id);
+                    if (window.VersionHistoryManager) window.VersionHistoryManager.removeNote(n.id);
                     if (window.TabManager) window.TabManager.closeTabById(n.id);
                 });
                 State.NOTES = State.NOTES.filter(function(n) { return !trashIds[n.id]; });

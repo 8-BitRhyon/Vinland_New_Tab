@@ -385,7 +385,7 @@ export const QueryEngine = {
             case 'TASK':
                 // Return only notes with uncompleted tasks
                 return results.filter(m => {
-                    var note = State.NOTES.find(n => n.id === m.id);
+                    var note = State.getNote(m.id);
                     if (!note || !note.blocks) return false;
                     return note.blocks.some(b => b.type === 'task' && !b.checked);
                 }).map(m => ({
@@ -406,7 +406,7 @@ export const QueryEngine = {
      * Get tasks from a note
      */
     getTasksFromNote: function(noteId) {
-        var note = State.NOTES.find(n => n.id === noteId);
+        var note = State.getNote(noteId);
         if (!note || !note.blocks) return [];
         
         return note.blocks

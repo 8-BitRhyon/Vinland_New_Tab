@@ -279,9 +279,69 @@ test('5. Versions CLI command opens version history modal for the active note', 
 });
 
 // ════════════════════════════════════════════════════════════
-// Test 6: No version history shown for notes with no saves
+// Test 6: H5 compaction — prune() removes orphans + trims oversized stores
 // ════════════════════════════════════════════════════════════
-test('6. New note with no saves shows empty version history state', async ({ page }) => {
+test('6. H5 prune removes orphaned stores and trims oversized stores to the cap', async ({ page }) => {
+  // Create a live note so it exists in State.NOTES
+  await runCLI(page, 'note Prune Test Note');
+  await waitForEditor(page);
+  const noteId = await page.evaluate(() => window.State.NOTES[0].id);
+
+  // Seed IndexedDB directly: 60 versions for the live note (over the 50 cap)
+  // plus an orphan store for a note id that no longer exists.
+  await page.evaluate(async (id) => {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('OPERATOR_VERSIONS', 1);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const tx = db.transaction('versions', 'readwrite');
+    const store = tx.objectStore('versions');
+
+    const versions = [];
+    for (let i = 0; i < 60; i++) {
+      versions.push({ id: 'v' + i, timestamp: Date.now() - (60 - i) * 1000, title: 'Prune Test Note', content: 'content ' + i, blocks: [], message: 'seed ' + i });
+    }
+    store.put(versions, id);
+    // Orphan: a store whose note was deleted without removeNote()
+    store.put([{ id: 'orphan_v1', timestamp: Date.now(), title: 'Ghost', content: 'x', blocks: [], message: 'orphan' }], 'ghost_note_id');
+    await new Promise((resolve) => { tx.oncomplete = resolve; });
+  }, noteId);
+
+  // Run the compaction
+  const stats = await page.evaluate(() => window.VersionHistoryManager.prune());
+
+  // Orphan removed, oversized store trimmed to 50
+  expect(stats.removed).toBe(1);
+  expect(stats.trimmed).toBe(1);
+
+  const liveCount = await page.evaluate((id) => new Promise((resolve) => {
+    const req = indexedDB.open('OPERATOR_VERSIONS', 1);
+    req.onsuccess = () => {
+      const tx = req.result.transaction('versions', 'readonly');
+      const getReq = tx.objectStore('versions').get(id);
+      getReq.onsuccess = () => resolve((getReq.result || []).length);
+    };
+  }), noteId);
+  expect(liveCount).toBe(50);
+
+  const orphanCount = await page.evaluate(() => new Promise((resolve) => {
+    const req = indexedDB.open('OPERATOR_VERSIONS', 1);
+    req.onsuccess = () => {
+      const tx = req.result.transaction('versions', 'readonly');
+      const getReq = tx.objectStore('versions').get('ghost_note_id');
+      getReq.onsuccess = () => resolve(getReq.result === undefined ? 0 : 1);
+    };
+  }));
+  expect(orphanCount).toBe(0);
+
+  await closeEditor(page);
+});
+
+// ════════════════════════════════════════════════════════════
+// Test 7: No version history shown for notes with no saves
+// ════════════════════════════════════════════════════════════
+test('7. New note with no saves shows empty version history state', async ({ page }) => {
   await runCLI(page, 'note Empty History Test');
   await waitForEditor(page);
 

@@ -3,7 +3,7 @@
 // 1. IMPORT ALL MANAGERS
 import { State } from "./core/Store.js";
 import { Config } from "./core/Config.js";
-import { loadData, saveData } from "./core/Storage.js";
+import { loadData, saveData, markNoteDirty, markAllNotesDirty } from "./core/Storage.js";
 import { Notes, closeNoteEditor, renderNotes as legacyRenderNotes } from "./modules/NotesController.js";
 import { GraphManager } from "./modules/GraphManager.js";
 import { SettingsUI } from "./ui/SettingsUI.js";
@@ -61,6 +61,8 @@ import { AttachmentsManager } from "./core/AttachmentsManager.js";
 // 2. EXPORT TO WINDOW (Fixes HTML onclick="" errors)
 window.State = State;
 window.saveData = saveData;
+window.markNoteDirty = markNoteDirty;
+window.markAllNotesDirty = markAllNotesDirty;
 window.Notes = Notes;
 window.GraphManager = GraphManager;
 window.ModalManager = ModalManager;
@@ -515,8 +517,13 @@ async function boot() {
   }
 
   // G. Data Safety Net
+  // Full-scan on unload/hide: even if a mutation path forgot to mark a note
+  // dirty, the final save always persists the entire vault.
   window.addEventListener('beforeunload', function() {
-    saveData();
+    saveData(true);
+  });
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') saveData(true);
   });
 
   console.log("Vinland: Systems Online.");

@@ -414,6 +414,7 @@ export const SlashMenu = {
                 modified: Date.now()
             };
             if (window.State && window.State.NOTES) window.State.NOTES.unshift(newCanvas);
+            if (window.markNoteDirty) window.markNoteDirty(newCanvas.id);
             if (window.saveData) window.saveData();
             if (window.Notes) {
                 window.Notes.open(newCanvas.id);
@@ -486,6 +487,10 @@ export const SlashMenu = {
                         if (window.KanbanManager) {
                             var board = window.KanbanManager.createBoard(name);
                             block.boardId = board.id;
+                            // Direct block mutation (not via updateBlock) —
+                            // mark dirty so a dirty-only saveData() cannot
+                            // skip the board link assignment.
+                            if (window.markNoteDirty) window.markNoteDirty(BlockEditor.activePageId);
                             BlockEditor.render(BlockEditor.activePageId);
                             PageManager.syncContent(BlockEditor.activePageId);
                             window.saveData();

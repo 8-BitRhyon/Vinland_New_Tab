@@ -174,6 +174,7 @@ export const ObsidianImporter = {
         // Add to state (unshift so most recent is first)
         State.NOTES.unshift(newNote);
         this.totalImported++;
+        if (window.markNoteDirty) window.markNoteDirty(newNote.id);
 
         // Persist immediately
         saveData();

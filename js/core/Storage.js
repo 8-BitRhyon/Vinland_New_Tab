@@ -110,6 +110,30 @@ function serializeNote(note) {
     return JSON.stringify(clone);
 }
 
+// ── Dirty-set (save-path lever) ──────────────────────────────────────────
+// Notes whose in-memory state changed since the last saveData(). saveData()
+// re-serializes ONLY dirty notes (O(changed)) instead of stringifying the
+// whole vault (O(vault)) on every save.
+//
+// SAFETY CONTRACT: the dirty-set is an optimization, never a correctness
+// mechanism. When the set is empty, saveData() falls back to a full scan, so
+// any mutation path that forgets to markNoteDirty() degrades gracefully to
+// the previous (correct) behavior — it is only slower, never lossy.
+// Mutation chokepoints that MUST mark: Notes.save/create/moveNote/togglePin/
+// restore, PageManager.addBlock/updateBlock/deleteBlock, BlockEditor
+// reorder/duplicate/undo-redo, CanvasManager._saveData.
+let dirtyNotes = new Set();
+
+export function markNoteDirty(noteId) {
+    if (noteId) dirtyNotes.add(noteId);
+}
+
+export function markAllNotesDirty() {
+    (State.NOTES || []).forEach(function (n) {
+        if (n && n.id) dirtyNotes.add(n.id);
+    });
+}
+
 export function loadData() {
     // Top-level integrity guard: wrap the entire load path so a single
     // corrupt localStorage key or IndexedDB failure never blocks startup.
@@ -140,6 +164,8 @@ export function loadData() {
         noteCache = new Map();
         canvasCache = new Map();
         noteIdList = [];
+        // Sprint C: note lookups must reflect the freshly hydrated vault.
+        if (State._invalidateNoteMaps) State._invalidateNoteMaps();
         var indexRaw = localStorage.getItem(NOTES_INDEX);
         if (indexRaw) {
             try {
@@ -207,17 +233,48 @@ export function loadData() {
     }
     }
 
-export function saveData() {
+// @param {boolean} [forceFullScan] — true forces a full-vault scan even when
+// the dirty-set is non-empty. Used on beforeunload/visibilitychange so the
+// final state always persists everything.
+export function saveData(forceFullScan) {
     // TASKS / BOARDS / CANVASES / HISTORY: small collections, full write is fine.
     VinlandDB.save('TASKS', State.TASKS);
     VinlandDB.save('BOARDS', State.BOARDS);
     VinlandDB.save('CANVASES', State.CANVASES);
     VinlandDB.save('HISTORY', State.COMMAND_HISTORY);
 
-    // NOTES: differential per-note write.
-    var currentIds = (State.NOTES || []).map(function (n) { return n.id; });
+    // Remove orphaned keys for notes no longer in State.NOTES.
+    // Set-based lookup keeps this O(n) instead of O(n·m) indexOf scans.
+    var currentIdSet = new Set();
+    (State.NOTES || []).forEach(function (n) { if (n && n.id) currentIdSet.add(n.id); });
+    noteIdList.forEach(function (id) {
+        if (!currentIdSet.has(id)) {
+            localStorage.removeItem(NOTE_PREFIX + id);
+            noteCache.delete(id);
+            dirtyNotes.delete(id);
+        }
+    });
+    noteIdList = Array.from(currentIdSet);
 
-    (State.NOTES || []).forEach(function (note) {
+    // NOTES: differential per-note write. Dirty-set when marks exist; full
+    // scan when empty (or forced) — the safe fallback keeps unmarked callers
+    // correct. The noteCache string-diff still skips unchanged notes.
+    var fullScan = forceFullScan === true || dirtyNotes.size === 0;
+    // Safety net: a note with no noteCache entry has never been written to
+    // disk. If the dirty-set is non-empty, a brand-new note created by an
+    // unmarked path (importers, wiki-link autocomplete, duplicate, restore)
+    // would otherwise be skipped — force the full scan so it cannot be lost.
+    if (!fullScan) {
+        var hasUnpersisted = (State.NOTES || []).some(function (note) {
+            return note && note.id && !noteCache.has(note.id);
+        });
+        if (hasUnpersisted) fullScan = true;
+    }
+    var notesToProcess = (State.NOTES || []).filter(function (note) {
+        return fullScan || (note && note.id && dirtyNotes.has(note.id));
+    });
+
+    notesToProcess.forEach(function (note) {
         if (!note || !note.id) return;
         var key = NOTE_PREFIX + note.id;
         var serialized = serializeNote(note);
@@ -240,16 +297,11 @@ export function saveData() {
         }
     });
 
-    // Remove orphaned keys for notes no longer in State.NOTES.
-    noteIdList.forEach(function (id) {
-        if (currentIds.indexOf(id) === -1) {
-            localStorage.removeItem(NOTE_PREFIX + id);
-            noteCache.delete(id);
-        }
-    });
-
-    noteIdList = currentIds;
+    dirtyNotes.clear();
     localStorage.setItem(NOTES_INDEX, JSON.stringify(noteIdList));
+    // Sprint C: keep the id/title lookup maps in sync after any structural
+    // mutation (adds/removes land here via the dirty-set + orphan cleanup).
+    if (State._invalidateNoteMaps) State._invalidateNoteMaps();
 }
 
 // Full resync of the notes vault (writes every note key + rebuilds index/cache).
@@ -270,6 +322,8 @@ export function saveAllNotes() {
     });
     noteIdList = (State.NOTES || []).map(function (n) { return n.id; });
     localStorage.setItem(NOTES_INDEX, JSON.stringify(noteIdList));
+    dirtyNotes.clear();
+    if (State._invalidateNoteMaps) State._invalidateNoteMaps();
 }
 
 // Deletes all per-note keys and the index (used by #clear-data).
@@ -284,5 +338,7 @@ export function clearAllNotes() {
     noteCache = new Map();
     canvasCache = new Map();
     noteIdList = [];
+    dirtyNotes.clear();
+    if (State._invalidateNoteMaps) State._invalidateNoteMaps();
     localStorage.removeItem(NOTES_INDEX);
 }

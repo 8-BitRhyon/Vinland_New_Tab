@@ -42,7 +42,7 @@ globalThis.document = { getElementById: () => null };
 // ------------------------------------------------------------
 import { State } from '../js/core/Store.js';
 const storage = await import('../js/core/Storage.js');
-const { loadData, saveData, saveAllNotes, clearAllNotes } = storage;
+const { loadData, saveData, saveAllNotes, clearAllNotes, markNoteDirty, markAllNotesDirty } = storage;
 
 // ------------------------------------------------------------
 // Test runner
@@ -248,6 +248,92 @@ test('(k) non-canvas note serializes normally (no marker)', () => {
   const parsed = JSON.parse(localStorageShim.raw(noteShardKey('n1')));
   assert.equal(parsed.canvasData, undefined, 'non-canvas note should not get canvasData marker');
   assert.equal(parsed.content, 'hello', 'content wrong for non-canvas note');
+});
+
+test('(l) dirty-set: saveData re-serializes only marked notes', () => {
+  freshState();
+  localStorageShim.setItem(
+    'OPERATOR_NOTES_V2',
+    JSON.stringify([
+      { id: 'a', title: 'A', content: 'x' },
+      { id: 'b', title: 'B', content: 'y' },
+    ])
+  );
+  loadData();
+  saveData(); // full scan (empty dirty) — hydrates diff caches
+  localStorageShim._writes.length = 0;
+
+  State.NOTES[0].content = 'x2';
+  markNoteDirty('a');
+  saveData(); // dirty-only
+
+  const shardWrites = noteShardWrites();
+  assert.equal(shardWrites.length, 1, 'expected exactly 1 shard write via dirty-set');
+  assert.equal(shardWrites[0], noteShardKey('a'), 'wrong shard written via dirty-set');
+  assert.equal(JSON.parse(localStorageShim.raw(noteShardKey('a'))).content, 'x2', 'edit not persisted');
+});
+
+test('(m) unmarked mutations persist via the full-scan fallback (no data loss)', () => {
+  freshState();
+  localStorageShim.setItem(
+    'OPERATOR_NOTES_V2',
+    JSON.stringify([
+      { id: 'a', title: 'A', content: 'x' },
+      { id: 'b', title: 'B', content: 'y' },
+    ])
+  );
+  loadData();
+  saveData();
+  localStorageShim._writes.length = 0;
+
+  // Mutate WITHOUT marking — the safety fallback must still persist it.
+  State.NOTES[1].content = 'y2';
+  saveData();
+
+  const shardWrites = noteShardWrites();
+  assert.equal(shardWrites.length, 1, 'fallback should write the changed shard');
+  assert.equal(shardWrites[0], noteShardKey('b'), 'wrong shard written by fallback');
+  assert.equal(JSON.parse(localStorageShim.raw(noteShardKey('b'))).content, 'y2', 'unmarked edit lost');
+});
+
+test('(n) saveData(true) persists unmarked notes even when the dirty-set is non-empty', () => {
+  freshState();
+  State.NOTES = [
+    { id: 'a', title: 'A', content: 'x' },
+    { id: 'b', title: 'B', content: 'y' },
+  ];
+  saveData();
+  localStorageShim._writes.length = 0;
+
+  // Mark only 'a' dirty, but mutate 'b' unmarked (simulates a missed mark).
+  markNoteDirty('a');
+  State.NOTES[0].content = 'x2';
+  State.NOTES[1].content = 'y2';
+  saveData(true); // beforeunload-style forced save
+
+  const shardWrites = noteShardWrites();
+  assert.equal(shardWrites.length, 2, 'forced save must persist both notes');
+  assert.equal(JSON.parse(localStorageShim.raw(noteShardKey('b'))).content, 'y2', 'unmarked note not persisted by forced save');
+});
+
+test('(o) unpersisted new note forces full scan even with a non-empty dirty-set', () => {
+  freshState();
+  State.NOTES = [{ id: 'a', title: 'A', content: 'x' }];
+  saveData();
+  localStorageShim._writes.length = 0;
+
+  // Mark 'a' dirty AND push a brand-new note that was never written to disk.
+  // The safety net must promote this to a full scan so the new note cannot
+  // be skipped by the dirty-only path (importers/autocomplete/duplicate).
+  markNoteDirty('a');
+  State.NOTES[0].content = 'x2';
+  State.NOTES.push({ id: 'fresh', title: 'Fresh', content: 'z' });
+  saveData();
+
+  const shardWrites = noteShardWrites();
+  assert.equal(shardWrites.length, 2, 'safety net must persist both notes');
+  assert.equal(JSON.parse(localStorageShim.raw(noteShardKey('fresh'))).content, 'z', 'new note lost');
+  assert.equal(JSON.parse(localStorageShim.raw(noteShardKey('a'))).content, 'x2', 'dirty note not persisted');
 });
 
 // ============================================================

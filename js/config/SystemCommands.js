@@ -58,6 +58,7 @@ export const SystemCommands = {
                 modified: Date.now()
             };
             window.State.NOTES.unshift(newCanvas);
+            if (window.markNoteDirty) window.markNoteDirty(newCanvas.id);
             if (window.saveData) window.saveData();
             
             if (window.Notes) window.Notes.open(newCanvas.id);

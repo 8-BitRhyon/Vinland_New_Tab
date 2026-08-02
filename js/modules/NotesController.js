@@ -1,6 +1,6 @@
 import { State } from '../core/Store.js';
 import { safeText, getAudioContext } from '../core/Utils.js';
-import { saveData } from '../core/Storage.js';
+import { saveData, markNoteDirty } from '../core/Storage.js';
 import { PageManager, parseContentToBlocks } from '../editor/PageManager.js';
 import { BlockEditor } from '../editor/BlockEditor.js';
 import { SlashMenu } from '../ui/SlashMenu.js';
@@ -52,7 +52,7 @@ export const Notes = {
                 e.preventDefault();
                 // Prevent infinite untitled notes
                 if (self.activeNoteId) {
-                    var currentNote = State.NOTES.find(function(n) { return n.id === self.activeNoteId; });
+                    var currentNote = State.getNote(self.activeNoteId);
                     if (currentNote && (!currentNote.title || currentNote.title.trim() === '')) {
                         if (typeof showNotification === 'function') showNotification('Please name your current note first');
                         document.getElementById('active-note-title').focus();
@@ -322,7 +322,7 @@ export const Notes = {
     // Clean up auto-created empty notes when switching to a different note
     _cleanupAutoNote: function(noteId) {
         if (!this.autoCreatedNoteId || this.autoCreatedNoteId === noteId) return;
-        var autoNote = State.NOTES.find(function (n) { return n.id === Notes.autoCreatedNoteId; });
+        var autoNote = State.getNote(Notes.autoCreatedNoteId);
         if (!autoNote) {
             this.autoCreatedNoteId = null; // preserve original: always clear on condition
             return;
@@ -349,7 +349,7 @@ export const Notes = {
     // Save or garbage-collect the previously active note before switching to a new one
     _savePreviousNote: function(noteId) {
         if (!this.activeNoteId || this.activeNoteId === noteId) return;
-        var current = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
+        var current = State.getNote(Notes.activeNoteId);
         if (!current) return;
 
         // Canvas notes use canvasData, not content/blocks - never garbage collect them
@@ -377,7 +377,7 @@ export const Notes = {
 
     // Find the note by ID, fallback to first note, or create if empty
     _resolveNote: function(noteId) {
-        var note = State.NOTES.find(function (n) { return n.id === noteId; });
+        var note = State.getNote(noteId);
         if (!note && State.NOTES.length > 0) note = State.NOTES[0];
         if (!note) {
             this.create();
@@ -526,6 +526,7 @@ export const Notes = {
                     restoreBtn.onclick = function() {
                         note.path = note.originalPath || '/';
                         delete note.originalPath;
+                        markNoteDirty(note.id);
                         saveData();
                         Notes.open(note.id);
                         Notes.renderSidebar();
@@ -643,7 +644,7 @@ export const Notes = {
     // Push note state into browser history so back/forward navigates between notes
     _pushHistoryState: function(noteId, replace) {
         if (this._historyPopState) return; // Don't re-push what popstate just restored
-        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        var note = State.getNote(noteId);
         var title = note ? (note.title || 'Untitled') : 'Untitled';
         var url = '?note=' + encodeURIComponent(noteId);
         var state = { noteId: noteId, timestamp: Date.now() };
@@ -669,7 +670,7 @@ export const Notes = {
         var match = window.location.search.match(/[?&]note=([^&]+)/);
         if (match) {
             var noteId = decodeURIComponent(match[1]);
-            var note = State.NOTES.find(function(n) { return n.id === noteId; });
+            var note = State.getNote(noteId);
             if (note) {
                 this.open(noteId, true);
                 return true;
@@ -681,7 +682,7 @@ export const Notes = {
     // Deep Link Support
     openByTitle: function(title) {
         if (!title) return false;
-        var note = State.NOTES.find(function(n) { return (n.title || 'Untitled').toLowerCase() === title.toLowerCase(); });
+        var note = State.getNoteByTitle(title);
         if (note) {
             this.open(note.id);
             return true;
@@ -1118,7 +1119,7 @@ export const Notes = {
         // Enforce Untitled Note Guard for ALL creation entry points
         // Catches both empty titles AND the default 'Untitled' title
         if (this.activeNoteId) {
-            var currentNote = State.NOTES.find(function(n) { return n.id === Notes.activeNoteId; });
+            var currentNote = State.getNote(Notes.activeNoteId);
             if (currentNote && (!currentNote.title || currentNote.title.trim() === '')) {
                 // Allow creation if we passed a specific title (e.g. Daily Note, README)
                 if (!initialTitle) {
@@ -1149,6 +1150,7 @@ export const Notes = {
         }
 
         State.NOTES.unshift(newNote);
+        markNoteDirty(newNote.id); // new shard must be written even on dirty-only saves
         saveData();
         this.open(newNote.id);
 
@@ -1274,7 +1276,7 @@ export const Notes = {
 
     save: function () {
         if (!this.activeNoteId) return;
-        var note = State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = State.getNote(this.activeNoteId);
         if (!note) return;
 
         var titleInput = document.getElementById('active-note-title');
@@ -1291,11 +1293,13 @@ export const Notes = {
         }
 
         if (oldTitle !== note.title) {
+            markNoteDirty(this.activeNoteId);
             saveData();
             this.renderSidebar();
             this.renderNotes();
         }
         
+        markNoteDirty(this.activeNoteId);
         saveData();
         this.updateAllTags();
 
@@ -1309,9 +1313,10 @@ export const Notes = {
             window.VersionHistoryManager.captureSnapshot(this.activeNoteId);
         }
 
-        // Sync flashcard index after save (fire-and-forget)
+        // Sync flashcard index after save (fire-and-forget). Incremental: only
+        // the saved note is re-scanned, not the whole vault.
         if (window.FlashcardManager && window.FlashcardManager.syncFromNotes) {
-            window.FlashcardManager.syncFromNotes();
+            window.FlashcardManager.syncFromNotes(this.activeNoteId);
         }
 
         // Refresh backlinks panel after save (wiki links may have changed)
@@ -1355,11 +1360,12 @@ export const Notes = {
 
     // Move note to a new path
     moveNote: function(noteId, newPath) {
-        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        var note = State.getNote(noteId);
         if (!note) return;
 
         note.path = newPath;
         note.modified = Date.now();
+        markNoteDirty(noteId);
         saveData();
 
         this.renderSidebar();
@@ -1444,7 +1450,7 @@ export const Notes = {
 
                     // If active note was in deleted folder, reset
                     if (self.activeNoteId) {
-                        var activeExists = State.NOTES.find(function(n) { return n.id === self.activeNoteId; });
+                        var activeExists = State.getNote(self.activeNoteId);
                         if (!activeExists) {
                             self.activeNoteId = null;
                             if (State.NOTES.length > 0) {
@@ -1480,7 +1486,7 @@ export const Notes = {
         
         if (!editor || !preview || !toggleBtn) return;
         
-        var note = State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = State.getNote(this.activeNoteId);
         if (!note) return;
 
         this.isPreviewMode = !this.isPreviewMode;
@@ -1509,10 +1515,11 @@ export const Notes = {
     },
 
     togglePin: function () {
-        var note = State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = State.getNote(this.activeNoteId);
         if (!note) return;
 
         note.pinned = !note.pinned;
+        markNoteDirty(this.activeNoteId);
         saveData();
         this.renderSidebar();
 
@@ -1557,7 +1564,7 @@ export const Notes = {
             return;
         }
 
-        var note = State.NOTES.find(function (n) { return n.id === Notes.activeNoteId; });
+        var note = State.getNote(Notes.activeNoteId);
         if (!note || note.type === 'canvas') { // Canvas notes use their own backlinks system
             panel.classList.remove('active');
             panel.classList.add('empty');
@@ -1702,7 +1709,7 @@ export const Notes = {
 
     // Toggle Checkbox in Preview
     togglePreviewTask: function(taskIndex, isChecked) {
-        var note = State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = State.getNote(this.activeNoteId);
         if (!note || !note.blocks) return;
 
         // Map linear task index to block
@@ -1837,9 +1844,7 @@ export const Notes = {
             html = html.replace(/!\[\[([^\]]+)\]\]/g, function(match, noteTitle) {
                 var idx = transclusionBlocks.length;
                 var title = noteTitle.trim();
-                var targetNote = State.NOTES.find(function(n) {
-                    return (n.title || '').toLowerCase() === title.toLowerCase();
-                });
+                var targetNote = State.getNoteByTitle(title);
 
                 if (targetNote) {
                     var targetContent = targetNote.content || '';
@@ -2169,7 +2174,7 @@ export const Notes = {
     updateWordCount: function() {
         var counter = document.getElementById('word-count');
         if (!counter || !this.activeNoteId) return;
-        var note = State.NOTES.find(n => n.id === this.activeNoteId);
+        var note = State.getNote(this.activeNoteId);
         if (!note) return;
         var text = (note.content || '').trim();
         var words = text ? text.split(/\s+/).length : 0;
@@ -2177,7 +2182,7 @@ export const Notes = {
     },
 
     updateTags: function() {
-        var activeNote = State.NOTES.find(n => n.id === this.activeNoteId);
+        var activeNote = State.getNote(this.activeNoteId);
         if (!activeNote) return;
 
         // Get all tags from note content and blocks

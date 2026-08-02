@@ -23,30 +23,53 @@ export const MetadataCache = {
     backlinks: new Map(),     // Map<noteId, Set<noteId>> - who links to this note
     
     initialized: false,
-    
+
+    // Save-path lever: debounce the full-index localStorage write so rapid
+    // per-keystroke saves coalesce into one write instead of re-serializing
+    // the whole tag/link/backlink index every time.
+    _cacheDirty: false,
+    _cacheTimer: null,
+    CACHE_SAVE_DEBOUNCE_MS: 15000,
+
     /**
      * Initialize the cache - build index from all notes
      */
     init: function() {
         if (this.initialized) return;
-        
-        console.log('[MetadataCache] Building index...');
-        var startTime = Date.now();
-        
+
         if (!State.NOTES || !Array.isArray(State.NOTES)) {
             console.warn('[MetadataCache] No notes found');
             return;
         }
-        
-        // Build index for all notes
-        State.NOTES.forEach(note => {
-            this.updateNote(note.id, false); // Don't save on init
-        });
-        
-        var elapsed = Date.now() - startTime;
-        console.log(`[MetadataCache] Indexed ${State.NOTES.length} notes in ${elapsed}ms`);
-        
-        this.initialized = true;
+
+        var startTime = Date.now();
+
+        // Save-path lever: prefer the persisted cache when it matches the
+        // current vault fingerprint — one JSON.parse instead of re-running
+        // regex parsing over every note on every new-tab boot. Falls back to
+        // a full rebuild when the vault changed or the cache is corrupt.
+        if (this.loadCache()) {
+            this.initialized = true;
+            console.log(`[MetadataCache] Loaded ${this.index.size} notes from cache in ${Date.now() - startTime}ms`);
+        } else {
+            // Build index for all notes
+            State.NOTES.forEach(note => {
+                this.updateNote(note.id, false); // Don't save on init
+            });
+            // Persist the fresh rebuild so the next boot can load it.
+            this.saveCache();
+            this.initialized = true;
+            console.log(`[MetadataCache] Indexed ${State.NOTES.length} notes in ${Date.now() - startTime}ms`);
+        }
+
+        // Flush the debounced cache write when the tab closes so the next
+        // boot can load it instead of rebuilding.
+        if (typeof window !== 'undefined' && window.addEventListener) {
+            var self = this;
+            window.addEventListener('beforeunload', function() {
+                self._flushCache();
+            });
+        }
     },
     
     /**
@@ -154,7 +177,7 @@ export const MetadataCache = {
     updateNote: function(noteId, shouldSave = true) {
         if (!noteId) return null;
         
-        var note = State.NOTES.find(n => n.id === noteId);
+        var note = State.getNote(noteId);
         if (!note) {
             // Note was deleted, remove from cache
             this.removeNote(noteId);
@@ -207,8 +230,8 @@ export const MetadataCache = {
         this.updateLinkIndex(noteId, links);
         
         if (shouldSave) {
-            // Persist cache to localStorage (optional - you can skip this if rebuilding on load is fast enough)
-            this.saveCache();
+            // Coalesce full-index persistence instead of writing on every update.
+            this._markCacheDirty();
         }
         
         return metadata;
@@ -264,7 +287,7 @@ export const MetadataCache = {
         // Remove from main index
         this.index.delete(noteId);
         
-        this.saveCache();
+        this._markCacheDirty();
     },
     
     /**
@@ -316,10 +339,8 @@ export const MetadataCache = {
             }
             this.linkIndex.get(target).add(noteId);
             
-            // Find target note and update backlinks
-            var targetNote = State.NOTES.find(n => 
-                (n.title || '').toLowerCase() === target
-            );
+            // Find target note and update backlinks (O(1) title map lookup)
+            var targetNote = State.getNoteByTitle(target);
             if (targetNote) {
                 if (!this.backlinks.has(targetNote.id)) {
                     this.backlinks.set(targetNote.id, new Set());
@@ -424,17 +445,79 @@ export const MetadataCache = {
     },
     
     /**
+     * Cheap vault fingerprint: note count + newest modified timestamp + a
+     * rolling hash of note ids. Used to detect whether the vault changed
+     * since the persisted cache was written (so stale caches force a rebuild
+     * instead of serving wrong tags/links/backlinks).
+     */
+    _notesFingerprint: function() {
+        var notes = State.NOTES || [];
+        var n = notes.length;
+        var maxMod = 0;
+        var acc = 0;
+        for (var i = 0; i < n; i++) {
+            var note = notes[i];
+            if (!note) continue;
+            var m = note.modified || note.created || 0;
+            if (m > maxMod) maxMod = m;
+            var id = note.id || '';
+            for (var j = 0; j < id.length; j++) {
+                acc = (acc * 31 + id.charCodeAt(j)) | 0;
+            }
+        }
+        return n + ':' + maxMod + ':' + (acc >>> 0);
+    },
+
+    /**
+     * Schedule a debounced full-index write.
+     */
+    _markCacheDirty: function() {
+        this._cacheDirty = true;
+        if (this._cacheTimer) return;
+        var self = this;
+        this._cacheTimer = setTimeout(function() {
+            self._cacheTimer = null;
+            if (self._cacheDirty) {
+                self._cacheDirty = false;
+                self.saveCache();
+            }
+        }, this.CACHE_SAVE_DEBOUNCE_MS);
+    },
+
+    /**
+     * Flush any pending debounced cache write immediately (unload hook).
+     */
+    _flushCache: function() {
+        if (this._cacheTimer) {
+            clearTimeout(this._cacheTimer);
+            this._cacheTimer = null;
+        }
+        if (this._cacheDirty) {
+            this._cacheDirty = false;
+            this.saveCache();
+        }
+    },
+
+    /**
      * Save cache to localStorage (optional - for persistence)
      */
     saveCache: function() {
         // Convert Maps to objects for JSON serialization
         var cacheData = {
-            version: 1,
+            version: 2,
             timestamp: Date.now(),
+            fingerprint: this._notesFingerprint(),
+            index: {},
             tagIndex: {},
             linkIndex: {},
             backlinks: {}
         };
+
+        // v2: persist the main metadata index too, so a boot can load the
+        // full index without re-running per-note parsing.
+        this.index.forEach((metadata, noteId) => {
+            cacheData.index[noteId] = metadata;
+        });
         
         this.tagIndex.forEach((noteSet, tag) => {
             cacheData.tagIndex[tag] = Array.from(noteSet);
@@ -456,7 +539,9 @@ export const MetadataCache = {
     },
     
     /**
-     * Load cache from localStorage (optional)
+     * Load cache from localStorage. Returns true only when the cache is
+     * schema-valid AND its fingerprint matches the current vault — otherwise
+     * false (caller must rebuild).
      */
     loadCache: function() {
         try {
@@ -464,17 +549,25 @@ export const MetadataCache = {
             if (!cached) return false;
             
             var cacheData = JSON.parse(cached);
-            
+            if (!cacheData || cacheData.version !== 2) return false;
+
+            // Staleness guard: if the vault changed since this cache was
+            // written (edited without updateNote, imported, restored, etc.),
+            // a full rebuild is required.
+            if (cacheData.fingerprint !== this._notesFingerprint()) return false;
+
             // Reconstruct Maps from objects
-            Object.entries(cacheData.tagIndex).forEach(([tag, noteIds]) => {
+            this.index = new Map(Object.entries(cacheData.index || {}));
+            
+            Object.entries(cacheData.tagIndex || {}).forEach(([tag, noteIds]) => {
                 this.tagIndex.set(tag, new Set(noteIds));
             });
             
-            Object.entries(cacheData.linkIndex).forEach(([target, noteIds]) => {
+            Object.entries(cacheData.linkIndex || {}).forEach(([target, noteIds]) => {
                 this.linkIndex.set(target, new Set(noteIds));
             });
             
-            Object.entries(cacheData.backlinks).forEach(([noteId, noteIds]) => {
+            Object.entries(cacheData.backlinks || {}).forEach(([noteId, noteIds]) => {
                 this.backlinks.set(noteId, new Set(noteIds));
             });
             

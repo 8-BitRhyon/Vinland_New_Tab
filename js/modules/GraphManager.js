@@ -436,7 +436,7 @@ export const GraphManager = {
 
     /** Get preview text from a note (strip HTML, truncate) */
     _getNotePreview: function(noteId) {
-        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        var note = State.getNote(noteId);
         if (!note) return '';
         var text = note.content || '';
         // Strip HTML tags

@@ -1,5 +1,5 @@
 import { State } from '../core/Store.js';
-import { saveData } from '../core/Storage.js';
+import { saveData, markNoteDirty } from '../core/Storage.js';
 import { HistoryManager } from './BlockEditor.js'; // Circular dependency note: handled by ES modules if used at runtime
 
 /* =========================================
@@ -217,13 +217,14 @@ export const PageManager = {
         }
 
         page.modified = Date.now();
+        markNoteDirty(page.id);
         return newBlock;
     },
 
     // Update a specific block
     updateBlock: function (pageId, blockId, updates) {
         if (HistoryManager && HistoryManager.push) HistoryManager.push(pageId); // Snapshot tracking
-        var page = State.NOTES.find(function (n) { return n.id === pageId; });
+        var page = State.getNote(pageId);
         if (!page) return false;
 
         var block = page.blocks.find(function (b) { return b.id === blockId; });
@@ -244,18 +245,20 @@ export const PageManager = {
         }
 
         page.modified = Date.now();
+        markNoteDirty(pageId);
         return true;
     },
 
     // Delete a block
     deleteBlock: function (pageId, blockId) {
         if (HistoryManager && HistoryManager.push) HistoryManager.push(pageId); // Snapshot tracking
-        var page = State.NOTES.find(function (n) { return n.id === pageId; });
+        var page = State.getNote(pageId);
         if (!page) return false;
 
         page.blocks = page.blocks.filter(function (b) { return b.id !== blockId; });
         this.reorderBlocks(page);
         page.modified = Date.now();
+        markNoteDirty(pageId);
         return true;
     },
 
@@ -267,7 +270,7 @@ export const PageManager = {
 
     // Sync content string from blocks (for search/legacy compat)
     syncContent: function (pageId) {
-        var page = State.NOTES.find(function (n) { return n.id === pageId; });
+        var page = State.getNote(pageId);
         if (!page || !page.blocks) return;
 
         var listCounter = 0;

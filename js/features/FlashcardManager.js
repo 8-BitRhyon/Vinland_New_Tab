@@ -206,20 +206,34 @@ export const FlashcardManager = {
     /* ── Flashcard Extraction from Notes ───── */
 
     /**
-     * Scan all notes and extract/reconcile flashcards.
-     * Returns a promise that resolves when sync is complete.
+     * Scan notes and extract/reconcile flashcards.
+     * When a noteId is given, only that note is re-scanned (incremental — the
+     * save-path hook); without one, the whole vault is reconciled (boot,
+     * review session, stats). Returns a promise.
      */
-    syncFromNotes: function() {
+    syncFromNotes: function(noteId) {
         var self = this;
         return this._getAllCards().then(function(existingCards) {
             var existingMap = {};
             existingCards.forEach(function(c) { existingMap[c.id] = c; });
 
             var newCards = [];
-            var keptIds = [];
 
-            (State.NOTES || []).forEach(function(note) {
-                if (note.type === 'canvas' || (note.path && note.path.indexOf('/.trash') === 0)) return;
+            var notesToScan;
+            if (noteId) {
+                // Incremental: only reconcile the given note's cards.
+                var target = State.NOTES.find(function(n) { return n.id === noteId; });
+                notesToScan = target ? [target] : [];
+            } else {
+                notesToScan = State.NOTES || [];
+            }
+
+            // In incremental mode only cards owned by the target note may be
+            // deleted; other notes' cards must be left untouched.
+            var noteCardPrefix = noteId ? ('card_' + noteId + '_') : null;
+
+            notesToScan.forEach(function(note) {
+                if (!note || note.type === 'canvas' || (note.path && note.path.indexOf('/.trash') === 0)) return;
 
                 var fullContent = note.content || '';
                 if (!fullContent && note.blocks && note.blocks.length > 0) {
@@ -229,7 +243,6 @@ export const FlashcardManager = {
                 var noteClozes = self.extractClozes(fullContent);
                 noteClozes.forEach(function(cloze, idx) {
                     var cardId = 'card_' + note.id + '_' + idx;
-                    keptIds.push(cardId);
 
                     if (existingMap[cardId]) {
                         var existing = existingMap[cardId];
@@ -262,7 +275,9 @@ export const FlashcardManager = {
                 });
             });
 
-            var deletePromises = Object.keys(existingMap).map(function(id) {
+            var deletePromises = Object.keys(existingMap).filter(function(id) {
+                return noteCardPrefix === null || id.indexOf(noteCardPrefix) === 0;
+            }).map(function(id) {
                 return self._deleteCard(id);
             });
 

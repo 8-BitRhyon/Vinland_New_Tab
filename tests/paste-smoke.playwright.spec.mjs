@@ -11,6 +11,9 @@
  * - Multi-line paste of bullets splits into one block per line
  * - Multi-line paste of contiguous plain text merges into one paragraph block
  * - No console errors during paste
+ * - XSS payloads rendered through the REAL markdownToHtml pipeline (Enter-split
+ *   re-render) must produce plain text — no dangerous anchor, no injected
+ *   attributes (P5/P6)
  *
  * Run with:
  *   npx playwright test tests/paste-smoke.playwright.spec.mjs
@@ -63,6 +66,26 @@ async function realPaste(page, text) {
   await page.evaluate((txt) => navigator.clipboard.writeText(txt), text);
   await page.keyboard.press(PASTE_KEY);
   await page.waitForTimeout(500);
+}
+
+/**
+ * Assert no element inside #block-editor carries ANY attribute starting with
+ * "on" (onmouseover, onload, onfocus, onpointerdown, ...). A JS-driven scan is
+ * strictly stronger than a CSS attribute-selector list, which can only enumerate
+ * known handlers — a sanitizer hole that allowed an unlisted handler would
+ * otherwise slip through the tests.
+ */
+async function expectNoInlineHandlers(page) {
+  const withHandlers = await page.evaluate(() => {
+    const bad = [];
+    document.querySelectorAll('#block-editor *').forEach((el) => {
+      for (const name of el.getAttributeNames()) {
+        if (name.toLowerCase().startsWith('on')) bad.push(el.tagName + '[' + name + ']');
+      }
+    });
+    return bad;
+  });
+  expect(withHandlers).toEqual([]);
 }
 
 // ──────────────────────────────────────────
@@ -149,6 +172,72 @@ test('P3. Multi-line plain text merges into a single paragraph block', async ({ 
     const joined = allText.join('\n');
     return joined.includes('Line one') && joined.includes('Line two') && joined.includes('Line three');
   }, { timeout: 5000 }).toBe(true);
+});
+
+// ══════════════════════════════════════════
+// XSS payload rendering (exercises the REAL markdownToHtml pipeline)
+// ══════════════════════════════════════════
+// Typing keeps the payload as raw text; pressing Enter triggers a block split
+// which re-renders ALL blocks through BlockEditor.markdownToHtml — the exact
+// path where the hardened link sanitizer runs. Asserting the RENDERED output
+// (rejected link -> plain link text, no <a>, no injected attributes) proves
+// the sanitizer was exercised with a payload, not just that raw text exists.
+
+test('P5. javascript: link payload renders as plain text, no anchor in DOM', async ({ page }) => {
+  await runCLI(page, 'note XSS Link Test');
+  await waitForEditor(page);
+
+  const firstBlock = getFirstBlock(page);
+  await firstBlock.waitFor({ state: 'visible', timeout: 5000 });
+  await firstBlock.click();
+
+  await page.keyboard.type('[x](javascript:alert(1))');
+  // Enter-split forces render() -> markdownToHtml over the block content.
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+
+  // Rendered: the dangerous scheme was rejected, so the link label 'x' renders
+  // as plain text with the unmatched trailing ')' left literal — the raw
+  // markdown must NOT survive the render. This exact output proves the
+  // sanitizer ran: the payload was neutralized, not passed through.
+  const firstContent = page.locator('#block-editor .block-wrapper .block-content').first();
+  await expect(firstContent).toHaveText('x)', { timeout: 5000 });
+  await expect(firstContent).not.toContainText('javascript');
+  await expect(firstContent).not.toContainText('[');
+
+  // No anchor element anywhere in the editor, and no javascript: href in DOM.
+  await expect(page.locator('#block-editor a.external-link')).toHaveCount(0);
+  await expect(page.locator('#block-editor a[href*="javascript:"]')).toHaveCount(0);
+  await expect(page.locator('#block-editor [href]')).toHaveCount(0);
+
+  // No inline event-handler attributes anywhere in the editor (any on* name).
+  await expectNoInlineHandlers(page);
+});
+
+test('P6. Attribute-breakout link payload renders as plain text, no injected attribute', async ({ page }) => {
+  await runCLI(page, 'note XSS Attr Test');
+  await waitForEditor(page);
+
+  const firstBlock = getFirstBlock(page);
+  await firstBlock.waitFor({ state: 'visible', timeout: 5000 });
+  await firstBlock.click();
+
+  await page.keyboard.type('[x](" onmouseover="alert(1))');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+
+  // The quoted-URL breakout must be neutralized: render the link label 'x' as
+  // plain text with the unmatched trailing ')' left literal. The raw markdown
+  // and the injected onmouseover= must not survive the render.
+  const firstContent = page.locator('#block-editor .block-wrapper .block-content').first();
+  await expect(firstContent).toHaveText('x)', { timeout: 5000 });
+  await expect(firstContent).not.toContainText('onmouseover');
+  await expect(firstContent).not.toContainText('[');
+
+  // No anchor, no href anywhere, and no injected on* attribute in the DOM.
+  await expect(page.locator('#block-editor a.external-link')).toHaveCount(0);
+  await expect(page.locator('#block-editor [href]')).toHaveCount(0);
+  await expectNoInlineHandlers(page);
 });
 
 test('P4. No console errors during paste operations', async ({ page }) => {

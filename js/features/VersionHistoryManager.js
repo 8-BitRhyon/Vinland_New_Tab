@@ -30,6 +30,90 @@ export const VersionHistoryManager = {
         if (this._initialized) return;
         this._initialized = true;
         console.log('[VersionHistory] Initialized');
+        // H5: boot-time compaction — sweep orphaned/oversized version stores so
+        // the history DB cannot grow unbounded (deleted notes leave keys behind
+        // via deletion paths that bypass removeNote()). Fire-and-forget.
+        this.prune().then(function(stats) {
+            if (stats.removed > 0 || stats.trimmed > 0) {
+                console.log('[VersionHistory] pruned:', JSON.stringify(stats));
+            }
+        }).catch(function(err) {
+            console.warn('[VersionHistory] prune failed:', err);
+        });
+    },
+
+    /* ── Compaction ────────────────────────── */
+
+    /**
+     * Trim a versions array to the per-note cap, keeping the NEWEST entries.
+     * Pure function — unit-testable without IndexedDB.
+     */
+    trimToMax: function(versions, max) {
+        var cap = (typeof max === 'number' && max > 0) ? max : MAX_VERSIONS_PER_NOTE;
+        if (!Array.isArray(versions)) return [];
+        return versions.length > cap ? versions.slice(versions.length - cap) : versions;
+    },
+
+    /**
+     * H5: global compaction of the versions store. Scans every key and:
+     *   - deletes stores for notes that no longer exist in State.NOTES (orphans
+     *     left by deletion paths that bypass removeNote())
+     *   - trims any store that exceeds MAX_VERSIONS_PER_NOTE (e.g. legacy or
+     *     oversized data from before the cap / external writes)
+     * Resolves with { scanned, removed, trimmed }.
+     */
+    prune: function() {
+        var self = this;
+        return this._getDB().then(function(db) {
+            return new Promise(function(resolve, reject) {
+                var tx = db.transaction(STORE_NAME, 'readwrite');
+                var store = tx.objectStore(STORE_NAME);
+                var stats = { scanned: 0, removed: 0, trimmed: 0 };
+
+                // Live note ids — anything not in this set is an orphan.
+                var liveIds = new Set();
+                (State.NOTES || []).forEach(function(n) {
+                    if (n && n.id) liveIds.add(n.id);
+                });
+
+                var req = store.openCursor();
+                req.onsuccess = function(e) {
+                    var cursor = e.target.result;
+                    if (!cursor) {
+                        // Cursor exhausted — but do NOT resolve here: the queued
+                        // delete/put requests may not have committed, and a tx
+                        // abort would never be surfaced. Resolve in tx.oncomplete.
+                        return;
+                    }
+                    stats.scanned++;
+                    var noteId = cursor.key;
+                    if (!liveIds.has(noteId)) {
+                        store.delete(noteId);
+                        stats.removed++;
+                    } else {
+                        var trimmed = self.trimToMax(cursor.value);
+                        if (trimmed.length !== (cursor.value || []).length) {
+                            store.put(trimmed, noteId);
+                            stats.trimmed++;
+                        }
+                    }
+                    cursor.continue();
+                };
+                req.onerror = function(e) {
+                    reject(e);
+                };
+                tx.oncomplete = function() {
+                    // Commit acknowledged — safe to report stats.
+                    resolve(stats);
+                };
+                tx.onerror = function(e) {
+                    reject(e);
+                };
+                tx.onabort = function(e) {
+                    reject(e);
+                };
+            });
+        });
     },
 
     /* ── IndexedDB ─────────────────────────── */
@@ -144,10 +228,8 @@ export const VersionHistoryManager = {
 
             versions.push(snapshot);
 
-            // Trim to max versions
-            if (versions.length > MAX_VERSIONS_PER_NOTE) {
-                versions = versions.slice(versions.length - MAX_VERSIONS_PER_NOTE);
-            }
+            // Trim to max versions (keep the newest MAX_VERSIONS_PER_NOTE)
+            versions = self.trimToMax(versions);
 
             // Persist and update UI
             self._saveToDB(noteId, versions).then(function() {
@@ -278,7 +360,9 @@ export const VersionHistoryManager = {
                 note.blocks = JSON.parse(JSON.stringify(targetVersion.blocks));
             }
 
-            // Persist
+            // Persist (restore mutates note.blocks — mark dirty so a dirty-only
+            // saveData() still writes this note back)
+            if (window.markNoteDirty) window.markNoteDirty(noteId);
             saveData();
 
             // Re-render editor if this note is open

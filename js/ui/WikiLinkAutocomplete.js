@@ -414,6 +414,7 @@ export const WikiLinkAutocomplete = {
         };
         if (!window.State.NOTES) window.State.NOTES = [];
         window.State.NOTES.unshift(newNote);
+        if (window.markNoteDirty) window.markNoteDirty(newNote.id);
         if (window.saveData) window.saveData();
         if (window.Notes && window.Notes.renderSidebar) window.Notes.renderSidebar();
         if (window.Notes && window.Notes.updateAllTags) window.Notes.updateAllTags();

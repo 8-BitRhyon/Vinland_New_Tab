@@ -138,6 +138,9 @@ export const TabManager = {
                     // Remove the empty note entirely
                     State.NOTES = State.NOTES.filter(function(n) { return n.id !== note.id; });
                     if (typeof window.State !== 'undefined') window.State.NOTES = State.NOTES;
+                    if (window.VersionHistoryManager && window.VersionHistoryManager.removeNote) {
+                        window.VersionHistoryManager.removeNote(note.id);
+                    }
                     if (typeof saveData === 'function') saveData();
                     else if (typeof window.saveData === 'function') window.saveData();
                     Notes.renderSidebar();

@@ -1,7 +1,8 @@
 import { State } from '../core/Store.js';
-import { saveData } from '../core/Storage.js';
+import { saveData, markNoteDirty } from '../core/Storage.js';
 import { PageManager } from './PageManager.js';
 import { ModalManager } from '../ui/ModalManager.js';
+import { escapeHtml, escapeAttr, sanitizeLinkUrl } from '../core/Utils.js';
 
 /* =========================================
    HISTORY MANAGER (Undo/Redo)
@@ -12,7 +13,7 @@ export const HistoryManager = {
     limit: 50,
     
     push: function(pageId) {
-        var page = State.NOTES.find(function(n) { return n.id === pageId; });
+        var page = State.getNote(pageId);
         if (!page) return;
         var snapshot = JSON.parse(JSON.stringify(page.blocks));
         this.stack.push({ pageId: pageId, blocks: snapshot });
@@ -23,11 +24,12 @@ export const HistoryManager = {
     undo: function() {
         if (this.stack.length === 0) return;
         var state = this.stack.pop();
-        var page = State.NOTES.find(function(n) { return n.id === state.pageId; });
+        var page = State.getNote(state.pageId);
         if (page) {
             this.redoStack.push({ pageId: page.id, blocks: JSON.parse(JSON.stringify(page.blocks)) });
             page.blocks = state.blocks;
             page.modified = Date.now();
+            markNoteDirty(page.id);
             saveData();
             if (typeof BlockEditor !== 'undefined') BlockEditor.render(page.id);
         }
@@ -36,11 +38,12 @@ export const HistoryManager = {
     redo: function() {
         if (this.redoStack.length === 0) return;
         var state = this.redoStack.pop();
-        var page = State.NOTES.find(function(n) { return n.id === state.pageId; });
+        var page = State.getNote(state.pageId);
         if (page) {
             this.stack.push({ pageId: page.id, blocks: JSON.parse(JSON.stringify(page.blocks)) });
             page.blocks = state.blocks;
             page.modified = Date.now();
+            markNoteDirty(page.id);
             saveData();
             if (typeof BlockEditor !== 'undefined') BlockEditor.render(page.id);
         }
@@ -99,7 +102,7 @@ export const BlockEditor = {
 
     // ─── HELPERS ───
     _getActivePage: function() {
-        return State.NOTES.find(function(n) { return n.id === this.activePageId; }.bind(this));
+        return State.getNote(this.activePageId);
     },
 
     // Helper for Callout Icons
@@ -130,10 +133,10 @@ export const BlockEditor = {
         var result = parts.length > 1 ? parts[1].replace('=', '').trim() : '';
         
         var html = '<div class="calc-preview" style="margin:0; border:none; background:transparent; padding:0;">';
-        html += '<span class="calc-expression">' + expr + '</span>';
+        html += '<span class="calc-expression">' + escapeHtml(expr) + '</span>';
         if (result) {
             html += '<span class="calc-arrow" style="margin:0 8px;">&rarr;</span>';
-            html += '<span class="calc-result">' + result + '</span>';
+            html += '<span class="calc-result">' + escapeHtml(result) + '</span>';
         }
         return html + '</div>';
     },
@@ -275,8 +278,11 @@ export const BlockEditor = {
         // This runs AFTER code highlighting to ensure links work even in mixed content
         // Pattern: [[Note Title]] or [[Note Title|Display]]
         safeCode = safeCode.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, function(match, noteTitle, displayText) {
-            displayText = displayText || noteTitle;
-            return '<span class="wiki-link" data-note-title="' + noteTitle.trim() + '">' + displayText.trim() + '</span>';
+            var title = String(noteTitle || '').trim();
+            var label = String(displayText || noteTitle || '').trim();
+            // & < > were escaped above; escapeAttr closes the quote-breakout
+            // vector in data-note-title without double-escaping entities.
+            return '<span class="wiki-link" data-note-title="' + escapeAttr(title) + '">' + label + '</span>';
         });
 
         return safeCode;
@@ -345,8 +351,14 @@ export const BlockEditor = {
         // 4. Underline (<u>text</u>) -> Already escaped by step 1, so unescape them
         html = html.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<u>$1</u>');
         
-        // 5. Links ([text](url))
-        html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="external-link">$1</a>');
+        // 5. Links ([text](url)) — scheme-whitelisted + attribute-escaped (XSS-hardened)
+        html = html.replace(/\[(.*?)\]\((.*?)\)/g, function(match, text, url) {
+            // Undo step-1 entity escaping to validate the real URL, then re-escape safely.
+            var rawUrl = String(url || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+            var safe = sanitizeLinkUrl(rawUrl);
+            if (safe === null) return text; // dangerous scheme → render link text as plain text
+            return '<a href="' + escapeHtml(safe) + '" class="external-link">' + text + '</a>';
+        });
         
         return html;
     },
@@ -620,7 +632,7 @@ export const BlockEditor = {
         var reader = new FileReader();
         reader.onload = function (e) {
             var dataUrl = e.target.result;
-            var note = State.NOTES.find(function(n) { return n.id === self.activePageId; });
+            var note = State.getNote(self.activePageId);
             if (note) {
                 var newBlock = PageManager.addBlock(note, 'image', dataUrl, self.focusedBlockId);
                 self.render(self.activePageId);
@@ -652,7 +664,7 @@ export const BlockEditor = {
     // ─── RENDERING ───
     render: function (pageId, skipFocus) {
         this.activePageId = pageId;
-        var page = State.NOTES.find(function (n) { return n.id === pageId; });
+        var page = State.getNote(pageId);
         if (!page) return;
 
         this.container.innerHTML = '';
@@ -742,13 +754,14 @@ export const BlockEditor = {
 
     duplicateBlock: function(blockId) {
         HistoryManager.push(this.activePageId);
-        var page = State.NOTES.find(function(n) { return n.id === this.activePageId; }.bind(this));
+        var page = State.getNote(this.activePageId);
         if (!page || !page.blocks) return;
         var idx = page.blocks.findIndex(function(b) { return b.id === blockId; });
         if (idx === -1) return;
         var newBlock = JSON.parse(JSON.stringify(page.blocks[idx]));
         newBlock.id = 'blk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         page.blocks.splice(idx + 1, 0, newBlock);
+        markNoteDirty(this.activePageId);
         this.render(this.activePageId);
         this.focusBlock(newBlock.id);
     },
@@ -789,7 +802,7 @@ export const BlockEditor = {
         // Wire toggle header once (before early-return so it works even with 0 connections)
         this._wireLocalGraphToggle();
 
-        var note = State.NOTES.find(function(n) { return n.id === noteId; });
+        var note = State.getNote(noteId);
         if (!note) return;
 
         // Gather connected notes: backlinks + forward links
@@ -857,7 +870,7 @@ export const BlockEditor = {
             backlinkData.forEach(function(m) {
                 if (m.id && m.id !== noteId && !connectedIds.has(m.id)) {
                     connectedIds.add(m.id);
-                    var n = State.NOTES.find(function(x) { return x.id === m.id; });
+                    var n = State.getNote(m.id);
                     if (n) connectedNotes.push({ id: n.id, name: n.title || 'Untitled', direction: 'incoming' });
                 }
             });
@@ -1065,6 +1078,7 @@ export const BlockEditor = {
 
         note.blocks.splice(newTargetIdx, 0, draggedBlock);
         PageManager.reorderBlocks(note); 
+        markNoteDirty(this.activePageId);
         saveData();
         PageManager.syncContent(this.activePageId);
         
@@ -1103,6 +1117,7 @@ export const BlockEditor = {
         remainingBlocks.splice.apply(remainingBlocks, [newTargetIdx, 0].concat(selectedBlocks));
         note.blocks = remainingBlocks;
         PageManager.reorderBlocks(note);
+        markNoteDirty(this.activePageId);
         saveData();
         PageManager.syncContent(this.activePageId);
         
@@ -1395,7 +1410,7 @@ export const BlockEditor = {
                     inner.setAttribute('data-highlighted', 'true');
                     inner.addEventListener('focus', function() {
                         if (this.getAttribute('data-highlighted') === 'true') {
-                            var safePage = State.NOTES.find(p => p.id === BlockEditor.activePageId);
+                            var safePage = State.getNote(BlockEditor.activePageId);
                             var safeBlock = safePage ? safePage.blocks.find(b => b.id === block.id) : block;
                             this.textContent = safeBlock ? safeBlock.content : block.content;
                             this.removeAttribute('data-highlighted');
@@ -2326,9 +2341,7 @@ export const BlockEditor = {
                 var embedTitle = (block.content || '').trim();
                 var targetNote = null;
                 if (embedTitle && State && State.NOTES) {
-                    targetNote = State.NOTES.find(function(n) {
-                        return (n.title || '').toLowerCase() === embedTitle.toLowerCase();
-                    });
+                    targetNote = State.getNoteByTitle(embedTitle);
                 }
 
                 if (targetNote) {
@@ -2969,7 +2982,7 @@ export const BlockEditor = {
             var blockWrapper = e.target.closest('.block-wrapper');
             if (blockWrapper && blockWrapper.getAttribute('data-block-type') === 'code') {
                 var blockId = blockWrapper.getAttribute('data-block-id');
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                var page = State.getNote(BlockEditor.activePageId);
                 var block = page.blocks.find(function(b) { return b.id === blockId; });
                 if (block && block.language === 'calc') {
                     e.preventDefault();
@@ -3012,7 +3025,7 @@ export const BlockEditor = {
             // Only intercept if we have multi-select OR if focus is outside editable content
             if (!isEditingContent || this.selectedBlockIds.length > 1) {
                 e.preventDefault();
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                var page = State.getNote(BlockEditor.activePageId);
                 if (!page) return true;
                 
                 // Handle delete for single focused non-editable block
@@ -3035,7 +3048,7 @@ export const BlockEditor = {
 
                 // Delete all selected blocks
                 e.preventDefault();
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                var page = State.getNote(BlockEditor.activePageId);
                 if (!page) return true;
                 
                 // Delete all selected blocks
@@ -3147,7 +3160,7 @@ export const BlockEditor = {
             if (blockWrapper) {
                 e.preventDefault();
                 var blockId = blockWrapper.getAttribute('data-block-id');
-                var page = State.NOTES.find(n => n.id === this.activePageId);
+                var page = State.getNote(this.activePageId);
                 var block = page ? page.blocks.find(b => b.id === blockId) : null;
                 if (block) {
                     var newLevel = (block.level || 0) + (e.shiftKey ? -1 : 1);
@@ -3178,7 +3191,7 @@ export const BlockEditor = {
 
             if (targetBlockId) {
                 HistoryManager.push(this.activePageId);
-                var page = State.NOTES.find(n => n.id === BlockEditor.activePageId);
+                var page = State.getNote(BlockEditor.activePageId);
                 var idx = page.blocks.findIndex(b => b.id === targetBlockId);
                 if (idx === -1) return true;
                 
@@ -3216,7 +3229,7 @@ export const BlockEditor = {
 
             if (blockType === 'code' || blockType === 'image' || blockType === 'table') return true;
             e.preventDefault();
-            var page = State.NOTES.find(n => n.id === this.activePageId);
+            var page = State.getNote(this.activePageId);
             if (!page) return true;
             
             var sel = window.getSelection();
@@ -3284,7 +3297,7 @@ export const BlockEditor = {
                 atStart = startRange.toString().length === 0 && range.collapsed;
             }
             if (atStart) {
-                var page = State.NOTES.find(n => n.id === this.activePageId);
+                var page = State.getNote(this.activePageId);
                 if (!page) return true;
                 var idx = page.blocks.findIndex(b => b.id === blockId);
                 if (idx > 0) {
@@ -3325,7 +3338,7 @@ export const BlockEditor = {
     _kHandleArrowNav: function(e, blockId) {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
 
-            var page = State.NOTES.find(n => n.id === this.activePageId);
+            var page = State.getNote(this.activePageId);
             if (!page) return true;
 
             // CMD+Arrow = Quick Navigation (Jump to Start/End)
@@ -3446,7 +3459,7 @@ export const BlockEditor = {
                 this.render(this.activePageId);
                 if (rules[i].type === 'divider') {
                     // Add a new empty paragraph after divider and focus it
-                    var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                    var page = State.getNote(BlockEditor.activePageId);
                     if (page) {
                         var newBlock = PageManager.addBlock(page, 'p', '', blockId);
                         this.render(this.activePageId);
@@ -3486,7 +3499,7 @@ export const BlockEditor = {
             if (e.target.classList.contains('table-cell')) {
                 var rowIdx = parseInt(e.target.getAttribute('data-row'), 10);
                 var colIdx = parseInt(e.target.getAttribute('data-col'), 10);
-                var page = State.NOTES.find(n => n.id === this.activePageId);
+                var page = State.getNote(this.activePageId);
                 var block = page.blocks.find(b => b.id === blockId);
                 if (block && block.tableData) {
                     if (rowIdx === -1) {
@@ -3568,7 +3581,7 @@ export const BlockEditor = {
              // Clicked outside blocks (empty space at bottom)
              // Check if last block is non-text or the list is empty
              if (this.activePageId) {
-                var page = State.NOTES.find(function(n) { return n.id === BlockEditor.activePageId; });
+                var page = State.getNote(BlockEditor.activePageId);
                 if (page) {
                     var lastBlock = page.blocks.length > 0 ? page.blocks[page.blocks.length - 1] : null;
                     
@@ -3702,7 +3715,7 @@ export const BlockEditor = {
     _pHandleTextToBlocks: function(e, text, blockEl) {
      // Multi-line paste or large text -> Parse into blocks
      e.preventDefault();
-     var page = State.NOTES.find(n => n.id === this.activePageId);
+     var page = State.getNote(this.activePageId);
      
      // Where to insert?
      var afterBlockId = null;
@@ -3792,7 +3805,7 @@ export const BlockEditor = {
         reader.onload = function(e) {
             var dataUrl = e.target.result;
             // Create image block
-            var page = State.NOTES.find(n => n.id === self.activePageId);
+            var page = State.getNote(self.activePageId);
             
             // Where?
             var afterBlockId = null;
