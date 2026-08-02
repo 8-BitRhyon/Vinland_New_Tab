@@ -1,20 +1,4 @@
-/**
- * Vinland Trash & Restore Workflow - Playwright Integration Tests
- *
- * Tests the complete trash lifecycle: move note to trash, verify it's hidden
- * from Quick Notes, restore it, and verify it reappears with content intact.
- *
- * Uses evaluate-based data manipulation for trash/restore (reliable),
- * then verifies actual UI consequences: Quick Notes list, trash banner,
- * RESTORE button, editor state, and localStorage persistence.
- *
- * NOTE: We use window.saveAllNotes() for persistence because saveData()
- * has a noteCache diff-check that inexplicably skips writes in headless
- * Chrome. Manual setItem works fine and is used as a fallback.
- *
- * Run with:
- *   npx playwright test tests/trash.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -58,7 +42,7 @@ function getFirstBlock(page) {
 // Helpers: Note ID / Storage
 // ──────────────────────────────────────────
 
-/** Get the most recently created note's ID from in-memory State. */
+
 async function getCurrentNoteId(page) {
   return await page.evaluate(() => {
     const notes = window.State && window.State.NOTES;
@@ -83,12 +67,7 @@ async function getNoteFromStorage(page, id) {
 // correctly in headless Chrome when called via page.evaluate.
 // ──────────────────────────────────────────
 
-/**
- * Trash a note by directly setting its path to '/.trash' in both
- * localStorage and the in-memory State. Then re-render the sidebar.
- * Uses manual localStorage write to bypass noteCache issues.
- * Returns true if the note was found and trashed.
- */
+
 async function trashViaData(page, noteId) {
   if (!noteId) return false;
   return await page.evaluate((id) => {
@@ -130,11 +109,7 @@ async function trashViaData(page, noteId) {
   }, noteId);
 }
 
-/**
- * Restore a trashed note by resetting its path and removing originalPath.
- * Uses manual localStorage write to bypass noteCache issues.
- * Returns true if the note was found and restored.
- */
+
 async function restoreViaData(page, noteId) {
   if (!noteId) return false;
   return await page.evaluate((id) => {
@@ -176,7 +151,7 @@ async function restoreViaData(page, noteId) {
   }, noteId);
 }
 
-/** Open a note by ID using Notes.open. */
+
 async function openNoteById(page, noteId) {
   await page.evaluate((id) => {
     if (window.Notes && window.Notes.open) {
@@ -215,7 +190,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* page may have navigated away */ }
+    } catch {  }
   }).catch(() => {});
 });
 

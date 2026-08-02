@@ -21,19 +21,14 @@ test.beforeEach(async ({ page }) => {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-/**
- * Wait for the Vinland app to finish booting by checking for window.State
- */
+
 async function waitForAppReady(page) {
   await page.waitForFunction(() => {
     return typeof window.State !== 'undefined' && window.State && window.State.NOTES;
   }, { timeout: 10000 });
 }
 
-/**
- * Create a canvas note, populate it with nodes, and open the editor.
- * Returns the note ID.
- */
+
 async function setupCanvasWithNodes(page, nodes) {
   await waitForAppReady(page);
 

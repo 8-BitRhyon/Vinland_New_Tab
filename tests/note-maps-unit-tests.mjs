@@ -1,16 +1,4 @@
-/**
- * Vinland Note Lookup Maps - Unit Tests (Sprint C / M1)
- *
- * Tests the O(1) id/title lookup maps added to Store.js:
- *   - getNote(id) / getNoteByTitle(title) correctness
- *   - lazy rebuild when the State.NOTES array reference or length changes
- *   - reference stability (in-place edits are visible without rebuild)
- *   - first-match-wins for duplicate titles
- *   - invalidation via _invalidateNoteMaps()
- *
- * Run with: node tests/note-maps-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

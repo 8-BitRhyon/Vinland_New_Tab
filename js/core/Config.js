@@ -54,9 +54,7 @@ const DEFAULT_CONFIG = {
     daily_note_template: ""
 };
 
-/* =========================================
-   THEME PRESETS (V17.0 - Complete Packages)
-   ========================================= */
+
 export const THEME_PRESETS = {
     matrix: {
         name: "Matrix",

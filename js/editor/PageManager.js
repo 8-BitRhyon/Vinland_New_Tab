@@ -2,14 +2,9 @@ import { State } from '../core/Store.js';
 import { saveData, markNoteDirty } from '../core/Storage.js';
 import { HistoryManager } from './BlockEditor.js'; // Circular dependency note: handled by ES modules if used at runtime
 
-/* =========================================
-   PHASE 3: PAGE MANAGER
-   Handles data model updates
-   ========================================= */
 
-/**
- * Parse markdown content into block array
- */
+
+
 export function parseContentToBlocks(content) {
     if (!content) return [];
 
@@ -128,18 +123,13 @@ export function parseContentToBlocks(content) {
     return blocks;
 }
 
-/**
- * Sanitize path string
- */
+
 export function sanitizePath(path) {
     if (!path) return '/';
     return path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
 }
 
-/**
- * Extract wiki links from note content
- * Finds all [[Link]] references and returns array of link targets
- */
+
 export function extractWikiLinks(content) {
     if (!content) return [];
     var regex = /\[\[([^\[\]]+)\]\]/g;

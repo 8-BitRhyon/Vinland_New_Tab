@@ -1,16 +1,4 @@
-/**
- * WikiLink Autocomplete E2E Tests
- *
- * Tests the [[wiki link]] autocomplete feature:
- * - WA1: Type [[ in block editor, verify autocomplete overlay appears
- * - WA2: Filter suggestions by typing more characters
- * - WA3: Select a suggestion with Enter, verify [[Title]] is inserted
- * - WA4: Escape dismisses the autocomplete overlay
- * - WA5: 'No notes match' shown for non-existent query
- *
- * Run with:
- *   npx playwright test tests/wikilink-autocomplete.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -85,7 +73,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

@@ -1,24 +1,4 @@
-/**
- * Vinland Release-Candidate Smoke — Real Chrome Extension Context
- *
- * Unlike every other spec (which runs against the plain-HTTP page at
- * 127.0.0.1:9999), THIS spec launches the actual unpacked extension in a
- * persistent Chromium profile and drives the REAL chrome-extension:// page.
- *
- * It is the only test that proves the extension-context APIs exist and work:
- *   - chrome.identity / chrome.storage are present
- *   - the MV3 service worker boots
- *   - the new-tab override actually renders from the extension origin
- *   - a full user journey: note → block editor → canvas → tasks → quick-open
- *     search → settings → sync tab → backup → reload persistence
- *
- * Because it boots the extension it is slower than the HTTP specs, so it runs
- * in its OWN CI job (release-candidate) and is excluded from the sharded E2E
- * matrix via `--grep-invert "Release Candidate"`.
- *
- * Run locally with:
- *   npx playwright test tests/release-candidate.playwright.spec.mjs
- */
+
 
 import { test, expect, chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
@@ -115,13 +95,13 @@ function getFirstBlock(page) {
     .locator('[contenteditable="true"]').first();
 }
 
-/** Reset data + UI to a clean first-run-like state for each journey test. */
+
 async function resetState(page) {
   await page.evaluate(() => {
     try {
       if (window.ModalManager && window.ModalManager.closeAll) window.ModalManager.closeAll();
       if (window.ModalManager && window.ModalManager.close) window.ModalManager.close('welcome-modal');
-    } catch { /* ignore */ }
+    } catch {  }
     try {
       const keys = Object.keys(localStorage).filter((k) =>
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX' ||
@@ -139,7 +119,7 @@ async function resetState(page) {
           window.State.CONFIG.auto_backup_interval = 0;
         }
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
   await page.waitForTimeout(300);
 }
@@ -353,7 +333,7 @@ ext('Release Candidate: notes survive a full page reload', async ({ page }) => {
   await page.evaluate(() => {
     try {
       if (window.ModalManager && window.ModalManager.closeAll) window.ModalManager.closeAll();
-    } catch { /* ignore */ }
+    } catch {  }
   });
 
   const after = await page.evaluate(() => {

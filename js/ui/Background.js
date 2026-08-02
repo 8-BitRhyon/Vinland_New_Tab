@@ -1,10 +1,7 @@
 import { State } from '../core/Store.js';
 import { DB } from '../core/Storage.js';
 
-/* =========================================
-   BACKGROUND MODULE
-   Handles Video/Image Wallpapers & Filters
-   ========================================= */
+
 
 export const Background = {
     init: function() {

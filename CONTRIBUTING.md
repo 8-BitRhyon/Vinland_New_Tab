@@ -1,0 +1,78 @@
+# Contributing to Vinland
+
+Thanks for wanting to help. Vinland is a small, personal project that's now
+open source — the bar for contributing is "be helpful and don't break things."
+This guide tells you how to set up, test, and ship a change.
+
+## Ground rules
+
+- **No build step.** The extension runs directly from source. Don't introduce
+  a bundler, transpiler, or npm-runtime dependency. Dev-only tooling
+  (Playwright, test runners) is fine.
+- **Vanilla JS, ES modules.** Modules attach themselves to `window` and are
+  wired together by `js/boot.js`. New features go in
+  `js/features/`, `js/ui/`, or `js/core/` — not inline in `index.html`.
+- **Local-first.** Note data lives in localStorage + IndexedDB. Don't add
+  server dependencies or telemetry.
+- **Comments are lean.** The multi-line comments were moved into
+  [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md). Prefer short single-line `//`
+  comments in code; put "why" and architecture knowledge in the docs.
+- **The design doc is canonical.** Major architecture changes update
+  [`docs/design.md`](docs/design.md) too.
+
+## Setting up
+
+```bash
+git clone https://github.com/8-BitRhyon/Vinland_New_Tab
+cd Vinland_New_Tab
+npm ci                      # dev-only: Playwright + test runner
+npx playwright install chromium
+```
+
+Load it: `chrome://extensions` → **Developer mode** → **Load unpacked** →
+select the repo folder. A new tab becomes Vinland.
+
+## Running tests
+
+```bash
+npm test                    # 723 unit tests, zero dependencies, fast
+npx playwright test         # 34 E2E specs against a local static server
+```
+
+- E2E starts its own HTTP server automatically (`playwright.config.mjs`).
+- Write a unit test for pure logic; write a Playwright spec for user flows.
+- New unit suites register in `tests/run-all.mjs`.
+- If your change touches deletion paths, version history, or storage,
+  make sure the relevant suites still pass (`note-maps`, `version-history`,
+  `metadata-cache`).
+
+## Making a change
+
+1. **Open an issue first** for anything non-trivial (or say what you're doing
+   in the PR body — small project, flexible).
+2. Branch off `main`: `git checkout -b fix/your-change`.
+3. Make the change. Keep it focused.
+4. Run the tests above. **Do not merge with failures.**
+5. If you touched `js/` or `tests/`, run `node --check` on your files (the CI
+   does this implicitly).
+6. Open a pull request to `main`. CI runs: unit tests, E2E (4 shards), CLI
+   command sweep, real-extension release-candidate smoke, and the store-zip
+   package gate. All must pass.
+
+## Commit style
+
+- Descriptive subject line, imperative mood: `feat(notes): add sort by date`.
+- Scope in parens: `core`, `editor`, `features`, `ui`, `tests`, `docs`, `ci`.
+- A short body explaining *why* when it isn't obvious.
+
+## Release checklist (maintainers)
+
+1. Bump `version` in `manifest.json`.
+2. `bash scripts/package-release.sh` — confirm the zip is ~541KB and the
+   composition report looks sane.
+3. Tag `v<version>` and attach the `dist/` zip to the GitHub Release.
+4. Update the README install section if the zip name changed.
+
+## Code of conduct
+
+Be decent. See [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).

@@ -1,8 +1,6 @@
 import { State } from './Store.js';
 
-/* =========================================
-   INDEXEDDB - STORAGE MATRIX
-   ========================================= */
+
 const DB_NAME = "OPERATOR_VAULT";
 const STORE_NAME = "media_assets";
 
@@ -198,7 +196,7 @@ export function loadData() {
                         noteCache.set(key.substring(NOTE_PREFIX.length), localStorage.getItem(key));
                         recovered.push(note.id);
                     }
-                } catch (e) { /* skip malformed keys */ }
+                } catch (e) {  }
             }
             if (recovered.length > 0) {
                 noteIdList = recovered;
@@ -217,7 +215,7 @@ export function loadData() {
                 if (note && note.canvasData && note.canvasData._external === true) {
                     DB.get(CANVAS_IDX_PREFIX + note.id).then(function (real) {
                         if (real) note.canvasData = real;
-                    }).catch(function () { /* leave marker; canvas will show empty */ });
+                    }).catch(function () {  });
                 }
             });
         }

@@ -2,9 +2,7 @@ import { State } from '../core/Store.js';
 import { Config, saveConfig } from '../core/Config.js';
 import { saveData } from '../core/Storage.js';
 
-/* =========================================
-   BACKUP MANAGER - Auto-backup + Drive Sync
-   ========================================= */
+
 
 const BACKUP_FOLDER_NAME = 'Vinland Backup';
 const BACKUP_FILE_NAME = 'vinland-backup.json';
@@ -16,7 +14,7 @@ export const BackupManager = {
     driveFileId: null,
     driveConnected: false,
 
-    /* ── Lifecycle ─────────────────────────── */
+    
 
     init: function() {
         // Restore Drive connection state from chrome.storage.local
@@ -25,7 +23,7 @@ export const BackupManager = {
         this.scheduleAutoBackup();
     },
 
-    /* ── Auto-backup Timer ─────────────────── */
+    
 
     scheduleAutoBackup: function() {
         this.stopAutoBackup();
@@ -49,7 +47,7 @@ export const BackupManager = {
         }
     },
 
-    /* ── Build Backup Data ─────────────────── */
+    
 
     buildBackupData: function() {
         return {
@@ -64,7 +62,7 @@ export const BackupManager = {
         };
     },
 
-    /* ── Trigger Backup ────────────────────── */
+    
 
     triggerBackup: function(mode) {
         // mode: 'auto' (download) | 'drive' (upload to Drive) | 'both' (default)
@@ -83,7 +81,7 @@ export const BackupManager = {
         saveConfig();
     },
 
-    /* ── Download Backup ───────────────────── */
+    
 
     downloadBackup: function() {
         var data = this.buildBackupData();
@@ -108,7 +106,7 @@ export const BackupManager = {
         console.log('[Backup] Downloaded: ' + filename);
     },
 
-    /* ── Google Drive Sync ─────────────────── */
+    
 
     getDriveAuthScopes: function() {
         // drive.file scope: per-file access created by this app only
@@ -297,7 +295,7 @@ export const BackupManager = {
         });
     },
 
-    /* ── Internal Drive API Methods ────────── */
+    
 
     _getHeaders: function() {
         return {
@@ -567,7 +565,7 @@ export const BackupManager = {
         console.log('[Backup] Sync ' + direction + ' complete:', now);
     },
 
-    /* ── Drive State Persistence ───────────── */
+    
 
     saveDriveState: function() {
         if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;

@@ -1,12 +1,4 @@
-/**
- * Vinland Storage Sharding - Unit Tests
- *
- * Tests the REAL js/core/storage.js (per-note sharding) against the real
- * js/core/store.js State. No copied extracts - tests cannot drift from source.
- *
- * Run with: node tests/storage-shard.test.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';

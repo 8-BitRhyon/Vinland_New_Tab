@@ -1,15 +1,4 @@
-/**
- * Vinland Table Column Resize - Unit Tests
- *
- * Tests pure-logic extracts from BlockEditor table column resize:
- * - syncColumnWidths() — ensures columnWidths array matches header count
- * - computeResizeWidth() — clamps new width to minimum
- * - getColumnWidthStyle() — returns formatted width string for CSS
- * - setColumnWidth() — saves width with sync
- *
- * Run with: node tests/table-column-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

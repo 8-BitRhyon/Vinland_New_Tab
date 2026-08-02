@@ -1,7 +1,4 @@
-/**
- * Input.js - Global Keyboard Shortcuts
- * Extracted from vinland.js initKeyboardShortcuts
- */
+
 
 // Helper for ArrowUp/Down navigation in Sidebar
 function navigateSidebar(direction) {

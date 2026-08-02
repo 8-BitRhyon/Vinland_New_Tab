@@ -1,15 +1,4 @@
-/**
- * Vinland MetadataCache System - Unit Tests
- *
- * Tests two layers:
- *   1. Pure function extracts (no state/DOM needed) – parseFrontmatter,
- *      extractTags, extractWikiLinks (same pattern as notes-unit-tests.mjs)
- *   2. Integration tests importing the REAL MetadataCache module with
- *      State + localStorage shims (same pattern as storage-shard.test.mjs)
- *
- * Run with: node tests/metadata-cache-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

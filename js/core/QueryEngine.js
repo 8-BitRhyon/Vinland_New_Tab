@@ -1,22 +1,11 @@
 import { State } from './Store.js';
 import { MetadataCache } from './MetadataCache.js';
 
-/* =========================================
-   QUERY ENGINE
-   Phase 3.5: Dataview Lite
-   
-   Syntax Examples:
-   - LIST FROM #project WHERE status = "Active"
-   - TABLE file.name, status, priority FROM "Work/"
-   - TASK FROM #todo WHERE !completed
-   - COUNT FROM #meeting WHERE date > "2025-01"
-   ========================================= */
+
 
 export const QueryEngine = {
     
-    /**
-     * Execute a query string and return results
-     */
+    
     execute: function(queryString) {
         if (!queryString || !queryString.trim()) {
             return { error: 'Empty query', results: [] };
@@ -33,9 +22,7 @@ export const QueryEngine = {
         }
     },
     
-    /**
-     * Parse query string into structured query object
-     */
+    
     parse: function(queryString) {
         queryString = queryString.trim();
         
@@ -141,9 +128,7 @@ export const QueryEngine = {
         };
     },
     
-    /**
-     * Parse a value from string to appropriate type
-     */
+    
     parseValue: function(valueStr) {
         valueStr = valueStr.trim();
         
@@ -169,9 +154,7 @@ export const QueryEngine = {
         return valueStr;
     },
     
-    /**
-     * Run parsed query and return results
-     */
+    
     run: function(query) {
         // Initialize MetadataCache if needed
         if (!MetadataCache.initialized) {
@@ -198,9 +181,7 @@ export const QueryEngine = {
         return this.formatResults(filtered, query);
     },
     
-    /**
-     * Get candidate notes from FROM sources
-     */
+    
     getCandidates: function(sources) {
         if (!sources || sources.length === 0) {
             // No FROM clause - return all notes
@@ -228,9 +209,7 @@ export const QueryEngine = {
         return Array.from(candidateSet).map(id => MetadataCache.get(id)).filter(Boolean);
     },
     
-    /**
-     * Apply WHERE filters to candidates
-     */
+    
     applyFilters: function(candidates, whereClauses) {
         if (!whereClauses || whereClauses.length === 0) {
             return candidates;
@@ -244,9 +223,7 @@ export const QueryEngine = {
         });
     },
     
-    /**
-     * Evaluate a single WHERE condition
-     */
+    
     evaluateCondition: function(metadata, clause) {
         var value = this.getPropertyValue(metadata, clause.property);
         
@@ -293,9 +270,7 @@ export const QueryEngine = {
         }
     },
     
-    /**
-     * Get property value from metadata (supports nested properties like file.name)
-     */
+    
     getPropertyValue: function(metadata, property) {
         // Handle special properties
         if (property === 'file.name' || property === 'title') {
@@ -342,9 +317,7 @@ export const QueryEngine = {
         return undefined;
     },
     
-    /**
-     * Apply sorting
-     */
+    
     applySort: function(results, orderBy) {
         return results.sort((a, b) => {
             var aVal = this.getPropertyValue(a, orderBy.field);
@@ -361,9 +334,7 @@ export const QueryEngine = {
         });
     },
     
-    /**
-     * Format results based on query type
-     */
+    
     formatResults: function(results, query) {
         switch (query.type) {
             case 'LIST':
@@ -402,9 +373,7 @@ export const QueryEngine = {
         }
     },
     
-    /**
-     * Get tasks from a note
-     */
+    
     getTasksFromNote: function(noteId) {
         var note = State.getNote(noteId);
         if (!note || !note.blocks) return [];
@@ -420,9 +389,7 @@ export const QueryEngine = {
             }));
     },
     
-    /**
-     * Render query results as HTML
-     */
+    
     renderResults: function(results, queryType) {
         if (!results || results.length === 0) {
             return '<div class="query-empty">No results found</div>';
@@ -474,9 +441,7 @@ export const QueryEngine = {
         }
     },
     
-    /**
-     * Escape HTML for safe rendering
-     */
+    
     escapeHtml: function(text) {
         var div = document.createElement('div');
         div.textContent = text;

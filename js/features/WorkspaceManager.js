@@ -1,19 +1,4 @@
-/**
- * WorkspaceManager - Named Workspace Snapshots
- *
- * Captures and restores the entire Vinland layout as named snapshots:
- *   - Open tabs (TabManager)
- *   - Graph node positions
- *   - Sidebar collapsed state & expanded folders
- *   - Editor maximized state
- *   - Theme preset, primary/secondary colors
- *   - Active note ID
- *
- * CLI: `workspace save <name>`, `workspace load <name>`,
- *      `workspace delete <name>`, `workspace`
- *
- * Storage: `VINLAND_WORKSPACES` (localStorage) — { [name]: { ... snapshot } }
- */
+
 
 import { State } from '../core/Store.js';
 
@@ -23,9 +8,7 @@ export const WorkspaceManager = {
     workspaces: {},
     selectedIndex: 0,
 
-    /**
-     * Initialize the WorkspaceManager. Called once from boot.js
-     */
+    
     init: function () {
         this._loadWorkspaces();
         this._injectDOM();
@@ -33,10 +16,7 @@ export const WorkspaceManager = {
 
     // ─── Public API ──────────────────────────────────────────────
 
-    /**
-     * Save the current workspace state under the given name.
-     * Returns { success: true } or { success: false, error: '...' }
-     */
+    
     save: function (name) {
         if (!name || !name.trim()) {
             return { success: false, error: 'Workspace name is required' };
@@ -53,10 +33,7 @@ export const WorkspaceManager = {
         return { success: true };
     },
 
-    /**
-     * Load (restore) a workspace by name.
-     * Saves the current state first as an auto-safety measure.
-     */
+    
     load: function (name) {
         if (!name) {
             return { success: false, error: 'Workspace name is required' };
@@ -82,9 +59,7 @@ export const WorkspaceManager = {
         return { success: true };
     },
 
-    /**
-     * Delete a workspace by name
-     */
+    
     delete: function (name) {
         if (!name) return { success: false, error: 'Workspace name is required' };
         if (!this.workspaces[name]) {
@@ -96,9 +71,7 @@ export const WorkspaceManager = {
         return { success: true };
     },
 
-    /**
-     * List all workspace names with metadata
-     */
+    
     list: function () {
         var names = Object.keys(this.workspaces);
         return names.map(function (n) {
@@ -112,16 +85,12 @@ export const WorkspaceManager = {
         }, this);
     },
 
-    /**
-     * Get snapshot data for a named workspace
-     */
+    
     get: function (name) {
         return this.workspaces[name] || null;
     },
 
-    /**
-     * Open the workspace browser modal
-     */
+    
     open: function () {
         if (this.isOpen) return;
         this.isOpen = true;
@@ -138,9 +107,7 @@ export const WorkspaceManager = {
         this._bindEvents();
     },
 
-    /**
-     * Close the workspace browser modal
-     */
+    
     close: function () {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -153,11 +120,7 @@ export const WorkspaceManager = {
         this._unbindEvents();
     },
 
-    /**
-     * Handle workspace CLI command
-     * Format: `workspace save <name>` or `workspace load <name>`
-     *         `workspace delete <name>` or `workspace` (opens browser)
-     */
+    
     handleCLI: function (args) {
         if (!args || !args.trim()) {
             this.open();
@@ -258,9 +221,7 @@ export const WorkspaceManager = {
 
     // ─── State Capture & Restore ────────────────────────────────
 
-    /**
-     * Capture the current application state into a snapshot object
-     */
+    
     _captureState: function () {
         var snapshot = {};
 
@@ -304,9 +265,7 @@ export const WorkspaceManager = {
         return snapshot;
     },
 
-    /**
-     * Restore application state from a snapshot
-     */
+    
     _restoreState: function (snapshot) {
         if (!snapshot) return;
 
@@ -439,9 +398,7 @@ export const WorkspaceManager = {
 
     // ─── Persistence ─────────────────────────────────────────────
 
-    /**
-     * Load workspaces from localStorage
-     */
+    
     _loadWorkspaces: function () {
         try {
             var stored = localStorage.getItem(this.STORAGE_KEY);
@@ -456,9 +413,7 @@ export const WorkspaceManager = {
         }
     },
 
-    /**
-     * Persist workspaces to localStorage
-     */
+    
     _persistWorkspaces: function () {
         try {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.workspaces));
@@ -469,9 +424,7 @@ export const WorkspaceManager = {
 
     // ─── DOM Injection ───────────────────────────────────────────
 
-    /**
-     * Inject workspace browser modal DOM elements on first init
-     */
+    
     _injectDOM: function () {
         if (document.getElementById('workspace-overlay')) return;
 
@@ -538,9 +491,7 @@ export const WorkspaceManager = {
         });
     },
 
-    /**
-     * Render the workspace list in the modal
-     */
+    
     _render: function () {
         var listEl = document.getElementById('workspace-list');
         if (!listEl) return;
@@ -621,9 +572,7 @@ export const WorkspaceManager = {
         this._updateSelection();
     },
 
-    /**
-     * Update visual selection in the workspace list
-     */
+    
     _updateSelection: function () {
         var items = document.querySelectorAll('#workspace-list .workspace-item');
         items.forEach(function (el, idx) {
@@ -637,17 +586,13 @@ export const WorkspaceManager = {
 
     // ─── Event Binding ───────────────────────────────────────────
 
-    /**
-     * Bind keyboard event listeners for the workspace modal
-     */
+    
     _bindEvents: function () {
         this._boundKeyHandler = this._onKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyHandler);
     },
 
-    /**
-     * Unbind keyboard event listeners
-     */
+    
     _unbindEvents: function () {
         if (this._boundKeyHandler) {
             document.removeEventListener('keydown', this._boundKeyHandler);
@@ -655,9 +600,7 @@ export const WorkspaceManager = {
         }
     },
 
-    /**
-     * Handle keyboard navigation in the workspace modal
-     */
+    
     _onKeyDown: function (e) {
         if (!this.isOpen) return;
 

@@ -1,9 +1,4 @@
-/**
- * CanvasSearch — Find-in-Canvas overlay for CanvasManager
- *
- * Cmd+F opens a search overlay that finds nodes by title/content/label,
- * highlights matches, and scrolls/zooms to the selected node.
- */
+
 export const CanvasSearch = {
     visible: false,
     filterQuery: '',
@@ -11,9 +6,7 @@ export const CanvasSearch = {
     selectedIndex: -1,
     _escapeHandler: null,
 
-    /**
-     * Toggle the search overlay open/closed
-     */
+    
     toggle: function() {
         if (this.visible) {
             this.close();
@@ -22,9 +15,7 @@ export const CanvasSearch = {
         }
     },
 
-    /**
-     * Open the search overlay
-     */
+    
     open: function() {
         if (this.visible) return;
         const note = window.State.NOTES.find(n => n.id === window.CanvasManager.activeNoteId);
@@ -133,9 +124,7 @@ export const CanvasSearch = {
         window.addEventListener('keydown', this._escapeHandler, { capture: true });
     },
 
-    /**
-     * Close the search overlay
-     */
+    
     close: function() {
         if (!this.visible) return;
         if (this._escapeHandler) {
@@ -155,9 +144,7 @@ export const CanvasSearch = {
         this.selectedIndex = -1;
     },
 
-    /**
-     * Perform search across canvas nodes
-     */
+    
     _search: function(query) {
         this.filterQuery = query;
         const note = window.State.NOTES.find(n => n.id === window.CanvasManager.activeNoteId);
@@ -193,9 +180,7 @@ export const CanvasSearch = {
         this._renderResults(matched);
     },
 
-    /**
-     * Render search results list
-     */
+    
     _renderResults: function(results) {
         this.results = results;
         this.selectedIndex = results.length > 0 ? 0 : -1;
@@ -255,9 +240,7 @@ export const CanvasSearch = {
         this._scrollToSelected();
     },
 
-    /**
-     * Update visual selection highlight
-     */
+    
     _updateSelection: function() {
         if (!this.resultsEl) return;
         this.resultsEl.querySelectorAll('.canvas-search-item').forEach(function(item) {
@@ -271,9 +254,7 @@ export const CanvasSearch = {
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     },
 
-    /**
-     * Navigate results (delta: +1 or -1)
-     */
+    
     _navigate: function(delta) {
         if (this.results.length === 0) return;
         this.selectedIndex = (this.selectedIndex + delta + this.results.length) % this.results.length;
@@ -281,9 +262,7 @@ export const CanvasSearch = {
         this._scrollToSelected();
     },
 
-    /**
-     * Scroll the selected result into view in the results list
-     */
+    
     _scrollToSelected: function() {
         if (!this.resultsEl || this.selectedIndex < 0) return;
         var selected = this.resultsEl.querySelector('.canvas-search-item-selected');
@@ -292,9 +271,7 @@ export const CanvasSearch = {
         }
     },
 
-    /**
-     * Select the currently highlighted result: focus + scroll-to node
-     */
+    
     _selectCurrent: function() {
         if (this.selectedIndex < 0 || this.selectedIndex >= this.results.length) return;
         var node = this.results[this.selectedIndex];
@@ -312,9 +289,7 @@ export const CanvasSearch = {
         this.close();
     },
 
-    /**
-     * Scroll/pan the canvas to bring a node into the center of view
-     */
+    
     _scrollToNode: function(node) {
         var cm = window.CanvasManager;
         if (!cm || !cm.container) return;
@@ -358,9 +333,7 @@ export const CanvasSearch = {
         }
     },
 
-    /**
-     * Inject CSS styles for the search overlay
-     */
+    
     _injectStyles: function() {
         if (document.getElementById('canvas-search-styles')) return;
 

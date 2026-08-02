@@ -1,9 +1,4 @@
-/**
- * SlashMenu - Command palette for BlockEditor
- * Extracted from vinland.js for modular architecture
- *
- * v2 — Categories, recently-used tracking, always-visible search
- */
+
 
 export const SlashMenu = {
     element: null,

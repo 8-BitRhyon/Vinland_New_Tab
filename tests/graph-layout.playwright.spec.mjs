@@ -1,13 +1,4 @@
-/**
- * Vinland Graph Layout Persistence - Playwright Integration Test
- *
- * Verifies that saved node positions (VINLAND_GRAPH_LAYOUT) are applied AND
- * pinned, so the D3 force simulation does not re-arrange the graph on every
- * open. This guards the "graph layout resets every open" regression.
- *
- * Run with:
- *   npx playwright test tests/graph-layout.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

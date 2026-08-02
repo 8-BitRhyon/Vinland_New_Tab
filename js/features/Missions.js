@@ -401,11 +401,7 @@ export function checkStreakReset() {
 
 // ─── RECURRENCE HELPERS ──────────────────────────────────────
 
-/**
- * Calculate the next occurrence date for a recurring task.
- * @param {string} recurrence - 'daily', 'weekly', or 'monthly'
- * @returns {Date} The next occurrence date
- */
+
 export function _getNextRecurrenceDate(recurrence) {
     var now = new Date();
     switch (recurrence) {
@@ -429,12 +425,7 @@ export function _getNextRecurrenceDate(recurrence) {
     }
 }
 
-/**
- * Parse recurrence prefix from a raw task text string.
- * Extracted for unit testing.
- * @param {string} text - Raw task text
- * @returns {{ text: string, recurrence: string }} Parsed text and recurrence type
- */
+
 export function parseRecurrence(text) {
     if (!text) return { text: '', recurrence: 'none' };
     var cleaned = text.trim();
@@ -449,9 +440,7 @@ export function parseRecurrence(text) {
 
 // ─── RECURRENCE CONFIG PANEL ────────────────────────────────
 
-/**
- * Opens an inline config panel near a recurrence badge for editing interval/day settings.
- */
+
 var _currentConfigTaskIdx = null;
 var _currentConfigPanel = null;
 

@@ -2,12 +2,7 @@ import { State } from '../core/Store.js';
 import { saveData } from '../core/Storage.js';
 import { safeText } from '../core/Utils.js';
 
-/* =========================================
-   QUICK CAPTURE - Cmd+Shift+I
-   =========================================
-   Minimal overlay for instantly capturing
-   thoughts into /Inbox folder.
-*/
+
 
 export const QuickCapture = {
     isOpen: false,
@@ -19,7 +14,7 @@ export const QuickCapture = {
         this._checkPendingCapture();
     },
 
-    /* ── Service Worker Communication ─────── */
+    
 
     _listenForMessages: function() {
         var self = this;
@@ -82,7 +77,7 @@ export const QuickCapture = {
         else this.open();
     },
 
-    /* ── DOM Injection ─────────────────────── */
+    
 
     _injectDOM: function() {
         if (document.getElementById('quick-capture-overlay')) return;
@@ -124,7 +119,7 @@ export const QuickCapture = {
         }
     },
 
-    /* ── Capture Logic ─────────────────────── */
+    
 
     _capture: function() {
         var input = document.getElementById('quick-capture-input');
@@ -194,7 +189,7 @@ export const QuickCapture = {
         }, 1500);
     },
 
-    /* ── Inbox View Rendering ──────────────── */
+    
 
     renderInboxPreview: function() {
         var container = document.getElementById('quick-capture-inbox-preview');
@@ -250,7 +245,7 @@ export const QuickCapture = {
         });
     },
 
-    /* ── Called from context menu ──────────── */
+    
 
     captureFromContextMenu: function(text) {
         if (!text || !text.trim()) return;

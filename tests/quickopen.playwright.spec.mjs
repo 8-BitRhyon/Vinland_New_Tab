@@ -1,17 +1,4 @@
-/**
- * Vinland Quick Open - Playwright Integration Test
- *
- * Tests the Quick Open palette (Cmd+P) end-to-end:
- * - Opening via keyboard shortcut (Cmd+P / Ctrl+P)
- * - Searching notes by title and content
- * - Keyboard navigation (ArrowDown/ArrowUp/Enter/Escape)
- * - Opening a note from search results
- * - Speed Dial mode (empty query shows recent notes + commands)
- * - Opening via CLI commands (`find`, `search`)
- *
- * Run with:
- *   npx playwright test tests/quickopen.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -117,7 +104,7 @@ test.beforeEach(async ({ page }) => {
       if (window.State) {
         if (Array.isArray(window.State.NOTES)) window.State.NOTES.length = 0;
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
 
   await page.waitForTimeout(300);
@@ -130,7 +117,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

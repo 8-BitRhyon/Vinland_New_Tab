@@ -1,21 +1,4 @@
-/**
- * DailyAgenda - Daily Notes Aggregation View
- *
- * Shows a weekly or monthly view where each day card displays the daily
- * note's title and content preview. Click a day to open the full note,
- * navigate between periods, and jump back to today.
- *
- * Opens on:
- *   - `agenda` CLI command
- *   - `Cmd+Shift+A` keyboard shortcut
- *
- * Features:
- *   - Week/Month toggle to switch between views
- *   - Scrollable list of day cards with content previews
- *   - Navigation arrows to move between periods
- *   - "Today" button to jump back to the current period
- *   - Keyboard navigation (arrows, Enter, Escape)
- */
+
 
 import { State } from '../core/Store.js';
 
@@ -25,17 +8,13 @@ export const DailyAgenda = {
     currentAnchor: null, // Date object for the start of the current period
     selectedDateStr: null,
 
-    /**
-     * Initialize DailyAgenda. Called once from boot.js
-     */
+    
     init: function () {
         this.currentAnchor = new Date();
         this._injectDOM();
     },
 
-    /**
-     * Open the DailyAgenda modal
-     */
+    
     open: function () {
         if (this.isOpen) return;
         this.isOpen = true;
@@ -54,9 +33,7 @@ export const DailyAgenda = {
         this._bindEvents();
     },
 
-    /**
-     * Close the DailyAgenda modal
-     */
+    
     close: function () {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -70,9 +47,7 @@ export const DailyAgenda = {
         this.selectedDateStr = null;
     },
 
-    /**
-     * Navigate to previous period (week or month)
-     */
+    
     prevPeriod: function () {
         var anchor = new Date(this.currentAnchor);
         if (this.viewMode === 'week') {
@@ -89,9 +64,7 @@ export const DailyAgenda = {
         this._render();
     },
 
-    /**
-     * Navigate to next period (week or month)
-     */
+    
     nextPeriod: function () {
         var anchor = new Date(this.currentAnchor);
         if (this.viewMode === 'week') {
@@ -108,9 +81,7 @@ export const DailyAgenda = {
         this._render();
     },
 
-    /**
-     * Jump to today's week/month
-     */
+    
     goToToday: function () {
         this.currentAnchor = new Date();
         if (this.viewMode === 'week') {
@@ -124,9 +95,7 @@ export const DailyAgenda = {
         this._render();
     },
 
-    /**
-     * Toggle between week and month view
-     */
+    
     toggleViewMode: function () {
         this.viewMode = (this.viewMode === 'week') ? 'month' : 'week';
         // Re-anchor to the start of the new period
@@ -143,9 +112,7 @@ export const DailyAgenda = {
 
     // ─── Private Methods ─────────────────────────────────────────
 
-    /**
-     * Inject DailyAgenda DOM elements on first init
-     */
+    
     _injectDOM: function () {
         if (document.getElementById('agenda-overlay')) return;
 
@@ -190,9 +157,7 @@ export const DailyAgenda = {
         document.getElementById('agenda-toggle-btn').onclick = this.toggleViewMode.bind(this);
     },
 
-    /**
-     * Get all notes indexed by date (same logic as Calendar._getNotesByDate)
-     */
+    
     _getNotesByDate: function () {
         var byDate = {};
         var notes = State.NOTES || [];
@@ -240,9 +205,7 @@ export const DailyAgenda = {
         return byDate;
     },
 
-    /**
-     * Get a plain-text preview of a note's content
-     */
+    
     _getPreview: function (note) {
         if (!note) return '';
 
@@ -266,9 +229,7 @@ export const DailyAgenda = {
         return '';
     },
 
-    /**
-     * Format a date string to a readable label
-     */
+    
     _formatDateLabel: function (dateStr) {
         var parts = dateStr.split('-');
         var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
@@ -295,9 +256,7 @@ export const DailyAgenda = {
         return label;
     },
 
-    /**
-     * Render the agenda content
-     */
+    
     _render: function () {
         var titleEl = document.getElementById('agenda-title');
         var contentEl = document.getElementById('agenda-content');
@@ -320,9 +279,7 @@ export const DailyAgenda = {
         }
     },
 
-    /**
-     * Render a single week view
-     */
+    
     _renderWeek: function (titleEl, contentEl, footerEl, notesByDate) {
         var anchor = new Date(this.currentAnchor);
         // Ensure we start on Monday
@@ -439,9 +396,7 @@ export const DailyAgenda = {
         });
     },
 
-    /**
-     * Render a full month view (shorter cards for each day)
-     */
+    
     _renderMonth: function (titleEl, contentEl, footerEl, notesByDate) {
         var anchor = new Date(this.currentAnchor);
         anchor.setDate(1); // Start of month
@@ -544,9 +499,7 @@ export const DailyAgenda = {
         });
     },
 
-    /**
-     * Handle click on a day
-     */
+    
     _onDayClick: function (dateStr) {
         // Toggle selection: if already selected, open the daily note
         if (this.selectedDateStr === dateStr) {
@@ -575,9 +528,7 @@ export const DailyAgenda = {
         this._render();
     },
 
-    /**
-     * Escape HTML special characters
-     */
+    
     _escapeHtml: function (str) {
         if (!str) return '';
         return String(str)
@@ -588,17 +539,13 @@ export const DailyAgenda = {
             .replace(/'/g, '&#39;');
     },
 
-    /**
-     * Bind keyboard events
-     */
+    
     _bindEvents: function () {
         this._boundKeyHandler = this._onKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyHandler);
     },
 
-    /**
-     * Unbind keyboard events
-     */
+    
     _unbindEvents: function () {
         if (this._boundKeyHandler) {
             document.removeEventListener('keydown', this._boundKeyHandler);
@@ -606,9 +553,7 @@ export const DailyAgenda = {
         }
     },
 
-    /**
-     * Handle keyboard events
-     */
+    
     _onKeyDown: function (e) {
         if (!this.isOpen) return;
 

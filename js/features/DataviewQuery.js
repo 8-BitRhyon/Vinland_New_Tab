@@ -1,28 +1,4 @@
-/**
- * DataviewQuery - Dataview-Style Query Panel
- *
- * A modal for writing Dataview-inspired queries against MetadataCache.
- * Supports LIST, TABLE, and TASK views with FROM, WHERE, SORT BY, GROUP BY,
- * and LIMIT clauses.
- *
- * Syntax:
- *   LIST FROM #tag                          — List all notes with a tag
- *   LIST FROM "folder"                      — List all notes in a folder
- *   TABLE prop1, prop2 FROM #tag            — Table view with frontmatter properties
- *   TASK FROM #tag                          — List all tasks from notes with a tag
- *   LIST FROM #tag WHERE status = value     — Filtered list by frontmatter
- *   LIST FROM #tag SORT BY title ASC        — Sorted ascending by title
- *   LIST FROM #tag SORT BY modified DESC    — Sorted descending by modified
- *   LIST FROM #tag GROUP BY status          — Grouped by frontmatter status
- *   LIST FROM #tag LIMIT 5                  — Limit to 5 results
- *   LIST FROM #tag SORT BY created DESC LIMIT 10 — Combined clauses
- *   #tag                                    — Shorthand for LIST FROM #tag
- *   "folder"                                — Shorthand for LIST FROM "folder"
- *
- * Opens on:
- *   - Cmd+Shift+Q keyboard shortcut
- *   - `dv` / `dataview` CLI command
- */
+
 
 import { State } from '../core/Store.js';
 import { MetadataCache } from '../core/MetadataCache.js';
@@ -88,9 +64,7 @@ export const DataviewQuery = {
         this._hideSuggestions();
     },
 
-    /**
-     * Open with an initial query (from CLI)
-     */
+    
     openWithQuery: function (query) {
         this.open();
         if (query && query.trim()) {
@@ -102,18 +76,7 @@ export const DataviewQuery = {
         }
     },
 
-    /**
-     * Parse a Dataview-like query string
-     * Returns {
-     *   type: 'list'|'table'|'task',
-     *   fields: [],
-     *   source: { type: 'tag'|'folder', value: '' }|null,
-     *   where: { key: '', value: '' }|null,
-     *   sortBy: { field: '', dir: 'asc'|'desc' }|null,
-     *   groupBy: { field: '' }|null,
-     *   limit: number|null
-     * }
-     */
+    
     parseQuery: function (query) {
         if (!query || !query.trim()) return null;
 
@@ -222,10 +185,7 @@ export const DataviewQuery = {
         return result;
     },
 
-    /**
-     * Get a property value from a note for sorting/grouping.
-     * Checks frontmatter first, then computed fields (title, path, modified, created).
-     */
+    
     _getPropertyValue: function (note, field) {
         // Check frontmatter first
         var fullContent = note.content || '';
@@ -244,9 +204,7 @@ export const DataviewQuery = {
         return '';
     },
 
-    /**
-     * Execute a parsed query against MetadataCache and State
-     */
+    
     executeQuery: function (parsed) {
         if (!parsed || !parsed.source) return [];
 
@@ -324,9 +282,7 @@ export const DataviewQuery = {
         return notes;
     },
 
-    /**
-     * Render query results into the modal
-     */
+    
     renderResults: function (notes, parsed) {
         var container = document.getElementById('dv-results');
         var error = document.getElementById('dv-error');
@@ -422,9 +378,7 @@ export const DataviewQuery = {
         }
     },
 
-    /**
-     * Render results as a list
-     */
+    
     _renderListView: function (notes, parsed) {
         var html = '<div class="dv-results-list">';
         var self = this;
@@ -468,9 +422,7 @@ export const DataviewQuery = {
         return html;
     },
 
-    /**
-     * Render results as a table with frontmatter properties
-     */
+    
     _renderTableView: function (notes, parsed) {
         var fields = parsed.fields;
         if (fields.length === 0) fields = ['created', 'modified', 'tags'];
@@ -518,9 +470,7 @@ export const DataviewQuery = {
         return html;
     },
 
-    /**
-     * Render task results
-     */
+    
     _renderTaskView: function (notes, parsed) {
         var html = '<div class="dv-task-list">';
         var self = this;
@@ -577,9 +527,7 @@ export const DataviewQuery = {
         return html;
     },
 
-    /**
-     * Execute search when input changes (enter key or button)
-     */
+    
     _onQuery: function () {
         var input = document.getElementById('dv-input');
         if (!input) return;
@@ -614,9 +562,7 @@ export const DataviewQuery = {
         this.renderResults(notes, parsed);
     },
 
-    /**
-     * Refresh current results
-     */
+    
     refresh: function () {
         if (this.lastResults) {
             this.renderResults(this.lastResults.notes, this.lastResults.parsed);
@@ -696,9 +642,7 @@ export const DataviewQuery = {
 
     // ─── Auto-Complete ─────────────────────────────────────────
 
-    /**
-     * Handle input changes (typing or deleting) to trigger suggestions
-     */
+    
     _onInputChange: function () {
         var input = document.getElementById('dv-input');
         if (!input) return;
@@ -745,9 +689,7 @@ export const DataviewQuery = {
         this._hideSuggestions();
     },
 
-    /**
-     * Get filtered suggestions based on context and query
-     */
+    
     _getFilteredSuggestions: function (type, query) {
         if (type === 'tag') {
             var prefix = query.replace(/^#/, '').toLowerCase();
@@ -799,9 +741,7 @@ export const DataviewQuery = {
         return [];
     },
 
-    /**
-     * Show suggestion dropdown
-     */
+    
     _showSuggestions: function (type, query, startPos) {
         // Prevent showing suggestions when results are already displayed
         // (not strictly necessary but avoids visual clutter)
@@ -851,9 +791,7 @@ export const DataviewQuery = {
         });
     },
 
-    /**
-     * Hide suggestion dropdown
-     */
+    
     _hideSuggestions: function () {
         this._suggestions = [];
         this._selectedSuggestionIndex = -1;
@@ -867,9 +805,7 @@ export const DataviewQuery = {
         }
     },
 
-    /**
-     * Select a suggestion and insert it into the input
-     */
+    
     _selectSuggestion: function (index) {
         if (index < 0 || index >= this._suggestions.length) return;
 
@@ -1001,9 +937,7 @@ export const DataviewQuery = {
         }
     },
 
-    /**
-     * Update the visual selection marker on the suggestion dropdown
-     */
+    
     _updateSelectedSuggestion: function () {
         var dropdown = document.getElementById('dv-suggestions');
         if (!dropdown) return;

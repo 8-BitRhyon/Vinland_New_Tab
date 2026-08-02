@@ -1,11 +1,4 @@
-/**
- * Vinland Shared E2E Test Helpers
- *
- * Common utilities shared across Playwright spec files to reduce duplication.
- * Import from individual spec files:
- *
- *   import { runCLI, waitForEditor, ... } from './helpers.mjs';
- */
+
 
 // ──────────────────────────────────────────
 // App URL
@@ -17,10 +10,7 @@ export const APP_URL = 'http://127.0.0.1:9999';
 // CLI
 // ──────────────────────────────────────────
 
-/**
- * Fill the CLI input with a command and press Enter.
- * Used by calendar, export and other tests that require explicit execution.
- */
+
 export async function runCLI(page, command) {
   const cmdInput = page.locator('#cmd-input');
   await cmdInput.waitFor({ state: 'visible', timeout: 10000 });
@@ -29,10 +19,7 @@ export async function runCLI(page, command) {
   await page.waitForTimeout(400);
 }
 
-/**
- * Fill the CLI input without pressing Enter (shows suggestions only).
- * Used by older tests that trigger execution through other means.
- */
+
 export async function runCLIFillOnly(page, command) {
   const cmdInput = page.locator('#cmd-input');
   await cmdInput.waitFor({ state: 'visible', timeout: 10000 });
@@ -72,12 +59,7 @@ export async function createNoteWithContent(page, title, content) {
   await closeEditor(page);
 }
 
-/**
- * Create a note with content, then move it to a specific path.
- *
- * Path editing uses the breadcrumb UI (932e68f): the editable path input
- * #note-path-edit is hidden by default and revealed via #breadcrumb-toggle-btn.
- */
+
 export async function createNoteWithContentAndPath(page, title, content, path) {
   await createNoteWithContent(page, title, content);
   // Reopen the existing note by title, then set its path
@@ -102,7 +84,7 @@ export async function createNoteWithContentAndPath(page, title, content, path) {
 // Data / Download
 // ──────────────────────────────────────────
 
-/** Read a Playwright Download as a string. */
+
 export async function readDownload(download) {
   const stream = await download.createReadStream();
   const chunks = [];

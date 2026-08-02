@@ -1,15 +1,4 @@
-/**
- * Vinland CLI Command Sweep - Playwright Integration Test
- *
- * Executes every command registered in SystemCommands.js (34 total) via the
- * CLI input and asserts:
- *   - The command executes without an ERROR toast
- *     (CommandLine.execute shows `ERROR: <msg>` on thrown exceptions)
- *   - Deterministic commands open their expected target UI (modal/overlay)
- *
- * Run with:
- *   npx playwright test tests/cli-commands.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -34,7 +23,7 @@ async function runCLI(page, command) {
   await page.waitForTimeout(400);
 }
 
-/** Assert the command did NOT produce an ERROR toast, then close any overlay. */
+
 async function expectCommandOk(page, command, targetSelector, opts = {}) {
   const { timeout = 7000 } = opts;
   await clearToasts(page);

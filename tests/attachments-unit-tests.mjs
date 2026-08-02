@@ -1,13 +1,4 @@
-/**
- * Vinland AttachmentsManager - Unit Tests
- *
- * Tests the REAL js/core/AttachmentsManager.js against the REAL
- * js/core/Storage.js DB with a stubbed IndexedDB layer (in-memory Map).
- * No copied extracts - tests cannot drift from source.
- *
- * Run with: node tests/attachments-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

@@ -1,13 +1,6 @@
 import { DB } from './Storage.js';
 
-/* =========================================
-   ATTACHMENTS MANAGER
-   IndexedDB-backed file attachment store.
-   - Stores binary blobs in the existing `media_assets` store (OPERATOR_VAULT)
-   - Maintains a metadata index in localStorage (VINLAND_ATTACHMENTS_INDEX)
-   - Provides object URL lifecycle management
-   - Handles images, PDFs, and other file types
-   ========================================= */
+
 
 const INDEX_KEY = 'VINLAND_ATTACHMENTS_INDEX';
 const MAX_THUMBNAIL_SIZE = 200; // px for thumbnail in browser
@@ -51,12 +44,7 @@ export const AttachmentsManager = {
 
     // ─── PUBLIC API ───
 
-    /**
-     * Upload a file to the attachment store.
-     * @param {File} file - The file to upload
-     * @param {Object} [extraMeta] - Optional extra metadata to store
-     * @returns {Promise<string>} The attachment ID
-     */
+    
     upload: function(file, extraMeta) {
         var self = this;
         return new Promise(function(resolve, reject) {
@@ -124,12 +112,7 @@ export const AttachmentsManager = {
         });
     },
 
-    /**
-     * Get a blob by attachment ID from IndexedDB.
-     * Caches object URLs for fast subsequent access.
-     * @param {string} attachmentId
-     * @returns {Promise<Blob|null>}
-     */
+    
     getBlob: function(attachmentId) {
         var self = this;
         return new Promise(function(resolve, reject) {
@@ -149,11 +132,7 @@ export const AttachmentsManager = {
         });
     },
 
-    /**
-     * Get an object URL for an attachment. Caches the URL for reuse.
-     * @param {string} attachmentId
-     * @returns {Promise<string|null>} Object URL or null if not found
-     */
+    
     getURL: function(attachmentId) {
         var self = this;
 
@@ -176,12 +155,7 @@ export const AttachmentsManager = {
         });
     },
 
-    /**
-     * Get a data URL for an attachment (for embedding into note blocks
-     * whose image renderer expects `src`/data URLs, not raw blobs).
-     * @param {string} attachmentId
-     * @returns {Promise<string|null>} Data URL or null if not found
-     */
+    
     getDataURL: function(attachmentId) {
         var self = this;
         return new Promise(function(resolve, reject) {
@@ -197,10 +171,7 @@ export const AttachmentsManager = {
         });
     },
 
-    /**
-     * Revoke an object URL for cleanup.
-     * @param {string} attachmentId
-     */
+    
     revokeURL: function(attachmentId) {
         if (objectUrls[attachmentId]) {
             URL.revokeObjectURL(objectUrls[attachmentId]);
@@ -208,27 +179,17 @@ export const AttachmentsManager = {
         }
     },
 
-    /**
-     * List all attachment metadata entries.
-     * @returns {Array} Array of metadata objects
-     */
+    
     list: function() {
         return this._getIndex();
     },
 
-    /**
-     * List only image attachments (filtered).
-     * @returns {Array} Array of image metadata objects
-     */
+    
     listImages: function() {
         return this._getIndex().filter(function(m) { return m.isImage; });
     },
 
-    /**
-     * Get metadata for a single attachment
-     * @param {string} attachmentId
-     * @returns {Object|null}
-     */
+    
     getMeta: function(attachmentId) {
         var index = this._getIndex();
         for (var i = 0; i < index.length; i++) {
@@ -237,12 +198,7 @@ export const AttachmentsManager = {
         return null;
     },
 
-    /**
-     * Delete an attachment from IndexedDB and metadata index.
-     * Also revokes any cached object URL.
-     * @param {string} attachmentId
-     * @returns {Promise}
-     */
+    
     delete: function(attachmentId) {
         var self = this;
         return new Promise(function(resolve, reject) {
@@ -274,10 +230,7 @@ export const AttachmentsManager = {
         });
     },
 
-    /**
-     * Get total storage size estimate (sum of all file sizes).
-     * @returns {number} Total bytes
-     */
+    
     getTotalSize: function() {
         var index = this._getIndex();
         var total = 0;
@@ -289,12 +242,7 @@ export const AttachmentsManager = {
 
     // ─── INTERNAL ───
 
-    /**
-     * Create and cache an object URL from a blob.
-     * @param {string} attachmentId
-     * @param {Blob} blob
-     * @returns {string} The object URL
-     */
+    
     _createObjectUrl: function(attachmentId, blob) {
         // Revoke existing URL if any
         if (objectUrls[attachmentId]) {
@@ -305,14 +253,7 @@ export const AttachmentsManager = {
         return url;
     },
 
-    /**
-     * Get a thumbnail-sized object URL for an image attachment.
-     * Creates a scaled-down canvas-based thumbnail blob.
-     * Falls back to full-size URL if thumbnail generation fails.
-     * @param {string} attachmentId
-     * @param {number} [maxSize] - Max dimension in px (default 200)
-     * @returns {Promise<string|null>}
-     */
+    
     getThumbnailURL: function(attachmentId, maxSize) {
         maxSize = maxSize || MAX_THUMBNAIL_SIZE;
         var self = this;
@@ -372,11 +313,7 @@ export const AttachmentsManager = {
         });
     },
 
-    /**
-     * Open the attachment browser modal.
-     * Shows all uploaded attachments in a grid and lets the user pick one to insert.
-     * @param {Function} onSelect - Callback with attachmentId and meta when user selects an attachment
-     */
+    
     openBrowser: function(onSelect) {
         if (!window.ModalManager) {
             console.error('[AttachmentsManager] ModalManager not available');
@@ -528,10 +465,7 @@ export const AttachmentsManager = {
         ModalManager.open('attachment-browser-modal');
     },
 
-    /**
-     * Create the modal HTML if it doesn't exist in index.html.
-     * @returns {HTMLElement}
-     */
+    
     _createModal: function() {
         var div = document.createElement('div');
         div.id = 'attachment-browser-modal';
@@ -560,11 +494,7 @@ export const AttachmentsManager = {
         return div;
     },
 
-    /**
-     * Get a file-type icon for non-image files.
-     * @param {string} mimeType
-     * @returns {string}
-     */
+    
     _getFileIcon: function(mimeType) {
         if (mimeType.indexOf('pdf') !== -1) return '📄';
         if (mimeType.indexOf('text') !== -1) return '📝';
@@ -574,11 +504,7 @@ export const AttachmentsManager = {
         return '📎';
     },
 
-    /**
-     * Format byte size to human-readable string.
-     * @param {number} bytes
-     * @returns {string}
-     */
+    
     _formatSize: function(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';

@@ -1,19 +1,4 @@
-/**
- * Vinland Backup & Sync - Playwright Integration Test
- *
- * Tests backup and sync features:
- * - Sync tab exists in settings navigation
- * - Backup interval selector in sync tab
- * - Changing interval persists to config
- * - Backup Now button sets last_backup_time
- * - Sync tab displays backup/drive status
- * - Drive connect/disconnect button visibility
- * - Backup interval persists across reload
- * - Backup Now triggers download via BackupManager
- *
- * Run with:
- *   npx playwright test tests/backup-sync.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL } from './helpers.mjs';
@@ -42,7 +27,7 @@ test.beforeEach(async ({ page }) => {
           window.State.CONFIG.drive_last_sync = null;
         }
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
   await page.waitForTimeout(300);
 });
@@ -54,7 +39,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 
@@ -224,7 +209,7 @@ test('7. Backup interval persists across reloads', async ({ page }) => {
       // Persist to localStorage directly (saveConfig not exposed on window)
       try {
         localStorage.setItem('OPERATOR_CONFIG_V3', JSON.stringify(window.State.CONFIG));
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     }
   });
 

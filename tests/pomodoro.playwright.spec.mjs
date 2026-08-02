@@ -1,13 +1,4 @@
-/**
- * Vinland Pomodoro Timer - Playwright Integration Tests
- *
- * Tests the complete Pomodoro timer workflow: start, pause, resume,
- * stop, completion HUD, and dismissal.
- *
- * Run with:
- *   npx playwright test tests/pomodoro.playwright.spec.mjs
- *   npx playwright test tests/pomodoro.playwright.spec.mjs --headed
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -25,10 +16,7 @@ async function runCLI(page, command) {
   await page.waitForTimeout(500);
 }
 
-/**
- * Start a pomodoro timer programmatically with a given duration string.
- * Returns immediately - the timer runs in the browser.
- */
+
 async function startPomodoro(page, duration = '30s') {
   await page.evaluate((d) => {
     if (window.Pomodoro) window.Pomodoro.start(d);

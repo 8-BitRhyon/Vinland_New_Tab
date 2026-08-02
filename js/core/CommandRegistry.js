@@ -1,9 +1,4 @@
-/**
- * Compute fuzzy match score between a query and a target string.
- * Returns { score, matched } where matched is a boolean array aligned
- * with target chars indicating which positions matched the query.
- * Score is 0 when not all query chars can be matched in sequence.
- */
+
 function _fuzzyMatch(query, target) {
     if (!query || !target) return { score: 0, matched: [] };
     const q = query.toLowerCase();
@@ -59,15 +54,7 @@ export { _fuzzyMatch };
 export const CommandRegistry = {
     commands: [],
 
-    /**
-     * Register a new command
-     * @param {string} id - Unique ID (e.g. 'notes:create')
-     * @param {string} title - Display name (e.g. 'Create New Note')
-     * @param {string} trigger - Typed keyword (e.g. 'note')
-     * @param {function} action - The function to run
-     * @param {string} icon - Optional icon char/html
-     * @param {string} hint - Optional syntax hint
-     */
+    
     register: function({ id, title, trigger, action, icon = '>', hint = '' }) {
         // Prevent duplicates
         if (this.commands.find(c => c.id === id)) return;
@@ -75,11 +62,7 @@ export const CommandRegistry = {
         this.commands.push({ id, title, trigger: trigger.toLowerCase(), action, icon, hint });
     },
 
-    /**
-     * Find commands matching the input
-     * @param {string} query 
-     * @returns {Array} Array of { command, score, matchField, matchedIndices }
-     */
+    
     search: function(query) {
         if (!query) return [];
         const q = query.toLowerCase().trim();

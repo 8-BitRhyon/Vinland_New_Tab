@@ -1,9 +1,7 @@
 import { State } from '../core/Store.js';
 import { play8BitSound } from '../core/Audio.js';
 
-/* =========================================
-   POMODORO TIMER
-   ========================================= */
+
 
 // Local state replacing global State.POMODORO
 export let POMODORO = {

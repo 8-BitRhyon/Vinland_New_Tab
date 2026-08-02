@@ -1,14 +1,4 @@
-/**
- * Vinland Snap-to-Grid - Unit Tests
- *
- * Tests pure-logic extracts from CanvasManager snap-to-grid helpers:
- * - _snapToGrid() — rounds a value to the nearest grid multiple
- * - _snapNodePosition() — snaps node x/y and updates DOM element
- * - grid toggle behavior — enabling/disabling snap
- *
- * Run with: node tests/snap-grid-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

@@ -3,13 +3,7 @@ import { safeText } from '../core/Utils.js';
 import { saveData } from '../core/Storage.js';
 import { Notes } from '../modules/NotesController.js';
 
-/* =========================================
-   TEMPLATE BROWSER - Cmd+Shift+N
-   =========================================
-   Opens a modal showing all notes in the /Templates folder.
-   Selecting a template creates a new note pre-populated
-   with the template's blocks/content.
-*/
+
 
 export const TemplateBrowser = {
     isOpen: false,
@@ -91,7 +85,7 @@ export const TemplateBrowser = {
         this.selectedIndex = 0;
     },
 
-    /* ── DOM Injection ─────────────────────── */
+    
 
     _injectDOM: function() {
         if (document.getElementById('template-browser-overlay')) return;
@@ -134,7 +128,7 @@ export const TemplateBrowser = {
         }
     },
 
-    /* ── Render ────────────────────────────── */
+    
 
     _render: function() {
         var results = document.getElementById('template-browser-results');
@@ -273,7 +267,7 @@ export const TemplateBrowser = {
         }
     },
 
-    /* ── Apply Template ────────────────────── */
+    
 
     _applyTemplate: function(index) {
         var filtered = this._getFiltered();

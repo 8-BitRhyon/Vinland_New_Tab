@@ -1,15 +1,4 @@
-/**
- * Vinland Backlinks Panel - Playwright Integration Test
- *
- * Tests the backlinks panel end-to-end:
- * - Creates two notes with bidirectional [[wiki links]]
- * - Verifies backlinks appear in both directions
- * - Confirms clicking a backlink navigates to the target note
- * - Verifies the backlinks panel correctly updates after navigation
- *
- * Run with:
- *   npx playwright test tests/backlinks.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -45,10 +34,7 @@ function getFirstBlock(page) {
     .locator('[contenteditable="true"]').first();
 }
 
-/**
- * Create a note via CLI, fill its content, wait for auto-save, and close.
- * Uses a unique title to avoid collisions.
- */
+
 async function createNoteWithContent(page, title, content) {
   await runCLI(page, `note ${title}`);
   await waitForEditor(page);
@@ -61,10 +47,7 @@ async function createNoteWithContent(page, title, content) {
   await closeEditor(page);
 }
 
-/**
- * Open a note by its exact title using Notes.openByTitle().
- * This is more reliable than clicking sidebar/Quick Notes items.
- */
+
 async function openNoteByTitle(page, title) {
   const opened = await page.evaluate((t) => {
     if (window.Notes && window.Notes.openByTitle) {
@@ -77,10 +60,7 @@ async function openNoteByTitle(page, title) {
   return opened;
 }
 
-/**
- * Get the text content of the backlinks panel header.
- * Returns empty string if the panel is not visible/active.
- */
+
 async function getBacklinksHeaderText(page) {
   return await page.evaluate(() => {
     const panel = document.getElementById('note-backlinks-panel');
@@ -91,10 +71,7 @@ async function getBacklinksHeaderText(page) {
   });
 }
 
-/**
- * Get the list of backlink item titles shown in the panel.
- * Returns an empty array if the panel is not visible/active.
- */
+
 async function getBacklinkTitles(page) {
   return await page.evaluate(() => {
     const panel = document.getElementById('note-backlinks-panel');
@@ -107,9 +84,7 @@ async function getBacklinkTitles(page) {
   });
 }
 
-/**
- * Click on a backlink item by its title text.
- */
+
 async function clickBacklinkByTitle(page, title) {
   await page.evaluate((t) => {
     const panel = document.getElementById('note-backlinks-panel');
@@ -126,9 +101,7 @@ async function clickBacklinkByTitle(page, title) {
   await page.waitForTimeout(600);
 }
 
-/**
- * Check if the backlinks panel exists and is in the given state.
- */
+
 async function getBacklinksPanelState(page) {
   return await page.evaluate(() => {
     const p = document.getElementById('note-backlinks-panel');
@@ -162,7 +135,7 @@ test.beforeEach(async ({ page }) => {
       if (window.State) {
         if (Array.isArray(window.State.NOTES)) window.State.NOTES.length = 0;
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
 
   await page.waitForTimeout(300);
@@ -176,7 +149,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

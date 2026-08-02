@@ -1,9 +1,6 @@
 import { State } from '../core/Store.js';
 
-/* =========================================
-   CORE SYSTEM: MODAL MANAGER
-   Handles stacking, clicking out, and ESC
-   ========================================= */
+
 export const ModalManager = {
     stack: [], 
 

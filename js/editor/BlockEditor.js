@@ -4,9 +4,7 @@ import { PageManager } from './PageManager.js';
 import { ModalManager } from '../ui/ModalManager.js';
 import { escapeHtml, escapeAttr, sanitizeLinkUrl } from '../core/Utils.js';
 
-/* =========================================
-   HISTORY MANAGER (Undo/Redo)
-   ========================================= */
+
 export const HistoryManager = {
     stack: [],
     redoStack: [],
@@ -50,9 +48,7 @@ export const HistoryManager = {
     }
 };
 
-/* =========================================
-   BLOCK EDITOR ENGINE
-   ========================================= */
+
 
 // Global Listeners
 document.addEventListener('keydown', function(e) {
@@ -1227,11 +1223,7 @@ export const BlockEditor = {
     },
 
 
-    /**
-     * Build the shared block chrome: drag handle, type badge, duplicate button,
-     * level indent, alignment, and color. Appends chrome to the wrapper and
-     * returns the drag handle element (for DnD wiring + SlashMenu in renderBlock).
-     */
+    
     _createBlockChrome: function(block, wrapper) {
         var self = this;
         var dragHandle = document.createElement('div');

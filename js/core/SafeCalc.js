@@ -1,6 +1,4 @@
-/* =========================================
-   SAFE CALCULATOR (CSP Compliant)
-   ========================================= */
+
 
 export function safeCalculate(expression) {
     if (!expression) return '';

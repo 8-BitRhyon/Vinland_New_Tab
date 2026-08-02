@@ -1,20 +1,4 @@
-/**
- * Vinland BackupManager._updateDriveFile - Unit Tests
- *
- * Tests the REAL js/features/BackupManager.js against a mocked global.fetch.
- * No copied extracts — tests cannot drift from source.
- *
- * Covers the sync audit fix (commit 9080ab3) behaviours:
- *   - 200 success            → callback(true, fileId)
- *   - 404 (file gone)        → resets fileId + delegates to _createDriveFile (recreate)
- *   - 401/403 (auth)         → refreshDriveToken once, retry a single time
- *   - 401 → refresh fail     → callback(false), NO retry, NO create (no duplicate)
- *   - 401 retried → still 401→ mark disconnected, NO create (no duplicate)
- *   - network rejection      → callback(false)
- *
- * Run with: node tests/backup-manager-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

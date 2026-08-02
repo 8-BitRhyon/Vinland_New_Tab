@@ -1,14 +1,4 @@
-/**
- * Vinland Wiki-link auto-routing - Playwright Integration Test
- *
- * Regression guard for the canvas wiki-link feature (`CanvasManager._routeWikiLinks`):
- * typing `[[Note Title]]` into a text node's body, where a note with that title
- * exists, should auto-create a `file` node for the target and an edge from the
- * text node to it (marked `isWikiLink`). The link must also survive a reload.
- *
- * Run with:
- *   npx playwright test tests/wikilink-routing.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

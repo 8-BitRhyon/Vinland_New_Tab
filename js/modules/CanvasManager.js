@@ -137,7 +137,7 @@ export const CanvasManager = {
                 savedAt: Date.now()
             };
             sessionStorage.setItem('vinland_canvas_recovery_' + note.id, JSON.stringify(snapshot));
-        } catch (e) { /* sessionStorage may be full */ }
+        } catch (e) {  }
     },
 
     _checkRecovery: function(noteId) {
@@ -155,7 +155,7 @@ export const CanvasManager = {
     _clearRecoverySnapshot: function(noteId) {
         try {
             sessionStorage.removeItem('vinland_canvas_recovery_' + noteId);
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
     },
     _getWorldCenter: function() {
         const rect = this.container.getBoundingClientRect();
@@ -517,7 +517,7 @@ export const CanvasManager = {
         this.toolbar = document.createElement('div');
         // Restore collapsed state from localStorage
         var isCollapsed = false;
-        try { isCollapsed = localStorage.getItem('vinland_canvas_toolbar_collapsed') === 'true'; } catch (e) { /* ignore */ }
+        try { isCollapsed = localStorage.getItem('vinland_canvas_toolbar_collapsed') === 'true'; } catch (e) {  }
 
         this.toolbar.className = 'canvas-toolbar' + (isCollapsed ? ' collapsed' : '');
         this.toolbar.innerHTML = `
@@ -1559,7 +1559,7 @@ export const CanvasManager = {
                 var isCollapsed = this.toolbar.classList.toggle('collapsed');
                 toggleBtn.textContent = isCollapsed ? '\u25B6' : '\u25C0';
                 toggleBtn.title = isCollapsed ? 'Expand toolbar' : 'Collapse toolbar';
-                try { localStorage.setItem('vinland_canvas_toolbar_collapsed', isCollapsed ? 'true' : 'false'); } catch (e) { /* ignore */ }
+                try { localStorage.setItem('vinland_canvas_toolbar_collapsed', isCollapsed ? 'true' : 'false'); } catch (e) {  }
             });
         }
 

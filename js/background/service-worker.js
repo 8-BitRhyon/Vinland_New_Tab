@@ -1,12 +1,4 @@
-/**
- * Vinland Background Service Worker (Manifest V3)
- *
- * Handles:
- *  - Extension lifecycle (install/update)
- *  - Pomodoro completion alarms → native OS notifications
- *  - Notification click → opens Vinland new tab
- *  - Message relay from extension pages (new tab)
- */
+
 
 // ──────────────────────────────────────────
 // Lifecycle

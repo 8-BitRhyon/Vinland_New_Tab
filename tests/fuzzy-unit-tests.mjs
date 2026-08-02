@@ -1,12 +1,4 @@
-/**
- * Vinland Fuzzy Matching — Unit Tests
- *
- * Tests the _fuzzyMatch() algorithm used by CommandRegistry.search()
- * for CLI command suggestions.
- *
- * Run with: node tests/fuzzy-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 import { _fuzzyMatch } from '../js/core/CommandRegistry.js';

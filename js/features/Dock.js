@@ -2,9 +2,7 @@ import { State } from '../core/Store.js';
 import { SettingsUI } from '../ui/SettingsUI.js';
 import { saveConfig } from '../core/Config.js';
 
-/* =========================================
-   DOCK MODULE
-   ========================================= */
+
 
 export const Dock = {
     init: function() {

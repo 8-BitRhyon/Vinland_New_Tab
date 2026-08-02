@@ -5,6 +5,11 @@ knowledge management (PKM) hub. Vanilla JS (ES modules) + D3 v7, **no bundler,
 no framework, no build step**. Everything persists to `localStorage` (+ IndexedDB
 for media).
 
+> **License:** Apache-2.0 (`LICENSE`). **Open-source pass (2026-08):** the
+> multi-line comments were harvested out of the source into
+> [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — read it before touching code;
+> keep new knowledge there, not in block comments.
+
 > The canonical architecture reference is [`docs/design.md`](docs/design.md).
 > It is verified against source and is the source of truth for module inventory,
 > boot order, command list, and storage schema. `PROJECT_BLUEPRINT.md` was
@@ -14,8 +19,8 @@ for media).
 ## Commands
 
 ```bash
-# Unit tests (Node, zero deps, built-in assert) - 14 suites, run sequentially
-# by tests/run-all.mjs (see that file for the full suite list):
+# Unit tests (Node, zero deps, built-in assert) - 20+ suites (723 tests), run
+# sequentially by tests/run-all.mjs (see that file for the full suite list):
 npm test
 #   OR directly: node tests/run-all.mjs
 #   Single suite: node tests/notes-unit-tests.mjs
@@ -33,8 +38,9 @@ There is **no build, lint, or format step** and no eslint/prettier config.
 Loading the extension is done manually in Chrome: `chrome://extensions` →
 "Load unpacked" → select the project folder.
 
-CI (`.github/workflows/ci.yml`) runs the 14 unit suites **and** the Playwright
-E2E suite (split into 4 parallel shards) on push/PR to `main`. Run the full
+CI (`.github/workflows/ci.yml`) runs the unit suites **and** the Playwright
+E2E suite (34 specs, split into 4 parallel shards, plus a CLI command sweep and
+a real-extension release-candidate smoke) on push/PR to `main`. Run the full
 E2E suite locally with `npm run test:e2e`.
 
 ## Architecture (the non-obvious parts)
@@ -65,7 +71,7 @@ E2E suite locally with `npm run test:e2e`.
   etc.). Modules read/write `State` in memory and persist through `saveData()`.
 
 - **`CommandRegistry` (`js/core/commandregistry.js`) is the command bus.** All
-  **33 CLI commands** are registered in `js/config/SystemCommands.js`. To add a
+  **34 CLI commands** are registered in `js/config/SystemCommands.js`. To add a
   command, register it there; do not wire HTML handlers directly.
 
 - **Layer layout** (`js/`):
@@ -141,7 +147,7 @@ Two distinct test families — do NOT confuse them:
    - Other unit suites: `canvas-unit-tests.mjs`, `dataview-unit-tests.mjs`,
      `metadata-cache-unit-tests.mjs`, `quickopen-unit-tests.mjs`, `import-unit-tests.mjs`.
    - Aggregate runner: `tests/run-all.mjs` (run with `npm test`).
-2. **Playwright E2E** (`tests/*.playwright.spec.mjs` — **30 files**): runs against
+2. **Playwright E2E** (`tests/*.playwright.spec.mjs` — **34 files**): runs against
    a static server. Playwright config auto-starts `python3 -m http.server 9999`
    (killing any process on 8080/8181/9999 first) and serves the repo root.
    `reuseExistingServer` is true. Reports go to `playwright-report/`.

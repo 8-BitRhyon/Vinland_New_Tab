@@ -1,16 +1,4 @@
-/**
- * Vinland P0 Accessibility Baseline - Playwright Integration Test
- *
- * Regression guard for the minimum a11y baseline (see docs/a11y-baseline-spec.md):
- *   - global :focus-visible ring exists
- *   - prefers-reduced-motion reset exists and collapses animation duration
- *   - icon-only buttons carry aria-label
- *   - modals get role=dialog + aria-modal, move focus in, trap Tab, restore on close
- *   - toasts are aria-live=polite
- *
- * Run with:
- *   npx playwright test tests/a11y-baseline.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

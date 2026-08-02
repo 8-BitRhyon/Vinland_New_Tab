@@ -1,17 +1,7 @@
 import { State } from './Store.js';
 import { saveData } from './Storage.js';
 
-/* =========================================
-   METADATA CACHE
-   Phase 0: The "Database Brain"
-   
-   Provides fast metadata indexing for:
-   - YAML frontmatter parsing
-   - Tag extraction
-   - Wiki link tracking
-   - Properties/custom fields
-   - Real-time cache updates
-   ========================================= */
+
 
 export const MetadataCache = {
     // In-memory index: Map<noteId, metadata>
@@ -31,9 +21,7 @@ export const MetadataCache = {
     _cacheTimer: null,
     CACHE_SAVE_DEBOUNCE_MS: 15000,
 
-    /**
-     * Initialize the cache - build index from all notes
-     */
+    
     init: function() {
         if (this.initialized) return;
 
@@ -72,16 +60,7 @@ export const MetadataCache = {
         }
     },
     
-    /**
-     * Parse YAML frontmatter from content
-     * Format:
-     * ---
-     * key: value
-     * tags: [tag1, tag2]
-     * status: Active
-     * ---
-     * Rest of content...
-     */
+    
     parseFrontmatter: function(content) {
         if (!content || typeof content !== 'string') return { frontmatter: {}, body: content || '' };
         
@@ -122,9 +101,7 @@ export const MetadataCache = {
         return { frontmatter, body };
     },
     
-    /**
-     * Extract tags from content (both #hashtags and frontmatter tags)
-     */
+    
     extractTags: function(content, frontmatter) {
         var tags = new Set();
         
@@ -151,9 +128,7 @@ export const MetadataCache = {
         return Array.from(tags);
     },
     
-    /**
-     * Extract wiki links [[Page]] or [[Page|Alias]]
-     */
+    
     extractWikiLinks: function(content) {
         if (!content) return [];
         
@@ -171,9 +146,7 @@ export const MetadataCache = {
         return links;
     },
     
-    /**
-     * Update metadata for a specific note
-     */
+    
     updateNote: function(noteId, shouldSave = true) {
         if (!noteId) return null;
         
@@ -237,9 +210,7 @@ export const MetadataCache = {
         return metadata;
     },
     
-    /**
-     * Remove note from cache
-     */
+    
     removeNote: function(noteId) {
         if (!this.index.has(noteId)) return;
         
@@ -290,9 +261,7 @@ export const MetadataCache = {
         this._markCacheDirty();
     },
     
-    /**
-     * Update tag index
-     */
+    
     updateTagIndex: function(noteId, tags) {
         // First, remove old tags for this note
         this.tagIndex.forEach((noteSet, tag) => {
@@ -311,9 +280,7 @@ export const MetadataCache = {
         });
     },
     
-    /**
-     * Update link index and backlinks
-     */
+    
     updateLinkIndex: function(noteId, links) {
         // Clear old links for this note
         this.linkIndex.forEach((noteSet, target) => {
@@ -350,40 +317,30 @@ export const MetadataCache = {
         });
     },
     
-    /**
-     * Get metadata for a note
-     */
+    
     get: function(noteId) {
         return this.index.get(noteId) || null;
     },
     
-    /**
-     * Get all notes with a specific tag
-     */
+    
     getByTag: function(tag) {
         var noteIds = this.tagIndex.get(tag.toLowerCase()) || new Set();
         return Array.from(noteIds).map(id => this.index.get(id)).filter(Boolean);
     },
     
-    /**
-     * Get all backlinks to a note
-     */
+    
     getBacklinks: function(noteId) {
         var backlinkIds = this.backlinks.get(noteId) || new Set();
         return Array.from(backlinkIds).map(id => this.index.get(id)).filter(Boolean);
     },
     
-    /**
-     * Get all notes linking to a specific title
-     */
+    
     getLinkingNotes: function(title) {
         var noteIds = this.linkIndex.get(title.toLowerCase()) || new Set();
         return Array.from(noteIds).map(id => this.index.get(id)).filter(Boolean);
     },
     
-    /**
-     * Get all tags across all notes
-     */
+    
     getAllTags: function() {
         var tagCounts = {};
         this.tagIndex.forEach((noteSet, tag) => {
@@ -392,9 +349,7 @@ export const MetadataCache = {
         return tagCounts;
     },
     
-    /**
-     * Search notes by query (simple text search)
-     */
+    
     search: function(query) {
         if (!query || !query.trim()) return [];
         
@@ -429,9 +384,7 @@ export const MetadataCache = {
         return results.sort((a, b) => b.score - a.score).map(r => r.metadata);
     },
     
-    /**
-     * Query notes by frontmatter property
-     */
+    
     query: function(propertyKey, propertyValue) {
         var results = [];
         
@@ -444,12 +397,7 @@ export const MetadataCache = {
         return results;
     },
     
-    /**
-     * Cheap vault fingerprint: note count + newest modified timestamp + a
-     * rolling hash of note ids. Used to detect whether the vault changed
-     * since the persisted cache was written (so stale caches force a rebuild
-     * instead of serving wrong tags/links/backlinks).
-     */
+    
     _notesFingerprint: function() {
         var notes = State.NOTES || [];
         var n = notes.length;
@@ -468,9 +416,7 @@ export const MetadataCache = {
         return n + ':' + maxMod + ':' + (acc >>> 0);
     },
 
-    /**
-     * Schedule a debounced full-index write.
-     */
+    
     _markCacheDirty: function() {
         this._cacheDirty = true;
         if (this._cacheTimer) return;
@@ -484,9 +430,7 @@ export const MetadataCache = {
         }, this.CACHE_SAVE_DEBOUNCE_MS);
     },
 
-    /**
-     * Flush any pending debounced cache write immediately (unload hook).
-     */
+    
     _flushCache: function() {
         if (this._cacheTimer) {
             clearTimeout(this._cacheTimer);
@@ -498,9 +442,7 @@ export const MetadataCache = {
         }
     },
 
-    /**
-     * Save cache to localStorage (optional - for persistence)
-     */
+    
     saveCache: function() {
         // Convert Maps to objects for JSON serialization
         var cacheData = {
@@ -538,11 +480,7 @@ export const MetadataCache = {
         }
     },
     
-    /**
-     * Load cache from localStorage. Returns true only when the cache is
-     * schema-valid AND its fingerprint matches the current vault — otherwise
-     * false (caller must rebuild).
-     */
+    
     loadCache: function() {
         try {
             var cached = localStorage.getItem('VINLAND_METADATA_CACHE');
@@ -578,9 +516,7 @@ export const MetadataCache = {
         }
     },
     
-    /**
-     * Get statistics about the cache
-     */
+    
     getStats: function() {
         return {
             totalNotes: this.index.size,

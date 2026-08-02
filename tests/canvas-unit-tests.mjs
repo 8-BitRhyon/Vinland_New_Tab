@@ -1,16 +1,4 @@
-/**
- * Vinland CanvasManager - Unit Tests
- *
- * Tests pure-logic extracts from CanvasManager covering:
- * - Undo/redo history stack (save, undo, redo, cap at 50, empty, full cycle)
- * - Clipboard copy (empty selection, single node, multi-node, edges between selected)
- * - Duplicate selected nodes (empty selection, single node, multi-node, edges preserved)
- * - Viewport persistence (save/restore/replace)
- * - Zoom-to-fit math (bounding box, scale, translate, capping)
- *
- * Run with: node tests/canvas-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

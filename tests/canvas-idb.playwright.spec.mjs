@@ -1,20 +1,4 @@
-/**
- * Vinland Canvas IndexedDB offload - Playwright Integration Test
- *
- * Regression guard for the canvas-storage-quota limitation: large canvas data
- * was previously serialized directly into the per-note localStorage shard and
- * could blow the 5 MB budget. Now `note.canvasData` is mirrored to IndexedDB
- * (`OPERATOR_VAULT`/`media_assets`, key `vinland_canvas_<id>`); the localStorage
- * shard keeps only a lightweight `{ _external: true }` marker.
- *
- * This asserts two things:
- *   (A) after adding nodes, the localStorage shard carries the marker and NOT
- *       the node payload (offload worked);
- *   (B) after a reload, the canvas rehydrates from IndexedDB (round-trip).
- *
- * Run with:
- *   npx playwright test tests/canvas-idb.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

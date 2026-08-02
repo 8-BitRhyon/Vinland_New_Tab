@@ -11,9 +11,7 @@ import { sanitizePath } from '../editor/PageManager.js';
 import { GraphManager } from './GraphManager.js';
 
 
-/* =========================================
-   NOTES CONTROLLER
-   ========================================= */
+
 
 export const Notes = {
     activeNoteId: null,
@@ -2387,9 +2385,7 @@ export const Notes = {
     }
 };
 
-/* =========================================
-   STANDALONE FUNCTIONS
-   ========================================= */
+
 
 export function renderNotes() {
     if (typeof Notes !== 'undefined' && Notes.renderNotes) {

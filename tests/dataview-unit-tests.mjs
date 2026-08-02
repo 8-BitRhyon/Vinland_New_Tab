@@ -1,13 +1,4 @@
-/**
- * Vinland DataviewQuery.parseQuery() - Unit Tests
- *
- * Tests the Dataview-style query parser in isolation.
- * The parseQuery() method is a pure function that takes a string
- * and returns a parsed query object — no DOM or module state needed.
- *
- * Run with: node tests/dataview-unit-tests.mjs
- * (aggregated by tests/run-all.mjs — add to the suites array)
- */
+
 
 import assert from 'node:assert/strict';
 
@@ -65,10 +56,7 @@ function assertParseResult(actual, expected) {
     }
 }
 
-/**
- * Assert that parseQuery returns an object with source: null
- * (caller checks !parsed.source to detect invalid queries)
- */
+
 function assertNoSource(actual) {
     assert.ok(actual !== null, 'parseQuery returned null (expected object with source:null)');
     assert.equal(actual.source, null, 'source should be null for invalid queries');
@@ -924,16 +912,7 @@ function makeNoteId() {
     return 'n_' + (++noteIdCounter) + '_' + Date.now();
 }
 
-/**
- * Set up standard test notes.
- * n1,n2: tagged #project, different paths and modified times
- * n3: tagged #journal, in /Journal folder
- * n4: no tags, in /Projects/Active folder
- * n5: tagged #tasks, has task-type blocks
- * n6: no tags or special features
- * n7: has YAML frontmatter with status + priority, tagged #meta
- * n8: has YAML frontmatter with different status, tagged #meta
- */
+
 function setupStandardNotes() {
     var now = Date.now();
     State.NOTES = [

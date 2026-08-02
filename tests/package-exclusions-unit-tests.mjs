@@ -1,19 +1,4 @@
-/**
- * Vinland Store-Zip Exclusions - Unit Tests
- *
- * Guards the Chrome-Web-Store packaging exclusions in
- * scripts/package-release.sh so dev/test junk can never silently ship:
- *
- *   - STATIC: the script must contain the required -x exclusion patterns
- *     (.git/.Git, .venv, .venv-brand, tests, docs, node_modules, ...).
- *   - BEHAVIORAL: actually build the store zip and assert those paths are
- *     NOT in the archive, while the real payload (index.html, manifest.json,
- *     js/) IS present. A build failure (e.g. the 80MB size guard firing)
- *     also fails this suite.
- *
- * Run with: node tests/package-exclusions-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

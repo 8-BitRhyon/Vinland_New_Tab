@@ -1,17 +1,4 @@
-/**
- * Vinland Canvas Additional E2E Tests
- *
- * Fills coverage gaps from the existing 28 canvas tests:
- * - File node embedding via toolbar (#canvas-add-file)
- * - Group label editing
- * - Edge label rendering
- * - Keyboard Tab creates connected child node
- * - Single-node copy/paste
- * - Zoom-to-fit
- *
- * Run with:
- *   npx playwright test tests/canvas-additional.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -89,7 +76,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_BOARDS_')
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

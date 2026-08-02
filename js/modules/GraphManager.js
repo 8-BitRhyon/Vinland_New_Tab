@@ -38,10 +38,7 @@ export const GraphManager = {
 
     // ─── Layout Persistence Controls ─────────────────────────
 
-    /**
-     * Pin all current nodes at their current positions (set fx/fy).
-     * Freezes the entire layout so it stays exactly as arranged.
-     */
+    
     pinAllNodes: function() {
         if (!this.simulation) return;
         var nodes = this.simulation.nodes();
@@ -70,10 +67,7 @@ export const GraphManager = {
         }
     },
 
-    /**
-     * Reset layout entirely: clear all saved positions and unpin all nodes.
-     * Force simulation will auto-layout from scratch on next render.
-     */
+    
     resetLayout: function() {
         // Re-render first (saveLayout at top of render saves the old layout,
         // then we clear it below to prevent saveLayout from undoing the reset)
@@ -106,10 +100,7 @@ export const GraphManager = {
         }
     },
 
-    /**
-     * Unpin all nodes AND clear saved positions so nodes stay free
-     * across renders (mode toggles, reopen, etc.)
-     */
+    
     unpinAllNodes: function() {
         if (!this.simulation) return;
         var nodes = this.simulation.nodes();
@@ -297,10 +288,7 @@ export const GraphManager = {
 
     // ─── Zoom-To-Fit ───────────────────────────────────────────
 
-    /**
-     * Smoothly animate the camera to fit all given nodes within the viewport.
-     * Uses D3 zoom transform with a transition (lerp animation).
-     */
+    
     _zoomToFit: function(nodes, duration) {
         if (!nodes || nodes.length === 0) return;
         if (!this.svgSelection || !this.zoomBehavior) return;
@@ -341,20 +329,14 @@ export const GraphManager = {
         );
     },
 
-    /**
-     * Public method: fit the graph view to show all visible nodes.
-     * Called from a "fit view" button.
-     */
+    
     fitView: function() {
         if (!this.simulation) return;
         var nodes = this.simulation.nodes();
         this._zoomToFit(nodes, 750);
     },
 
-    /**
-     * Schedule a zoom-to-fit after the force simulation has had time
-     * to arrange nodes (called after render completes).
-     */
+    
     _scheduleZoomFit: function(nodes, delay) {
         var self = this;
         if (this._zoomFitTimer) clearTimeout(this._zoomFitTimer);
@@ -364,9 +346,7 @@ export const GraphManager = {
         }, delay || 350);
     },
 
-    /**
-     * BFS to find all nodes connected to the given node (full chain).
-     */
+    
     _getConnectedNodeIds: function(nodeId) {
         var connected = new Set();
         if (!this.adjacencyList) return connected;
@@ -385,9 +365,7 @@ export const GraphManager = {
         return connected;
     },
 
-    /**
-     * On single-click: zoom camera to fit the clicked node's connected subgraph.
-     */
+    
     _zoomToFitConnected: function(event, d) {
         var connectedIds = this._getConnectedNodeIds(d.id);
         if (connectedIds.size <= 0) return;
@@ -406,7 +384,7 @@ export const GraphManager = {
 
     // ─── Folder Scoping ──────────────────────────────────────────
 
-    /** Build the folder filter dropdown options from active notes */
+    
     _buildFolderOptions: function() {
         var select = document.getElementById('graph-folder-filter');
         if (!select) return;
@@ -434,7 +412,7 @@ export const GraphManager = {
 
     // ─── Tooltip ────────────────────────────────────────────────
 
-    /** Get preview text from a note (strip HTML, truncate) */
+    
     _getNotePreview: function(noteId) {
         var note = State.getNote(noteId);
         if (!note) return '';

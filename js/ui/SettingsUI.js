@@ -841,9 +841,7 @@ export const SettingsUI = {
         else document.body.classList.remove('blur-overlay');
     },
 
-    /* =========================================
-       DYNAMIC CONFIG LISTS (Dock/Commands)
-       ========================================= */
+    
     renderDockLinksConfig: function() {
         var container = document.getElementById('dock-list');
         if (!container) return;
@@ -1067,9 +1065,7 @@ export const SettingsUI = {
         }
     },
    
-    /* =========================================
-       THEME PRESETS UI
-       ========================================= */
+    
     renderThemePresets: function() {
         var select = document.getElementById('cfg-theme-preset');
         if(!select) return;
@@ -1298,9 +1294,7 @@ export const SettingsUI = {
         }
     },
     
-    /* =========================================
-       BACKGROUND SYSTEM
-       ========================================= */
+    
     handleBackgroundUpload: function(e) {
         var files = e.target.files;
         if (!files || files.length === 0) return;
@@ -1564,9 +1558,7 @@ export const SettingsUI = {
         };
     },
 
-    /* =========================================
-       DATA BACKUP & RESTORE (V101)
-       ========================================= */
+    
 
     exportAllData: function() {
         // Single canonical backup builder — same payload as BackupManager's
@@ -1644,9 +1636,7 @@ export const SettingsUI = {
         reader.readAsText(file);
     },
     
-    /* =========================================
-       SETTINGS SEARCH FILTER
-       ========================================= */
+    
 
     bindSearchFilter: function() {
         var searchInput = document.getElementById('config-search-input');
@@ -1903,9 +1893,7 @@ export const SettingsUI = {
         });
     },
 
-    /* =========================================
-       NAV BADGES & UPDATES
-       ========================================= */
+    
 
     updateNavBadges: function() {
         // Modules badge: count dock links + custom commands
@@ -1940,9 +1928,7 @@ export const SettingsUI = {
         }
     },
 
-    /* =========================================
-       SYNC / BACKUP CONTROLS
-       ========================================= */
+    
 
     _syncBtn: function(id) { return document.getElementById(id); },
     _syncMsg: function(id, text, type) {

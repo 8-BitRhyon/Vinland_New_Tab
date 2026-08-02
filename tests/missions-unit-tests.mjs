@@ -1,16 +1,4 @@
-/**
- * Vinland Missions - Unit Tests
- *
- * Tests pure-logic extracts from Missions.js:
- * - addTask() text parsing (priority, time, category)
- * - toggleTaskComplete() / clearCompletedTasks() state mutations
- * - updateStreak() / checkStreakReset() date logic
- * - Priority sorting in renderMissions()
- * - Drag-to-reorder State.TASKS splice logic
- *
- * Run with: node tests/missions-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

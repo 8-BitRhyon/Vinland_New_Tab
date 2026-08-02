@@ -1,21 +1,4 @@
-/**
- * Vinland Canvas Edge Cases - Playwright Integration Tests
- *
- * Stress-tests the CanvasManager to find and guard against edge cases:
- * - 100+ node rendering
- * - Rapid add/delete cycles
- * - Group node creation + persistence
- * - Dangling edge cleanup on node deletion
- * - Double-click node creation
- * - Empty state hints
- * - Pan/zoom state preservation
- * - Invalid URL embed handling
- * - Backlinks panel positioning
- * - Undo/redo after operations
- *
- * Run with:
- *   npx playwright test tests/canvas-edge-cases.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

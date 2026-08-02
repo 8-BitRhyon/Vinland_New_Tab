@@ -1,23 +1,4 @@
-/**
- * Calendar - Monthly Calendar / Agenda View
- *
- * Shows a month-grid calendar where each day cell displays the notes
- * associated with that date (daily logs, notes with dates in titles,
- * frontmatter dates, or creation dates).
- *
- * Opens on:
- *   - `calendar` CLI command
- *   - `Cmd+Shift+C` keyboard shortcut
- *
- * Features:
- *   - Month grid with day-of-week headers
- *   - Prev/next month navigation
- *   - Days with notes show a dot indicator + note count
- *   - Click a day to open/create the daily note
- *   - Click a day with multiple notes to pick from a list
- *   - "Today" button jumps to current month
- *   - Keyboard navigation (arrows to move between days)
- */
+
 
 import { State } from '../core/Store.js';
 
@@ -29,9 +10,7 @@ export const Calendar = {
     selectedDayNotes: [],
     showNotePicker: false,
 
-    /**
-     * Initialize Calendar. Called once from boot.js
-     */
+    
     init: function () {
         var now = new Date();
         this.currentYear = now.getFullYear();
@@ -39,9 +18,7 @@ export const Calendar = {
         this._injectDOM();
     },
 
-    /**
-     * Open the Calendar modal
-     */
+    
     open: function () {
         if (this.isOpen) return;
         this.isOpen = true;
@@ -64,9 +41,7 @@ export const Calendar = {
         this._bindEvents();
     },
 
-    /**
-     * Close the Calendar modal
-     */
+    
     close: function () {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -82,9 +57,7 @@ export const Calendar = {
         this.showNotePicker = false;
     },
 
-    /**
-     * Navigate to previous month
-     */
+    
     prevMonth: function () {
         this.currentMonth--;
         if (this.currentMonth < 0) {
@@ -97,9 +70,7 @@ export const Calendar = {
         this._render();
     },
 
-    /**
-     * Navigate to next month
-     */
+    
     nextMonth: function () {
         this.currentMonth++;
         if (this.currentMonth > 11) {
@@ -112,9 +83,7 @@ export const Calendar = {
         this._render();
     },
 
-    /**
-     * Jump to today's month
-     */
+    
     goToToday: function () {
         var now = new Date();
         this.currentYear = now.getFullYear();
@@ -127,9 +96,7 @@ export const Calendar = {
 
     // ─── Private Methods ─────────────────────────────────────────
 
-    /**
-     * Inject Calendar DOM elements on first init
-     */
+    
     _injectDOM: function () {
         if (document.getElementById('calendar-overlay')) return;
 
@@ -189,9 +156,7 @@ export const Calendar = {
         document.getElementById('calendar-picker-close').onclick = this._closeNotePicker.bind(this);
     },
 
-    /**
-     * Get all notes indexed by date
-     */
+    
     _getNotesByDate: function () {
         var byDate = {};
         var notes = State.NOTES || [];
@@ -239,9 +204,7 @@ export const Calendar = {
         return byDate;
     },
 
-    /**
-     * Render the calendar grid
-     */
+    
     _render: function () {
         var titleEl = document.getElementById('calendar-title');
         var gridEl = document.getElementById('calendar-grid');
@@ -348,9 +311,7 @@ export const Calendar = {
         this._closeNotePicker();
     },
 
-    /**
-     * Handle click on a day cell
-     */
+    
     _onDayClick: function (day, dateStr) {
         this.selectedDay = day;
 
@@ -382,9 +343,7 @@ export const Calendar = {
         }
     },
 
-    /**
-     * Show the note picker for days with multiple notes
-     */
+    
     _showNotePicker: function (dateStr, notes) {
         this.showNotePicker = true;
 
@@ -433,26 +392,20 @@ export const Calendar = {
         }
     },
 
-    /**
-     * Close the note picker
-     */
+    
     _closeNotePicker: function () {
         this.showNotePicker = false;
         var picker = document.getElementById('calendar-note-picker');
         if (picker) picker.style.display = 'none';
     },
 
-    /**
-     * Bind keyboard events
-     */
+    
     _bindEvents: function () {
         this._boundKeyHandler = this._onKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyHandler);
     },
 
-    /**
-     * Unbind keyboard events
-     */
+    
     _unbindEvents: function () {
         if (this._boundKeyHandler) {
             document.removeEventListener('keydown', this._boundKeyHandler);
@@ -460,9 +413,7 @@ export const Calendar = {
         }
     },
 
-    /**
-     * Handle keyboard events
-     */
+    
     _onKeyDown: function (e) {
         if (!this.isOpen) return;
 

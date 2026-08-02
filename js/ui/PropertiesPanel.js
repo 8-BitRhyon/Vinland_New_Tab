@@ -1,7 +1,4 @@
-/* =========================================
-   PROPERTIES PANEL
-   Editable YAML frontmatter in the note editor
-   ========================================= */
+
 
 import { State } from '../core/Store.js';
 import { saveData } from '../core/Storage.js';
@@ -43,9 +40,7 @@ export const PropertiesPanel = {
     // Status presets for autocomplete
     STATUS_OPTIONS: ['active', 'draft', 'review', 'done', 'archived', 'backlog'],
 
-    /**
-     * Initialize global listeners (run once)
-     */
+    
     init: function() {
         if (this._initialized) return;
         this._initialized = true;
@@ -75,9 +70,7 @@ export const PropertiesPanel = {
         console.log('[PropertiesPanel] Initialized');
     },
 
-    /**
-     * Render the properties panel for a note
-     */
+    
     render: function(noteId) {
         this.activeNoteId = noteId;
         if (!noteId) { this._hide(); return; }
@@ -94,9 +87,7 @@ export const PropertiesPanel = {
         this._show();
     },
 
-    /**
-     * Called during save — inject frontmatter into note content
-     */
+    
     syncToNote: function(note) {
         if (!note || !this.activeNoteId || note.id !== this.activeNoteId) return;
         if (!this.panelEl || !this.panelEl.classList.contains('active')) return;
@@ -159,9 +150,7 @@ export const PropertiesPanel = {
         }
     },
 
-    /**
-     * Toggle the panel expanded/collapsed
-     */
+    
     toggle: function() {
         this.expanded = !this.expanded;
         if (this.panelEl) {

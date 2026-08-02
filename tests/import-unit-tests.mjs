@@ -1,13 +1,4 @@
-/**
- * Vinland Import System - Unit Tests
- *
- * Tests the core import logic extracted from SettingsUI.importDataFile().
- * Follows the notes-unit-tests.mjs pattern: pure function extracts tested
- * in isolation with zero dependencies.
- *
- * Run with: node tests/import-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

@@ -1,13 +1,4 @@
-/**
- * Vinland Full-Surface Theming - Playwright Integration Test
- *
- * Verifies that Config.applyTheme() writes all surface tokens (--bg-color,
- * --danger-color, --warning-color, --board-color, --dim-color, --graph-col-*)
- * from CONFIG values, and that the retroma preset toggles the body class.
- *
- * Run with:
- *   npx playwright test tests/theming-surface.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

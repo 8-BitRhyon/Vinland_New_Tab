@@ -1,15 +1,4 @@
-/**
- * Vinland Obsidian Vault Import — Playwright Integration Test
- *
- * Tests the `obsidian-import` CLI command end-to-end:
- * - Uploading .md files with YAML frontmatter
- * - Verifying notes are created with preserved titles, paths, tags
- * - Verifying wiki links and backlinks are indexed
- * - Verifying content is split into blocks correctly
- *
- * Run with:
- *   npx playwright test tests/obsidian-import.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, runCLI, waitForEditor, closeEditor } from './helpers.mjs';
@@ -47,7 +36,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_') || k.startsWith('VINLAND_')
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

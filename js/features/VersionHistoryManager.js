@@ -1,16 +1,7 @@
 import { State } from '../core/Store.js';
 import { saveData } from '../core/Storage.js';
 
-/* =========================================
-   VERSION HISTORY MANAGER
-   Git-style note versioning system
-   =========================================
-   Stores note snapshots in IndexedDB,
-   computes line diffs, and supports rollback.
-   
-   IndexedDB Database: OPERATOR_VERSIONS
-   Object Store:       versions (keyed by noteId)
-   ========================================= */
+
 
 const DB_NAME = 'OPERATOR_VERSIONS';
 const STORE_NAME = 'versions';
@@ -24,7 +15,7 @@ export const VersionHistoryManager = {
     _initialized: false,
     _activeNoteId: null,
 
-    /* ── Lifecycle ─────────────────────────── */
+    
 
     init: function() {
         if (this._initialized) return;
@@ -42,26 +33,16 @@ export const VersionHistoryManager = {
         });
     },
 
-    /* ── Compaction ────────────────────────── */
+    
 
-    /**
-     * Trim a versions array to the per-note cap, keeping the NEWEST entries.
-     * Pure function — unit-testable without IndexedDB.
-     */
+    
     trimToMax: function(versions, max) {
         var cap = (typeof max === 'number' && max > 0) ? max : MAX_VERSIONS_PER_NOTE;
         if (!Array.isArray(versions)) return [];
         return versions.length > cap ? versions.slice(versions.length - cap) : versions;
     },
 
-    /**
-     * H5: global compaction of the versions store. Scans every key and:
-     *   - deletes stores for notes that no longer exist in State.NOTES (orphans
-     *     left by deletion paths that bypass removeNote())
-     *   - trims any store that exceeds MAX_VERSIONS_PER_NOTE (e.g. legacy or
-     *     oversized data from before the cap / external writes)
-     * Resolves with { scanned, removed, trimmed }.
-     */
+    
     prune: function() {
         var self = this;
         return this._getDB().then(function(db) {
@@ -116,7 +97,7 @@ export const VersionHistoryManager = {
         });
     },
 
-    /* ── IndexedDB ─────────────────────────── */
+    
 
     _getDB: function() {
         if (this._dbPromise) return this._dbPromise;
@@ -190,12 +171,9 @@ export const VersionHistoryManager = {
         });
     },
 
-    /* ── Snapshot Capture ──────────────────── */
+    
 
-    /**
-     * Called from Notes.save() before the note is written.
-     * Captures a snapshot if content has changed since the last one.
-     */
+    
     captureSnapshot: function(noteId) {
         if (!noteId || typeof indexedDB === 'undefined') return;
 
@@ -245,9 +223,7 @@ export const VersionHistoryManager = {
         });
     },
 
-    /**
-     * Build full text content from a note (content + blocks).
-     */
+    
     _getNoteContent: function(note) {
         var content = note.content || '';
         if ((!content || !content.trim()) && note.blocks && note.blocks.length > 0) {
@@ -256,9 +232,7 @@ export const VersionHistoryManager = {
         return content;
     },
 
-    /**
-     * Generate an auto-description for the snapshot.
-     */
+    
     _generateMessage: function(versions, newContent) {
         if (versions.length === 0) {
             return 'Initial version';
@@ -291,11 +265,9 @@ export const VersionHistoryManager = {
         return parts.join('/') + ' lines changed';
     },
 
-    /* ── Version Retrieval ─────────────────── */
+    
 
-    /**
-     * Get all versions for a note, newest first.
-     */
+    
     getVersions: function(noteId) {
         if (!noteId) return Promise.resolve([]);
         var self = this;
@@ -305,29 +277,22 @@ export const VersionHistoryManager = {
         });
     },
 
-    /**
-     * Get versions in chronological order (oldest first) for diffing.
-     */
+    
     _getVersionsChronological: function(noteId) {
         if (!noteId) return Promise.resolve([]);
         return this._loadFromDB(noteId);
     },
 
-    /**
-     * Get a specific version by ID.
-     */
+    
     getVersion: function(noteId, versionId) {
         return this._loadFromDB(noteId).then(function(versions) {
             return versions.find(function(v) { return v.id === versionId; }) || null;
         });
     },
 
-    /* ── Rollback ──────────────────────────── */
+    
 
-    /**
-     * Restore a note to a previous version.
-     * Captures a snapshot of current state first (before restoring).
-     */
+    
     rollback: function(noteId, versionId) {
         var self = this;
         return this._loadFromDB(noteId).then(function(versions) {
@@ -377,12 +342,9 @@ export const VersionHistoryManager = {
         });
     },
 
-    /* ── Diff Computation ──────────────────── */
+    
 
-    /**
-     * Compute a line-based diff between two texts.
-     * Returns array of { type: 'add'|'remove'|'same', text: string }.
-     */
+    
     computeDiff: function(oldText, newText) {
         if (!oldText && !newText) return [];
         if (!oldText) {
@@ -406,9 +368,7 @@ export const VersionHistoryManager = {
         return this._addContext(diff);
     },
 
-    /**
-     * Compute LCS-based diff between two arrays of lines.
-     */
+    
     _lcsDiff: function(oldLines, newLines) {
         var result = [];
         var oldLen = oldLines.length;
@@ -450,9 +410,7 @@ export const VersionHistoryManager = {
         return tempResult;
     },
 
-    /**
-     * Add context lines around changes for readability.
-     */
+    
     _addContext: function(diff) {
         var result = [];
         var contextLines = DIFF_CONTEXT_LINES;
@@ -493,12 +451,9 @@ export const VersionHistoryManager = {
         return result;
     },
 
-    /* ── Version Panel UI ──────────────────── */
+    
 
-    /**
-     * Render the version history panel inside the note editor.
-     * Called from Notes.open() alongside renderBacklinks().
-     */
+    
     renderPanel: function(noteId) {
         this._activeNoteId = noteId;
         var panel = this._ensurePanel();
@@ -683,11 +638,9 @@ export const VersionHistoryManager = {
         }
     },
 
-    /* ── Modal ─────────────────────────────── */
+    
 
-    /**
-     * Open the version history modal showing all versions for the active note.
-     */
+    
     openModal: function() {
         var noteId = this._activeNoteId;
         if (!noteId) {
@@ -745,11 +698,9 @@ export const VersionHistoryManager = {
         });
     },
 
-    /* ── Cleanup ───────────────────────────── */
+    
 
-    /**
-     * Remove version history for a deleted note.
-     */
+    
     removeNote: function(noteId) {
         this._deleteFromDB(noteId).catch(function(err) {
             console.warn('[VersionHistory] Failed to delete versions:', err);
@@ -759,7 +710,7 @@ export const VersionHistoryManager = {
         }
     },
 
-    /* ── Utilities ─────────────────────────── */
+    
 
     _escapeHtml: function(str) {
         if (!str) return '';

@@ -1,14 +1,7 @@
-/**
- * CodeBlockTools - Enhanced code block features for BlockEditor
- *
- * Adds line numbers, copy button, Tab/Shift+Tab indentation,
- * and extended syntax highlighting to code blocks.
- */
+
 
 export const CodeBlockTools = {
-    /**
-     * Add line numbers, copy button, and event listeners to a code block
-     */
+    
     enhanceBlock: function(blockEl, block) {
         if (!blockEl) return;
         var wrapper = blockEl.querySelector('.block-code');
@@ -67,9 +60,7 @@ export const CodeBlockTools = {
         }
     },
 
-    /**
-     * Update line numbers based on the number of lines in the code
-     */
+    
     _updateLineNumbers: function(inner, gutter) {
         var text = inner.textContent || '';
         var lines = text.split('\n');
@@ -88,9 +79,7 @@ export const CodeBlockTools = {
         gutter.style.minHeight = inner.scrollHeight + 'px';
     },
 
-    /**
-     * Copy code content to clipboard
-     */
+    
     _copyCode: function(inner, btn) {
         var text = inner.textContent || '';
         if (!text.trim()) return;
@@ -136,9 +125,7 @@ export const CodeBlockTools = {
         }
     },
 
-    /**
-     * Cycle through available languages
-     */
+    
     _cycleLanguage: function(blockEl, block) {
         var languages = ['javascript', 'python', 'html', 'css', 'json', 'bash', 'plain'];
         var current = block.language || 'javascript';
@@ -170,10 +157,7 @@ export const CodeBlockTools = {
         }
     },
 
-    /**
-     * Handle Tab and Shift+Tab in code blocks
-     * Returns true if the key was handled
-     */
+    
     handleKeydown: function(e) {
         if (e.key !== 'Tab') return false;
         var target = e.target;
@@ -208,9 +192,7 @@ export const CodeBlockTools = {
         return true;
     },
 
-    /**
-     * Insert text at cursor position
-     */
+    
     _insertAtCursor: function(el, text) {
         var sel = window.getSelection();
         if (!sel.rangeCount) return;
@@ -228,9 +210,7 @@ export const CodeBlockTools = {
         sel.addRange(range);
     },
 
-    /**
-     * Indent selected lines (add 4 spaces to the start of each line in the selection)
-     */
+    
     _indentSelection: function(el, range) {
         var text = el.textContent || '';
         var startOffset = this._getTextOffset(el, range.startContainer, range.startOffset);
@@ -268,9 +248,7 @@ export const CodeBlockTools = {
         el.dispatchEvent(event);
     },
 
-    /**
-     * Unindent selected lines (remove up to 4 leading spaces from each line)
-     */
+    
     _unindentSelection: function(el, range) {
         var text = el.textContent || '';
         var startOffset = this._getTextOffset(el, range.startContainer, range.startOffset);
@@ -312,9 +290,7 @@ export const CodeBlockTools = {
         el.dispatchEvent(event);
     },
 
-    /**
-     * Get the text offset from the contenteditable root to a specific node/offset
-     */
+    
     _getTextOffset: function(root, node, offset) {
         var total = 0;
         var found = false;
@@ -340,9 +316,7 @@ export const CodeBlockTools = {
         return total;
     },
 
-    /**
-     * Set cursor to a specific text offset within a contenteditable
-     */
+    
     _setCursorOffset: function(el, offset) {
         el.focus();
         var sel = window.getSelection();
@@ -379,10 +353,7 @@ export const CodeBlockTools = {
         }
     },
 
-    /**
-     * Extended syntax highlighting for more languages
-     * Extends the existing BlockEditor.highlightSyntax with more language support
-     */
+    
     _extendedHighlight: function(code, lang) {
         if (!code) return '';
         var safeCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -402,9 +373,7 @@ export const CodeBlockTools = {
         return safeCode;
     },
 
-    /**
-     * JavaScript/JSON syntax highlighting
-     */
+    
     _highlightJS: function(code) {
         var tokens = [];
         var storeToken = function(match, color) {
@@ -447,9 +416,7 @@ export const CodeBlockTools = {
         return code;
     },
 
-    /**
-     * Python syntax highlighting
-     */
+    
     _highlightPython: function(code) {
         var tokens = [];
         var storeToken = function(match, color) {
@@ -497,9 +464,7 @@ export const CodeBlockTools = {
         return code;
     },
 
-    /**
-     * HTML syntax highlighting
-     */
+    
     _highlightHTML: function(code) {
         var tokens = [];
         var storeToken = function(match, color) {
@@ -535,9 +500,7 @@ export const CodeBlockTools = {
         return code;
     },
 
-    /**
-     * CSS syntax highlighting
-     */
+    
     _highlightCSS: function(code) {
         var tokens = [];
         var storeToken = function(match, color) {
@@ -592,9 +555,7 @@ export const CodeBlockTools = {
         return code;
     },
 
-    /**
-     * Bash/shell syntax highlighting
-     */
+    
     _highlightBash: function(code) {
         var tokens = [];
         var storeToken = function(match, color) {

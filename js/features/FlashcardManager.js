@@ -1,16 +1,6 @@
 import { State } from '../core/Store.js';
 
-/* =========================================
-   FLASHCARD MANAGER — Spaced Repetition
-   =========================================
-   Parses cloze deletions from note content,
-   schedules reviews with the SM-2 algorithm,
-   and manages the review queue.
 
-   Syntax supported:
-   - {c1::text::hint} — Obsidian-style cloze (c1, c2, etc.)
-   - ::text:: — Simple inline shorthand (maps to c1)
-   ========================================= */
 
 const DB_NAME = 'OPERATOR_FLASHCARDS';
 const STORE_NAME = 'cards';
@@ -31,7 +21,7 @@ export const FlashcardManager = {
     _sessionCards: [],
     _currentCardIndex: 0,
 
-    /* ── Lifecycle ─────────────────────────── */
+    
 
     init: function() {
         if (this._initialized) return;
@@ -39,7 +29,7 @@ export const FlashcardManager = {
         console.log('[Flashcard] Initialized');
     },
 
-    /* ── IndexedDB ─────────────────────────── */
+    
 
     _getDB: function() {
         if (this._dbPromise) return this._dbPromise;
@@ -124,13 +114,9 @@ export const FlashcardManager = {
         });
     },
 
-    /* ── Cloze Parsing ─────────────────────── */
+    
 
-    /**
-     * Extract all cloze deletions from text.
-     * Supports {c1::text::hint} and ::text:: syntax.
-     * Guards against :: inside code blocks.
-     */
+    
     extractClozes: function(text) {
         if (!text) return [];
         var clozes = [];
@@ -183,9 +169,7 @@ export const FlashcardManager = {
         return clozes;
     },
 
-    /**
-     * Replace cloze markers with highlighted spans for rendering.
-     */
+    
     highlightClozes: function(text) {
         if (!text) return '';
         var result = text;
@@ -203,14 +187,9 @@ export const FlashcardManager = {
         return result;
     },
 
-    /* ── Flashcard Extraction from Notes ───── */
+    
 
-    /**
-     * Scan notes and extract/reconcile flashcards.
-     * When a noteId is given, only that note is re-scanned (incremental — the
-     * save-path hook); without one, the whole vault is reconciled (boot,
-     * review session, stats). Returns a promise.
-     */
+    
     syncFromNotes: function(noteId) {
         var self = this;
         return this._getAllCards().then(function(existingCards) {
@@ -287,21 +266,14 @@ export const FlashcardManager = {
         });
     },
 
-    /**
-     * Force-sync all notes to rebuild the flashcard index.
-     * Returns a promise.
-     */
+    
     rebuildIndex: function() {
         return this.syncFromNotes();
     },
 
-    /* ── SM-2 Scheduling ───────────────────── */
+    
 
-    /**
-     * Grade a card and compute next review date using SM-2.
-     * Quality: 0=Again, 2=Hard, 3=Good, 5=Easy
-     * Failed cards (quality < 3) come back in ~10 minutes.
-     */
+    
     _computeSM2: function(card, quality) {
         var ease = card.ease || DEFAULT_EASE;
         var interval = card.interval || 0;
@@ -341,9 +313,7 @@ export const FlashcardManager = {
         };
     },
 
-    /**
-     * Grade a specific card and persist the new schedule.
-     */
+    
     gradeCard: function(cardId, quality) {
         var self = this;
         return this._getAllCards().then(function(cards) {
@@ -363,9 +333,7 @@ export const FlashcardManager = {
         });
     },
 
-    /**
-     * Grade the current card in the active session and advance.
-     */
+    
     gradeCurrentCard: function(quality) {
         if (this._sessionCards.length === 0) return Promise.resolve(null);
         var card = this._sessionCards[this._currentCardIndex];
@@ -382,12 +350,9 @@ export const FlashcardManager = {
         });
     },
 
-    /* ── Review Session ────────────────────── */
+    
 
-    /**
-     * Start a review session — sync from notes, load due cards, open modal.
-     * Uses proper promise chaining instead of setTimeout.
-     */
+    
     startReviewSession: function() {
         var self = this;
         this.rebuildIndex().then(function() {
@@ -415,7 +380,7 @@ export const FlashcardManager = {
         });
     },
 
-    /* ── Review Modal UI ───────────────────── */
+    
 
     _openReviewModal: function() {
         var modal = document.getElementById('review-modal');
@@ -531,12 +496,7 @@ export const FlashcardManager = {
         countEl.textContent = card.clozeText + ' | ' + current + '/' + total;
     },
 
-    /**
-     * Highlight the cloze in context using content-based splitting.
-     * Finds the cloze position in the ORIGINAL text, splits around it,
-     * escapes each segment, and wraps the cloze in [?] span.
-     * This avoids HTML-escape matching issues.
-     */
+    
     _highlightClozeInContext: function(card) {
         var text = card.fullContent || '';
         var clozeText = card.clozeText || '';
@@ -553,7 +513,7 @@ export const FlashcardManager = {
         return before + '<span class="review-cloze-hidden">[?]</span>' + after;
     },
 
-    /* ── Utilities ─────────────────────────── */
+    
 
     _escapeHtml: function(str) {
         if (!str) return '';
@@ -564,9 +524,7 @@ export const FlashcardManager = {
             .replace(/"/g, '&quot;');
     },
 
-    /**
-     * Get card statistics: total, due, reviewed today.
-     */
+    
     getStats: function() {
         var self = this;
         return this._getAllCards().then(function(cards) {
@@ -587,10 +545,7 @@ export const FlashcardManager = {
         });
     },
 
-    /**
-     * Fetch stats and display them as a notification.
-     * Used by the 'flashcards' CLI command.
-     */
+    
     showStats: function() {
         var self = this;
         return this.rebuildIndex().then(function() {

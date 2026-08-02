@@ -1,15 +1,4 @@
-/**
- * Vinland Spaced Repetition Flashcards — Playwright Integration Test
- *
- * Tests the flashcard/review system:
- * - Cloze deletion extraction ({c1::text}) from note content
- * - Review queue (Cmd+R)
- * - SM-2 card grading and rescheduling
- * - Card statistics
- *
- * Run with:
- *   npx playwright test tests/flashcards.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, runCLI, waitForEditor, closeEditor, getFirstBlock } from './helpers.mjs';
@@ -53,7 +42,7 @@ test.afterEach(async ({ page }) => {
       if (window.FlashcardManager && window.FlashcardManager.clearAll) {
         window.FlashcardManager.clearAll();
       }
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

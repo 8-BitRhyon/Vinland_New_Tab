@@ -1,11 +1,4 @@
-/**
- * Vinland Notes System - Unit Tests
- * 
- * Tests pure-logic functions extracted from the notes system.
- * Run with: node tests/notes-unit-tests.mjs
- * 
- * Uses Node's built-in assert module (zero dependencies).
- */
+
 
 import assert from 'node:assert/strict';
 

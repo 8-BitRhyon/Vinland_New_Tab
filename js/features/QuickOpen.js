@@ -1,21 +1,4 @@
-/**
- * QuickOpen - Full-Text Search & Quick Navigation
- *
- * A VS Code-inspired quick-open palette (Cmd+P) that searches notes, tags,
- * and commands in one unified interface.
- *
- * Opens on:
- *   - Cmd+P / Ctrl+P keyboard shortcut
- *   - `find <query>` CLI command
- *   - `search <query>` CLI command (alias)
- *
- * Architecture:
- *   - Searches note titles, content, tags, and CommandRegistry commands
- *   - Uses MetadataCache for fast tag/backlink lookups
- *   - Debounced at 150ms to handle large note collections
- *   - Results grouped into Notes / Tags / Commands sections
- *   - Keyboard navigable with arrow keys + Enter
- */
+
 
 import { State } from '../core/Store.js';
 import { MetadataCache } from '../core/MetadataCache.js';
@@ -30,16 +13,12 @@ export const QuickOpen = {
     searchMode: false, // true = Cmd+Shift+F (content search), false = Cmd+P (quick navigate)
     sections: [], // ['notes', 'tags', 'commands'] - tracks section boundaries for keyboard nav
 
-    /**
-     * Initialize QuickOpen. Called once from boot.js
-     */
+    
     init: function () {
         this._injectDOM();
     },
 
-    /**
-     * Toggle QuickOpen open/close
-     */
+    
     toggle: function () {
         if (this.isOpen) {
             this.close();
@@ -48,11 +27,7 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Open the QuickOpen palette
-     * @param {boolean} searchMode - If true, opens in content-search mode (Cmd+Shift+F)
-     *   with an empty search prompt instead of showing recent notes + commands.
-     */
+    
     open: function (searchMode) {
         if (this.isOpen) return;
         this.isOpen = true;
@@ -96,9 +71,7 @@ export const QuickOpen = {
         this._bindEvents();
     },
 
-    /**
-     * Close the QuickOpen palette
-     */
+    
     close: function () {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -117,10 +90,7 @@ export const QuickOpen = {
         this.sections = [];
     },
 
-    /**
-     * Perform a search from the CLI command (e.g. `find query`)
-     * Opens in search mode so clearing the input shows the search prompt.
-     */
+    
     searchFromCLI: function (query) {
         if (!query || !query.trim()) {
             this.open(true);
@@ -136,9 +106,7 @@ export const QuickOpen = {
 
     // ─── Private Methods ─────────────────────────────────────────
 
-    /**
-     * Inject QuickOpen DOM elements on first init
-     */
+    
     _injectDOM: function () {
         if (document.getElementById('quick-open-overlay')) return;
 
@@ -190,10 +158,7 @@ export const QuickOpen = {
         document.body.appendChild(palette);
     },
 
-    /**
-     * Show a search prompt in content-search mode (Cmd+Shift+F)
-     * Guides the user to start typing rather than showing recent notes + commands.
-     */
+    
     _showSearchPrompt: function () {
         var container = document.getElementById('quick-open-results');
         var footer = document.getElementById('qo-footer-count');
@@ -213,9 +178,7 @@ export const QuickOpen = {
         if (footer) footer.textContent = 'Press \u2191\u2193 to navigate, \u23CE to open';
     },
 
-    /**
-     * Show initial state - recent notes + all commands
-     */
+    
     _showInitialResults: function () {
         var results = [];
 
@@ -259,9 +222,7 @@ export const QuickOpen = {
         this._render();
     },
 
-    /**
-     * Handle input changes (debounced)
-     */
+    
     _onInput: function () {
         var self = this;
         var input = document.getElementById('quick-open-input');
@@ -289,9 +250,7 @@ export const QuickOpen = {
         }, 150);
     },
 
-    /**
-     * Execute the full search across notes, tags, and commands
-     */
+    
     _executeSearch: function (query) {
         this.currentQuery = query;
         var q = query.toLowerCase();
@@ -467,9 +426,7 @@ export const QuickOpen = {
         this._render();
     },
 
-    /**
-     * Render search results into the DOM
-     */
+    
     _render: function () {
         var container = document.getElementById('quick-open-results');
         var footer = document.getElementById('qo-footer-count');
@@ -724,9 +681,7 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Get the absolute index for a result in a section
-     */
+    
     _getAbsoluteIndex: function (relativeIdx, sectionType) {
         var offset = 0;
         for (var i = 0; i < this.sections.length; i++) {
@@ -738,9 +693,7 @@ export const QuickOpen = {
         return relativeIdx;
     },
 
-    /**
-     * Update the visual selection state
-     */
+    
     _updateSelection: function () {
         var items = document.querySelectorAll('#quick-open-results .qo-result');
         items.forEach(function (el, idx) {
@@ -752,9 +705,7 @@ export const QuickOpen = {
         }, this);
     },
 
-    /**
-     * Activate (execute) a result by its absolute index
-     */
+    
     _activateResult: function (index) {
         var result = this.results[index];
         if (!result) return;
@@ -799,17 +750,13 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Bind keyboard event listeners
-     */
+    
     _bindEvents: function () {
         this._boundKeyHandler = this._onKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyHandler);
     },
 
-    /**
-     * Unbind keyboard event listeners
-     */
+    
     _unbindEvents: function () {
         if (this._boundKeyHandler) {
             document.removeEventListener('keydown', this._boundKeyHandler);
@@ -817,9 +764,7 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Handle keyboard navigation within the palette
-     */
+    
     _onKeyDown: function (e) {
         if (!this.isOpen) return;
 
@@ -873,11 +818,7 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Escape HTML special characters (for safe rendering)
-     * Uses string replacement instead of DOM API so it works in
-     * both browser and Node.js (unit test) environments.
-     */
+    
     _escapeHtml: function (str) {
         if (!str) return '';
         return String(str)
@@ -888,10 +829,7 @@ export const QuickOpen = {
             .replace(/'/g, '&#39;');
     },
 
-    /**
-     * Format a timestamp for display in search results.
-     * Shows 'Today', 'Yesterday', weekday for this week, or short date.
-     */
+    
     _formatDate: function (ts) {
         if (!ts) return '';
         var d = new Date(ts);
@@ -923,10 +861,7 @@ export const QuickOpen = {
     _filteredResults: null,
     _resultsPageTimer: null,
 
-    /**
-     * Open the full-page search results overlay (Cmd+Shift+F)
-     * @param {string} query - Optional initial query
-     */
+    
     openResultsPage: function (query) {
         if (this._resultsPageOpen) return;
 
@@ -963,9 +898,7 @@ export const QuickOpen = {
         this._bindResultsPageEvents();
     },
 
-    /**
-     * Inject results page DOM elements
-     */
+    
     _injectResultsPageDOM: function () {
         var existing = document.getElementById('srp-overlay');
         if (existing) return existing;
@@ -1046,9 +979,7 @@ export const QuickOpen = {
         return overlay;
     },
 
-    /**
-     * Inject results page styles (one-time)
-     */
+    
     _injectResultsPageStyles: function () {
         if (document.getElementById('srp-styles')) return;
         var style = document.createElement('style');
@@ -1383,9 +1314,7 @@ export const QuickOpen = {
         document.head.appendChild(style);
     },
 
-    /**
-     * Save a query to recent searches (localStorage, max 10)
-     */
+    
     _saveRecentQuery: function (query) {
         if (!query || !query.trim()) return;
         try {
@@ -1398,12 +1327,10 @@ export const QuickOpen = {
             // Keep max 10
             if (recent.length > 10) recent = recent.slice(0, 10);
             localStorage.setItem('vinland_recent_searches', JSON.stringify(recent));
-        } catch (e) { /* ignore storage errors */ }
+        } catch (e) {  }
     },
 
-    /**
-     * Show recent searches in the results page prompt area
-     */
+    
     _showRecentSearches: function () {
         var container = document.getElementById('srp-results');
         if (!container) return;
@@ -1412,7 +1339,7 @@ export const QuickOpen = {
         var recent = [];
         try {
             recent = JSON.parse(localStorage.getItem('vinland_recent_searches') || '[]');
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
 
         // Show search prompt
         var prompt = document.createElement('div');
@@ -1464,7 +1391,7 @@ export const QuickOpen = {
                     e.stopPropagation();
                     try {
                         localStorage.removeItem('vinland_recent_searches');
-                    } catch (e) { /* ignore */ }
+                    } catch (e) {  }
                     self._showRecentSearches();
                 };
             }
@@ -1474,9 +1401,7 @@ export const QuickOpen = {
         if (footer) footer.textContent = '';
     },
 
-    /**
-     * Render results into the full-page overlay with highlighting
-     */
+    
     _renderResultsPage: function () {
         var container = document.getElementById('srp-results');
         var footer = document.getElementById('srp-footer-count');
@@ -1630,9 +1555,7 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Update selection highlight in results page
-     */
+    
     _updateResultsPageSelection: function () {
         var items = document.querySelectorAll('#srp-results .srp-result');
         items.forEach(function (el) {
@@ -1644,9 +1567,7 @@ export const QuickOpen = {
         }, this);
     },
 
-    /**
-     * Activate the selected result in the results page
-     */
+    
     _activateResultsPage: function (el) {
         var result;
         if (el) {
@@ -1692,9 +1613,7 @@ export const QuickOpen = {
         }
     },
 
-    /**
-     * Close the results page
-     */
+    
     _closeResultsPage: function () {
         if (!this._resultsPageOpen) return;
         this._resultsPageOpen = false;
@@ -1708,9 +1627,7 @@ export const QuickOpen = {
         this.selectedIndex = 0;
     },
 
-    /**
-     * Bind keyboard events for results page
-     */
+    
     _bindResultsPageEvents: function () {
         var self = this;
         var input = document.getElementById('srp-input');
@@ -1747,9 +1664,7 @@ export const QuickOpen = {
         document.addEventListener('keydown', this._resultsPageKeyHandler);
     },
 
-    /**
-     * Handle input in results page search field (debounced)
-     */
+    
     _onResultsPageInput: function () {
         var self = this;
         var input = document.getElementById('srp-input');
@@ -1773,9 +1688,7 @@ export const QuickOpen = {
         }, 150);
     },
 
-    /**
-     * Unbind results page keyboard events
-     */
+    
     _unbindResultsPageEvents: function () {
         if (this._resultsPageKeyHandler) {
             document.removeEventListener('keydown', this._resultsPageKeyHandler);

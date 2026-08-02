@@ -1,15 +1,4 @@
-/**
- * Code Block Enhanced Features E2E Tests
- *
- * Tests the enhanced code block features:
- * - CB1: Code block renders with line numbers gutter
- * - CB2: Copy button is present in code blocks
- * - CB3: Tab key inserts 4 spaces in code block
- * - CB4: Code block has a language label
- *
- * Run with:
- *   npx playwright test tests/code-blocks.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

@@ -1,15 +1,4 @@
-/**
- * Vinland Notes Workflow - Playwright Integration Tests
- *
- * Tests the complete notes lifecycle: create, edit, save, close, reopen,
- * content persistence, and CLI command execution.
- *
- * Run with:
- *   npx playwright test
- *
- * Or start the server separately and run:
- *   npx playwright test tests/notes.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

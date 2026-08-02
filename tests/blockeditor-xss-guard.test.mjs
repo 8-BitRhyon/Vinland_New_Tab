@@ -1,17 +1,4 @@
-/**
- * BlockEditor XSS Guard - Static Analysis (TDD-style guard)
- *
- * The three rendering sinks in js/editor/BlockEditor.js must route user
- * content through the Utils.js hardening helpers so attribute injection and
- * dangerous URL schemes can never reach innerHTML:
- *
- *   1. markdownToHtml link step   → sanitizeLinkUrl() + escapeHtml()
- *   2. highlightSyntax wiki links → escapeAttr() on data-note-title
- *   3. getCalcPreviewHtml         → escapeHtml() on expr and result
- *
- * This reads the source and asserts the guards are wired, so a future edit
- * that reverts the XSS fixes fails CI (mirrors notes-editor-open.test.mjs).
- */
+
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

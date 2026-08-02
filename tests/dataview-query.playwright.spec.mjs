@@ -1,19 +1,4 @@
-/**
- * Vinland Dataview Query Panel - Playwright Integration Tests
- *
- * Tests the Dataview-style query panel (Cmd+Shift+Q):
- * - Opening via CLI `dv #tag` command
- * - Verifying LIST results appear with note title and snippet
- * - Clicking a result to open the note editor
- * - Cmd+Shift+Q keyboard shortcut
- * - TABLE view rendering
- * - TASK view rendering
- * - Error state for invalid queries
- * - Escape to close
- *
- * Run with:
- *   npx playwright test tests/dataview-query.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, runCLI, closeEditor } from './helpers.mjs';
@@ -37,7 +22,7 @@ test.beforeEach(async ({ page }) => {
       if (window.State) {
         if (Array.isArray(window.State.NOTES)) window.State.NOTES.length = 0;
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
   await page.waitForTimeout(300);
 });
@@ -49,7 +34,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 
@@ -57,9 +42,7 @@ test.afterEach(async ({ page }) => {
 // Helpers
 // ──────────────────────────────────────────
 
-/**
- * Check if the Dataview modal is visible
- */
+
 async function isDataviewVisible(page) {
   return await page.evaluate(() => {
     const modal = document.getElementById('dv-modal');
@@ -67,9 +50,7 @@ async function isDataviewVisible(page) {
   });
 }
 
-/**
- * Get the text content of all result items in the Dataview results list
- */
+
 async function getResultTitles(page) {
   return await page.evaluate(() => {
     const container = document.getElementById('dv-results');
@@ -82,9 +63,7 @@ async function getResultTitles(page) {
   });
 }
 
-/**
- * Get the result count from the footer
- */
+
 async function getResultCount(page) {
   return await page.evaluate(() => {
     const footer = document.getElementById('dv-footer');
@@ -94,9 +73,7 @@ async function getResultCount(page) {
   });
 }
 
-/**
- * Get the error message text (if any)
- */
+
 async function getErrorMessage(page) {
   return await page.evaluate(() => {
     const errorEl = document.getElementById('dv-error');

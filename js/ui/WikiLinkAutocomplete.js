@@ -1,11 +1,4 @@
-/**
- * WikiLinkAutocomplete - [[Wiki Link]] autocomplete for BlockEditor
- *
- * Detects when the user types [[ in a contenteditable block and shows
- * a dropdown of matching note titles from MetadataCache.
- *
- * Following the same overlay pattern as SlashMenu.
- */
+
 
 export const WikiLinkAutocomplete = {
     element: null,
@@ -17,9 +10,7 @@ export const WikiLinkAutocomplete = {
     linkStartOffset: -1,
     textNode: null,
 
-    /**
-     * Get text content before the cursor in a contenteditable
-     */
+    
     _getTextBeforeCursor: function(contenteditableEl) {
         var sel = window.getSelection();
         if (!sel.rangeCount) return '';
@@ -37,10 +28,7 @@ export const WikiLinkAutocomplete = {
         return '';
     },
 
-    /**
-     * Check if the text before cursor contains [[ and extract the query
-     * Returns { active: bool, query: string, startOffset: number } or null
-     */
+    
     _detectWikilink: function(textBeforeCursor) {
         if (!textBeforeCursor) return null;
 
@@ -71,9 +59,7 @@ export const WikiLinkAutocomplete = {
         };
     },
 
-    /**
-     * Search notes by title for autocomplete
-     */
+    
     _searchNotes: function(query) {
         var results = [];
         if (!window.MetadataCache) return results;
@@ -129,9 +115,7 @@ export const WikiLinkAutocomplete = {
         return results.slice(0, 15);
     },
 
-    /**
-     * Determine which block is being edited and if [[ was typed
-     */
+    
     checkInput: function(e) {
         if (this.visible) {
             // Already showing — update filter as user types
@@ -538,9 +522,7 @@ export const WikiLinkAutocomplete = {
         return false;
     },
 
-    /**
-     * Insert the selected note title as a [[wiki link]] into the contenteditable
-     */
+    
     _selectSuggestion: function(index) {
         var results = this._searchNotes(this.filterQuery);
         if (index < 0 || index >= results.length) return;

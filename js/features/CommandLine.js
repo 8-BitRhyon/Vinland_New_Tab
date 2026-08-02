@@ -4,9 +4,7 @@ import { ModalManager } from '../ui/ModalManager.js';
 import { safeText } from '../core/Utils.js';
 import { CommandRegistry } from '../core/CommandRegistry.js';
 
-/* =========================================
-   COMMAND LINE INTERFACE
-   ========================================= */
+
 
 // Local UI State
 let historyIndex = -1;

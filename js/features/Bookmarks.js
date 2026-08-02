@@ -1,8 +1,6 @@
 import { State } from '../core/Store.js';
 
-/* =========================================
-   BOOKMARKS
-   ========================================= */
+
 
 // Local State
 export let FLAT_BOOKMARKS = [];

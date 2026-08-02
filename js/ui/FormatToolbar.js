@@ -1,10 +1,4 @@
-/**
- * FormatToolbar — floating B/I/U/L bar on text selection
- *
- * Shows when the user selects text inside the block editor.
- * Disappears on selection clear or outside click.
- * Uses BlockEditor.applyFormatting() for the actual formatting.
- */
+
 
 export const FormatToolbar = {
     element: null,

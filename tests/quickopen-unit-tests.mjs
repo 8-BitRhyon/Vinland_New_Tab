@@ -1,19 +1,4 @@
-/**
- * Vinland QuickOpen - Unit Tests
- *
- * Tests pure-logic extracts from QuickOpen.js:
- * - _escapeHtml() sanitization
- * - Search scoring (title start/contains, content, tag bonus)
- * - Canvas node scoring (title, preview)
- * - Excerpt generation with truncation
- * - Result sorting (score descending, then alpha)
- * - Result filtering by type
- * - Recent searches management
- * - Absolute index calculation for sections
- *
- * Run with: node tests/quickopen-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 
@@ -31,10 +16,7 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-/**
- * Compute a search score for a note given a query
- * Returns { score, excerpt } matching QuickOpen._executeSearch() logic
- */
+
 function computeNoteScore(note, query) {
     var q = query.toLowerCase();
     var title = (note.title || '').toLowerCase();
@@ -81,9 +63,7 @@ function computeNoteScore(note, query) {
     return { score: score, excerpt: excerpt };
 }
 
-/**
- * Compute a search score for a canvas node
- */
+
 function computeCanvasNodeScore(canvasNode, query) {
     var q = query.toLowerCase();
     var cnTitle = (canvasNode.title || '').toLowerCase();
@@ -117,9 +97,7 @@ function computeCanvasNodeScore(canvasNode, query) {
     return { score: cnScore, excerpt: cnExcerpt };
 }
 
-/**
- * Sort results by score descending, then title alphabetically for notes
- */
+
 function sortResults(results) {
     return results.slice().sort(function (a, b) {
         if (b.score !== a.score) return b.score - a.score;
@@ -130,25 +108,19 @@ function sortResults(results) {
     });
 }
 
-/**
- * Limit results to max count
- */
+
 function limitResults(results, max) {
     return results.slice(0, max);
 }
 
-/**
- * Filter results by type
- */
+
 function filterByType(results, filterType) {
     var typeMap = { notes: 'note', tags: 'tag', commands: 'command' };
     var targetType = typeMap[filterType];
     return results.filter(function (r) { return r.type === targetType; });
 }
 
-/**
- * Get the absolute index for a result within a section
- */
+
 function getAbsoluteIndex(sections, relativeIdx, sectionType) {
     for (var i = 0; i < sections.length; i++) {
         if (sections[i].type === sectionType) {
@@ -158,9 +130,7 @@ function getAbsoluteIndex(sections, relativeIdx, sectionType) {
     return relativeIdx;
 }
 
-/**
- * Manage recent searches list (add query, max 10, deduplicate)
- */
+
 function addRecentQuery(query, existingList) {
     if (!query || !query.trim()) return existingList;
     var recent = (existingList || []).slice();
@@ -171,9 +141,7 @@ function addRecentQuery(query, existingList) {
     return recent;
 }
 
-/**
- * Determine filter type from filter name
- */
+
 function resolveFilterType(filterName) {
     if (filterName === 'all') return null;
     if (filterName === 'notes') return 'note';

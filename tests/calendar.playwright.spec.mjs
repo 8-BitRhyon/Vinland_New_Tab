@@ -1,20 +1,4 @@
-/**
- * Vinland Calendar View - Playwright Integration Test
- *
- * Tests the Calendar overlay (CLI `calendar` command) end-to-end:
- * - Opening via CLI `calendar` command
- * - Month/year title display and navigation
- * - Previous/next month buttons
- * - TODAY button returns to current month
- * - Days with notes show dot indicators
- * - Clicking a day with no notes creates/opens a daily note
- * - Clicking a day with multiple notes shows the note picker
- * - Keyboard navigation (arrow keys for months, Escape to close)
- * - Cmd+Shift+C keyboard shortcut (standalone and while editor is open)
- *
- * Run with:
- *   npx playwright test tests/calendar.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import {
@@ -50,7 +34,7 @@ test.beforeEach(async ({ page }) => {
       if (window.State) {
         if (Array.isArray(window.State.NOTES)) window.State.NOTES.length = 0;
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
 
   await page.waitForTimeout(300);
@@ -63,7 +47,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

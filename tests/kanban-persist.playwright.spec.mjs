@@ -1,18 +1,4 @@
-/**
- * Vinland Kanban link persistence - Playwright Integration Test
- *
- * Regression guard for the two-storage consistency bug: creating/linking a
- * kanban board updates the note's `kanban_ref` block in memory but the note
- * was not persisted at link time (only the board in State.BOARDS was). If the
- * tab closed before the debounced autosave fired, the note lost its reference
- * and the board was orphaned.
- *
- * This asserts the note shard in localStorage carries the KANBAN marker
- * IMMEDIATELY after linking - i.e. saveData() ran at link time, not later.
- *
- * Run with:
- *   npx playwright test tests/kanban-persist.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

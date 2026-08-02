@@ -4,18 +4,14 @@ import { safeText } from '../core/Utils.js';
 
 export const HoverPreview = {
     
-    /**
-     * Initialize Hover Previews
-     */
+    
     init: function() {
         console.log('[HoverPreview] Initializing...');
         this.setupHoverPreviews();
         this.injectStyles();
     },
 
-    /**
-     * Setup hover preview interactions for wiki links
-     */
+    
     setupHoverPreviews: function() {
         var self = this;
         var previewTimeout = null;
@@ -144,9 +140,7 @@ export const HoverPreview = {
         });
     },
 
-    /**
-     * Inject CSS styles for previews
-     */
+    
     injectStyles: function() {
         var style = document.createElement('style');
         style.textContent = `

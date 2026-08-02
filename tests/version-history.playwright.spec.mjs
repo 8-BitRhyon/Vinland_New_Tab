@@ -1,15 +1,4 @@
-/**
- * Vinland Version History — Playwright Integration Test
- *
- * Tests the git-based note versioning system:
- * - Auto-snapshots on save
- * - Version timeline display in the editor panel
- * - Diff viewer showing changes between versions
- * - Rollback to restore previous content
- *
- * Run with:
- *   npx playwright test tests/version-history.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, runCLI, waitForEditor, closeEditor, getFirstBlock } from './helpers.mjs';
@@ -58,7 +47,7 @@ test.afterEach(async ({ page }) => {
       if (window.VersionHistoryManager && window.VersionHistoryManager.clearAll) {
         window.VersionHistoryManager.clearAll();
       }
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

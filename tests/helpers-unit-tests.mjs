@@ -1,16 +1,4 @@
-/**
- * Vinland Helpers - Unit Tests
- *
- * Tests pure-logic extracts from CanvasManager helpers:
- * - _getActiveNote() — find active note by ID in the notes array
- * - _saveData() — guarded call to save function
- * - _getWorldCenter() — world-coordinate calculation from container rect + transform
- *
- * Also tests BlockEditor._getActivePage() pattern.
- *
- * Run with: node tests/helpers-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

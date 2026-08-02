@@ -1,17 +1,4 @@
-/**
- * Vinland Quick Capture - Playwright Integration Test
- *
- * Tests the Quick Capture overlay (Cmd+Shift+I):
- * - Opening via keyboard shortcut
- * - Capturing text creates /Inbox note
- * - Multiple captures accumulate
- * - Inbox preview shows recent captures
- * - Empty capture closes without creating
- * - Toggle with repeated shortcut
- *
- * Run with:
- *   npx playwright test tests/quick-capture.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, closeEditor } from './helpers.mjs';
@@ -35,7 +22,7 @@ test.beforeEach(async ({ page }) => {
       if (window.State) {
         if (Array.isArray(window.State.NOTES)) window.State.NOTES.length = 0;
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
   await page.waitForTimeout(300);
 });
@@ -47,7 +34,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

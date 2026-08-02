@@ -1,15 +1,4 @@
-/**
- * Vinland Data Export - Playwright Integration Test
- *
- * Tests the `export` CLI command end-to-end:
- * - Creating notes, tasks, and boards as test data
- * - Running the `export` CLI command
- * - Capturing the downloaded JSON file
- * - Verifying all data types are present and correct
- *
- * Run with:
- *   npx playwright test tests/export.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, runCLI, readDownload } from './helpers.mjs';
@@ -48,7 +37,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_') || k.startsWith('VINLAND_')
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

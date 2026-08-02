@@ -1,12 +1,4 @@
-/**
- * Vinland Tasks / Missions System - Playwright Integration Tests
- *
- * Tests the complete tasks workflow: add via CLI, priorities, categories,
- * completion toggle, progress bar, clear done, and empty state.
- *
- * Run with:
- *   npx playwright test tests/tasks.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

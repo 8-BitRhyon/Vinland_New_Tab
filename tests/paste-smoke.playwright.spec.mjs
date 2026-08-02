@@ -1,23 +1,4 @@
-/**
- * Vinland BlockEditor Paste - Playwright Smoke Test
- *
- * Verifies the paste flow works end-to-end using REAL clipboard paste
- * (navigator.clipboard.writeText + Meta+V), not synthetic ClipboardEvents
- * (synthetic events never trigger the browser's native paste default action,
- * which handlePaste relies on for short single-line text).
- *
- * Covers:
- * - Single-line paste inserts natively at the cursor
- * - Multi-line paste of bullets splits into one block per line
- * - Multi-line paste of contiguous plain text merges into one paragraph block
- * - No console errors during paste
- * - XSS payloads rendered through the REAL markdownToHtml pipeline (Enter-split
- *   re-render) must produce plain text — no dangerous anchor, no injected
- *   attributes (P5/P6)
- *
- * Run with:
- *   npx playwright test tests/paste-smoke.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -50,31 +31,17 @@ function blockCount(page) {
   return page.locator('#block-editor .block-wrapper').count();
 }
 
-/**
- * Native paste key differs by OS: Meta+V (⌘V) on macOS, Control+V on
- * Linux/Windows. Using the wrong one means the browser never performs its
- * native paste default action, so handlePaste never fires in CI.
- */
+
 const PASTE_KEY = process.platform === 'darwin' ? 'Meta+V' : 'Control+V';
 
-/**
- * Real clipboard paste: write text to clipboard, focus, press the native paste key.
- * The 500ms settle wait is redundant for P1-P3 (they auto-wait via assertions)
- * but P4 relies on it to capture paste-triggered console errors — keep it.
- */
+
 async function realPaste(page, text) {
   await page.evaluate((txt) => navigator.clipboard.writeText(txt), text);
   await page.keyboard.press(PASTE_KEY);
   await page.waitForTimeout(500);
 }
 
-/**
- * Assert no element inside #block-editor carries ANY attribute starting with
- * "on" (onmouseover, onload, onfocus, onpointerdown, ...). A JS-driven scan is
- * strictly stronger than a CSS attribute-selector list, which can only enumerate
- * known handlers — a sanitizer hole that allowed an unlisted handler would
- * otherwise slip through the tests.
- */
+
 async function expectNoInlineHandlers(page) {
   const withHandlers = await page.evaluate(() => {
     const bad = [];
@@ -107,7 +74,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

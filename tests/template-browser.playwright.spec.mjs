@@ -1,18 +1,4 @@
-/**
- * Vinland Template Browser - Playwright Integration Test
- *
- * Tests the Template Browser (Cmd+Shift+N):
- * - Opening via keyboard shortcut
- * - Creating a template note in /Templates folder
- * - Browsing templates
- * - Creating a note from a template
- * - CLI 'template' command
- * - YAML frontmatter template flag
- * - Empty state message
- *
- * Run with:
- *   npx playwright test tests/template-browser.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 import { APP_URL, runCLI, waitForEditor, closeEditor, createNoteWithContentAndPath } from './helpers.mjs';
@@ -36,7 +22,7 @@ test.beforeEach(async ({ page }) => {
       if (window.State) {
         if (Array.isArray(window.State.NOTES)) window.State.NOTES.length = 0;
       }
-    } catch { /* ignore */ }
+    } catch {  }
   });
   await page.waitForTimeout(300);
 });
@@ -48,7 +34,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_NOTE_') || k === 'OPERATOR_NOTES_INDEX'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore */ }
+    } catch {  }
   }).catch(() => {});
 });
 

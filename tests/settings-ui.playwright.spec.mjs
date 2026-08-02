@@ -1,11 +1,4 @@
-/**
- * Vinland Settings UI, Theme Switching and Zen Mode - Playwright Integration Tests
- *
- * Tests the config modal, theme preset application, help modal, and zen mode toggle.
- *
- * Run with:
- *   npx playwright test tests/settings-ui.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 

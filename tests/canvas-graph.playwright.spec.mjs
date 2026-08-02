@@ -1,12 +1,4 @@
-/**
- * Vinland Canvas & Graph Manager - Playwright Integration Tests
- *
- * Tests the Canvas (infinite whiteboard with nodes/edges) and Graph
- * Manager (D3 knowledge graph) views.
- *
- * Run with:
- *   npx playwright test tests/canvas-graph.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -77,7 +69,7 @@ test.afterEach(async ({ page }) => {
         k.startsWith('OPERATOR_BOARDS_')
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* page may have navigated away */ }
+    } catch {  }
   }).catch(() => {});
 });
 

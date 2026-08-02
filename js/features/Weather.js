@@ -2,9 +2,7 @@ import { State } from '../core/Store.js';
 import { SettingsUI } from '../ui/SettingsUI.js';
 import { saveConfig } from '../core/Config.js';
 
-/* =========================================
-   WEATHER MODULE
-   ========================================= */
+
 
 export const Weather = {
     init: function() {

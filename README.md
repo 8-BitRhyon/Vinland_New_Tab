@@ -1,23 +1,46 @@
 # Vinland
 
 [![CI](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml/badge.svg)](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 > A Manifest V3 new-tab command center. Keyboard-first, local-first, no framework, no bundler.
 
-The name is from *Vinland Saga*. The idea of a place beyond all the fighting - peace on the other side of pain. That stuck with me. This is that place for my browser.
+The name is from *Vinland Saga* — the idea of a place beyond all the fighting,
+peace on the other side of pain. That stuck with me. Vinland is that place for
+your browser: a command line, a HUD, and a personal knowledge workspace, all in
+one new-tab page.
+
+## Highlights
+
+- **It's a terminal for your browser.** `note Buy groceries`, `pomo 25`,
+  `daily`, `canvas`, `b github`, `task finish report @work !!` — type and go.
+  No mouse needed. 34 built-in commands, fuzzy search, and custom commands.
+- **A HUD you see on every new tab.** Clock, pomodoro, weather, missions,
+  bookmarks, a dock — all visible at once, no clicking through tabs.
+- **A local-first PKM workspace.** Block editor, infinite spatial canvas,
+  D3 knowledge graph, kanban boards, and a dataview-style query engine.
+- **Your data stays yours.** Everything lives in your browser
+  (localStorage + IndexedDB). No account, no server, works offline.
+- **Vanilla JS, zero build step.** One vendored dependency (D3 v7). Load the
+  folder into Chrome and it runs.
 
 ## What it is
 
-Your new-tab becomes a HUD. Clock, pomodoro, missions, weather, bookmarks, command palette - all visible at once, no clicking through tabs. Below that is the PKM workspace: a block editor, an infinite spatial canvas, a D3 knowledge graph, kanban boards, a dataview-lite query engine. All in the browser, all local.
-
-It's the command line I've always wanted in a browser. `note Buy groceries`, `pomo 25`, `daily`, `canvas`, `b github`, `task finish report @work !!` - type and go. No mouse needed.
+Your new-tab becomes a HUD: clock, pomodoro, missions, weather, bookmarks,
+command palette — all visible at once, no clicking through tabs. Below that is
+the PKM workspace: a block editor, an infinite spatial canvas, a D3 knowledge
+graph, kanban boards, and a dataview-lite query engine. All in the browser,
+all local.
 
 ## What it isn't
 
-- Not a startup. Not a product. Not a business.
-- Not for anybody else - I made it for how I work.
-- It's a single HTML file, vanilla JS, and D3 v7. No npm, no bundler, no webpack config.
-- Everything stays in localStorage. Your notes, tasks, boards - they live on your machine.
+- **Not a SaaS, not a platform** — it's a single-page Chrome extension with no
+  server component. There's no account to create and nothing to configure
+  before it works.
+- **Not framework-dependent** — a single HTML file, vanilla ES modules, and D3
+  v7. No npm, no bundler, no webpack config in your way.
+- **Not cloud-first** — your notes, tasks, and boards live on *your* machine.
+  Google Drive sync is optional and opt-in.
 
 ## Stack
 
@@ -32,7 +55,7 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 
 ## What's in it
 
-**HUD - always visible on every new tab:**
+**HUD — always visible on every new tab:**
 - Clock (12/24h)
 - Pomodoro timer with cross-tab sync
 - Weather (Open-Meteo, 30-min cache)
@@ -43,8 +66,9 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 - Zen mode
 - Editable themes (11 presets)
 
-**PKM workspace - opens when you need it:**
-- Block editor (Notion-style - text, headings, tasks, kanban, queries, callouts, images, tables, dividers, code blocks)
+**PKM workspace — opens when you need it:**
+- Block editor (Notion-style — text, headings, tasks, kanban, queries,
+  callouts, images, tables, dividers, code blocks)
 - Infinite canvas (spatial nodes, edges, lasso select, undo/redo, minimap)
 - Knowledge graph (D3 force-directed, wiki-link derived)
 - Kanban boards (multi-column, vim nav, drag and drop)
@@ -96,32 +120,36 @@ It's the command line I've always wanted in a browser. `note Buy groceries`, `po
 
 ## Why it works
 
-I use it every day. Every tab I open lands here. The pomodoro keeps me honest, missions track what I need to do, notes capture everything, and the canvas lets me think spatially. It's replaced my task manager, my scratchpad, and half my bookmarks bar.
+Vinland was built for daily use, not for a demo. Every tab lands here: the
+pomodoro keeps you honest, missions track what needs doing, notes capture
+everything, and the canvas lets you think spatially. It replaces a task
+manager, a scratchpad, and half a bookmarks bar — and it works exactly how you
+want it to, because you can change it. That's the point of open source.
 
-It's not trying to be the next big thing. It's just my terminal for the browser - and it works exactly how I want it to.
-
-## Release / install
+## Install
 
 ### From a release zip (recommended)
 
-Grab the latest `vinland-v<version>.zip` from the [Releases page](https://github.com/8-BitRhyon/Vinland_New_Tab/releases):
+Grab the latest `vinland-v<version>.zip` from the
+[Releases page](https://github.com/8-BitRhyon/Vinland_New_Tab/releases):
 
 1. Download `vinland-v<version>.zip`
 2. Unzip it anywhere (e.g. `~/Downloads/vinland/`)
 3. Open `chrome://extensions`
 4. Enable **Developer mode** (top-right toggle)
 5. Click **Load unpacked** and select the unzipped `vinland` folder
-6. Open a new tab - Vinland replaces the new-tab page
+6. Open a new tab — Vinland replaces the new-tab page
 
-The release zip is ~540KB and ships only what the store ships - dev/test tooling
-is excluded. An 80MB size guard, a composition report (10 largest paths), and a
-dedicated exclusion test suite run on every push, so bloat can't silently ship.
+The release zip is ~540KB and ships only what the store ships — dev/test
+tooling is excluded. An 80MB size guard, a composition report (10 largest
+paths), and a dedicated exclusion test suite run on every push, so bloat
+can't silently ship.
 
 ### From source
 
-```
+```bash
 git clone https://github.com/8-BitRhyon/Vinland_New_Tab
-# no install step - it's vanilla
+# no install step — it's vanilla
 # chrome://extensions → Load unpacked → select the repo folder
 ```
 
@@ -134,15 +162,35 @@ bash scripts/package-release.sh
 
 The script prints the 10 largest included paths, enforces an 80MB size guard
 (Chrome Web Store caps at 100MB), and excludes dev/tooling (tests, docs,
-node_modules, .git, .venv, ...). Guarded by `tests/package-exclusions-unit-tests.mjs`
-and the `package-check` CI job on every push.
+node_modules, .git, .venv, ...). Guarded by
+`tests/package-exclusions-unit-tests.mjs` and the `package-check` CI job on
+every push.
 
 ## Tests / CI
 
-- **Unit**: `npm test` - 678 tests across 16 zero-dependency suites
-- **E2E**: `npm run test:e2e` - 34 Playwright specs against a local static server
-- **CI**: both run on every push via [GitHub Actions](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml) - 8 jobs: unit-tests, 4 E2E shards, CLI command sweep, real-extension release-candidate smoke, and the store-zip `package-check` gate
+- **Unit**: `npm test` — 723 tests across zero-dependency suites
+- **E2E**: `npm run test:e2e` — 34 Playwright specs against a local static server
+- **CI**: both run on every push via
+  [GitHub Actions](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml) —
+  unit-tests, 4 E2E shards, CLI command sweep, real-extension
+  release-candidate smoke, and the store-zip `package-check` gate
 
-## Design
+## Documentation
 
-Architecture and everything else is documented in [`docs/design.md`](docs/design.md).
+| Doc | What it covers |
+|---|---|
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | **Start here for code** — architecture, module map, invariants, gotchas, testing, packaging |
+| [`docs/design.md`](docs/design.md) | Canonical design document — state/storage model, theming, feature specs |
+| [`docs/codebase-audit-2026-08-02.md`](docs/codebase-audit-2026-08-02.md) | Performance/robustness audit with resolved items |
+| [`AGENTS.md`](AGENTS.md) | Agent-CLI instructions (Claude Code, Cursor, etc.) |
+
+## Contributing
+
+Vinland is open source under the Apache License 2.0. Bug reports, feature
+ideas, and pull requests are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md)
+for how to set up, test, and submit changes.
+
+## License
+
+[Apache License 2.0](LICENSE) — Copyright 2026 Rhyon. See [`LICENSE`](LICENSE)
+for the full text.

@@ -1,16 +1,4 @@
-/**
- * Vinland Local Graph — Playwright Integration Test
- *
- * Tests the per-note local graph end-to-end:
- * - Creates two linked notes via [[wiki links]]
- * - Verifies the local graph SVG appears with D3-rendered nodes
- * - Checks the connection count badge shows the right number
- * - Tests empty state when a note has no connections
- * - Tests collapse/expand toggle behavior
- *
- * Run with:
- *   npx playwright test tests/local-graph.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -46,9 +34,7 @@ function getFirstBlock(page) {
     .locator('[contenteditable="true"]').first();
 }
 
-/**
- * Create a note with wiki link content, wait for auto-save, and close.
- */
+
 async function createNoteWithLink(page, title, linkTarget) {
   await runCLI(page, 'note ' + title);
   await waitForEditor(page);
@@ -62,10 +48,7 @@ async function createNoteWithLink(page, title, linkTarget) {
   await closeEditor(page);
 }
 
-/**
- * Open a note by its exact title using Notes.openByTitle().
- * More reliable than CLI for opening existing notes.
- */
+
 async function openNoteByTitle(page, title) {
   const opened = await page.evaluate((t) => {
     if (window.Notes && window.Notes.openByTitle) {

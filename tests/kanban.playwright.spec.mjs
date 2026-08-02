@@ -1,13 +1,4 @@
-/**
- * Vinland Kanban Board - Playwright Integration Tests
- *
- * Tests the complete Kanban board workflow: create a board, open it,
- * add cards, edit card content, delete cards, manage columns, and
- * verify persistence across close/reopen.
- *
- * Run with:
- *   npx playwright test tests/kanban.playwright.spec.mjs
- */
+
 
 import { test, expect } from '@playwright/test';
 
@@ -33,7 +24,7 @@ async function closeBoardModal(page) {
   await page.waitForTimeout(400);
 }
 
-/** Create a board via window.KanbanManager. Returns the board ID. */
+
 async function createBoard(page, title) {
   return await page.evaluate((t) => {
     if (!window.KanbanManager) return null;
@@ -42,7 +33,7 @@ async function createBoard(page, title) {
   }, title);
 }
 
-/** Open a board by ID via KanbanManager.open(). */
+
 async function openBoard(page, boardId) {
   await page.evaluate((id) => {
     if (window.KanbanManager) {
@@ -52,11 +43,7 @@ async function openBoard(page, boardId) {
   await page.waitForTimeout(400);
 }
 
-/**
- * Add a card to a specific column index.
- * If boardId is provided, adds directly via State (works before opening the board).
- * If boardId is omitted, uses KanbanManager.activeBoard (must be open).
- */
+
 async function addCard(page, colIndex, content, boardId) {
   if (boardId) {
     // Direct State manipulation - works before the board is opened
@@ -90,7 +77,7 @@ async function addCard(page, colIndex, content, boardId) {
   await page.waitForTimeout(200);
 }
 
-/** Get the count of cards in a specific column. */
+
 async function getCardCount(page, colIndex) {
   return await page.evaluate((idx) => {
     const km = window.KanbanManager;
@@ -100,7 +87,7 @@ async function getCardCount(page, colIndex) {
   }, colIndex);
 }
 
-/** Get all columns in the active board. */
+
 async function getColumnTitles(page) {
   return await page.evaluate(() => {
     const km = window.KanbanManager;
@@ -141,7 +128,7 @@ test.afterEach(async ({ page }) => {
         k === 'OPERATOR_BOARDS_V1'
       );
       keys.forEach(k => localStorage.removeItem(k));
-    } catch { /* page may have navigated away */ }
+    } catch {  }
   }).catch(() => {});
 });
 

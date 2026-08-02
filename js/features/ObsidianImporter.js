@@ -1,27 +1,16 @@
 import { State } from '../core/Store.js';
 import { saveData } from '../core/Storage.js';
 
-/* =========================================
-   OBSIDIAN VAULT IMPORTER
-   =========================================
-   Imports .md files from an Obsidian vault:
-   - YAML frontmatter parsing
-   - Tag extraction (#hashtags + frontmatter tags)
-   - Wiki link ([[Page]]) extraction
-   - Preserves filename as title
-   ========================================= */
+
 
 export const ObsidianImporter = {
     importInProgress: false,
     totalImported: 0,
     errors: [],
 
-    /* ── CLI Entry Point ──────────────────── */
+    
 
-    /**
-     * Opens the file picker for .md files.
-     * Called by the `obsidian-import` CLI command.
-     */
+    
     openFilePicker: function() {
         var input = document.getElementById('obsidian-import-file');
         if (!input) {
@@ -43,22 +32,16 @@ export const ObsidianImporter = {
         input.click();
     },
 
-    /**
-     * Handler bound to the file input change event.
-     * Extracted as a named reference so removeEventListener works correctly.
-     */
+    
     _onFilesSelected: function(e) {
         ObsidianImporter.handleFiles(e.target.files);
         // Reset so the same file can be re-selected
         e.target.value = '';
     },
 
-    /* ── File Handling ────────────────────── */
+    
 
-    /**
-     * Process selected .md files.
-     * Reads each file, parses frontmatter/content, and creates notes.
-     */
+    
     handleFiles: function(files) {
         if (!files || files.length === 0) {
             if (window.showNotification) {
@@ -98,9 +81,7 @@ export const ObsidianImporter = {
         });
     },
 
-    /**
-     * Check if all files have been processed and show summary.
-     */
+    
     _checkDone: function(processed, total) {
         if (processed >= total) {
             this.importInProgress = false;
@@ -138,11 +119,9 @@ export const ObsidianImporter = {
         }
     },
 
-    /* ── Single File Import ───────────────── */
+    
 
-    /**
-     * Parse a single .md file and create a note from it.
-     */
+    
     _importMdFile: function(text, filename) {
         if (!text || !text.trim()) return;
 
@@ -180,10 +159,7 @@ export const ObsidianImporter = {
         saveData();
     },
 
-    /**
-     * Parse .md content: extract YAML frontmatter, tags, wiki links.
-     * Returns { frontmatter, body, content, tags, links }
-     */
+    
     _parseContent: function(text) {
         var frontmatter = {};
         var body = text;
@@ -266,10 +242,7 @@ export const ObsidianImporter = {
         };
     },
 
-    /**
-     * Extract a display title from a filename.
-     * Strips .md extension and replaces dashes/underscores with spaces.
-     */
+    
     _titleFromFilename: function(filename) {
         if (!filename) return 'Untitled';
         var name = filename;

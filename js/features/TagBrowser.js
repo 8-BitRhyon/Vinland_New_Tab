@@ -1,24 +1,4 @@
-/**
- * TagBrowser - Tag Navigation & Filter Modal
- *
- * A dedicated tag browser (Cmd+Shift+T) showing all tags with counts,
- * search/filter, note preview on hover/select, and click-to-filter.
- *
- * Opens on:
- *   - Cmd+Shift+T keyboard shortcut
- *   - `tags` CLI command
- *
- * Features:
- *   - Lists all tags from MetadataCache.getAllTags() sorted by count desc
- *   - Search/filter tags as you type (instant, no debounce)
- *   - Shows note count per tag with count badge
- *   - Hover/select a tag shows a preview of notes matching that tag
- *   - Click a note preview to open it directly
- *   - Click a tag to filter notes in the sidebar via Notes.filterByTag()
- *   - Click again to clear the filter
- *   - Keyboard navigable (arrow keys, Enter, Esc)
- *   - Shows which tag is currently active as a filter
- */
+
 
 import { State } from '../core/Store.js';
 import { MetadataCache } from '../core/MetadataCache.js';
@@ -30,16 +10,12 @@ export const TagBrowser = {
     currentQuery: '',
     allTags: [],
 
-    /**
-     * Initialize TagBrowser. Called once from boot.js
-     */
+    
     init: function () {
         this._injectDOM();
     },
 
-    /**
-     * Open the TagBrowser modal
-     */
+    
     open: function () {
         if (this.isOpen) return;
         this.isOpen = true;
@@ -76,9 +52,7 @@ export const TagBrowser = {
         this._bindEvents();
     },
 
-    /**
-     * Close the TagBrowser modal
-     */
+    
     close: function () {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -96,9 +70,7 @@ export const TagBrowser = {
         this.allTags = [];
     },
 
-    /**
-     * Open TagBrowser from CLI with optional initial query
-     */
+    
     openFromCLI: function (query) {
         this.open();
         if (query && query.trim()) {
@@ -112,9 +84,7 @@ export const TagBrowser = {
 
     // ─── Private Methods ─────────────────────────────────────────
 
-    /**
-     * Load all tags from MetadataCache
-     */
+    
     _loadTags: function () {
         this.allTags = [];
 
@@ -140,9 +110,7 @@ export const TagBrowser = {
         });
     },
 
-    /**
-     * Inject TagBrowser DOM elements on first init
-     */
+    
     _injectDOM: function () {
         if (document.getElementById('tag-browser-overlay')) return;
 
@@ -212,9 +180,7 @@ export const TagBrowser = {
         document.body.appendChild(palette);
     },
 
-    /**
-     * Handle input changes (instant, no debounce for tags)
-     */
+    
     _onInput: function () {
         var input = document.getElementById('tag-browser-input');
         if (!input) return;
@@ -224,9 +190,7 @@ export const TagBrowser = {
         this._render();
     },
 
-    /**
-     * Render tag results
-     */
+    
     _render: function () {
         var container = document.getElementById('tag-browser-results');
         var preview = document.getElementById('tag-browser-preview');
@@ -336,9 +300,7 @@ export const TagBrowser = {
         }
     },
 
-    /**
-     * Render note previews for a given tag in the preview panel
-     */
+    
     _renderPreview: function (tagName) {
         var preview = document.getElementById('tag-browser-preview');
         if (!preview) return;
@@ -427,9 +389,7 @@ export const TagBrowser = {
         });
     },
 
-    /**
-     * Update the visual selection state
-     */
+    
     _updateSelection: function () {
         var items = document.querySelectorAll('#tag-browser-results .tb-result');
         items.forEach(function (el, idx) {
@@ -440,9 +400,7 @@ export const TagBrowser = {
         }, this);
     },
 
-    /**
-     * Activate a tag — toggle filter in sidebar
-     */
+    
     _activateTag: function (tagName) {
         if (window.Notes && window.Notes.filterByTag) {
             window.Notes.filterByTag(tagName);
@@ -460,17 +418,13 @@ export const TagBrowser = {
         }
     },
 
-    /**
-     * Bind keyboard event listeners
-     */
+    
     _bindEvents: function () {
         this._boundKeyHandler = this._onKeyDown.bind(this);
         document.addEventListener('keydown', this._boundKeyHandler);
     },
 
-    /**
-     * Unbind keyboard event listeners
-     */
+    
     _unbindEvents: function () {
         if (this._boundKeyHandler) {
             document.removeEventListener('keydown', this._boundKeyHandler);
@@ -478,9 +432,7 @@ export const TagBrowser = {
         }
     },
 
-    /**
-     * Handle keyboard navigation
-     */
+    
     _onKeyDown: function (e) {
         if (!this.isOpen) return;
 
@@ -523,9 +475,7 @@ export const TagBrowser = {
         }
     },
 
-    /**
-     * Escape HTML special characters
-     */
+    
     _escapeHtml: function (str) {
         if (!str) return '';
         return String(str)

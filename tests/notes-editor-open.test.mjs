@@ -1,16 +1,4 @@
-/**
- * Notes Editor Open - TDD: Red → Green
- *
- * Bug: ModalManager.open('note-editor-modal') is at the END of Notes.open(),
- * after BlockEditor.render(). If BlockEditor.render throws, the modal never opens.
- *
- * RED test: reads the source and asserts ModalManager.open comes BEFORE
- * BlockEditor.render. With the current (buggy) code this assertion FAILS
- * because ModalManager.open is at line ~797, BlockEditor.render at line ~665.
- *
- * GREEN fix: move ModalManager.open before BlockEditor.render and wrap
- * render in try/catch.
- */
+
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

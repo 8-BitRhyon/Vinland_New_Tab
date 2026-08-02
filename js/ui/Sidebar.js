@@ -5,14 +5,9 @@ import { saveData } from '../core/Storage.js';
 // Placeholder for future NotesController import
 // import { Notes } from "../modules/NotesController.js";
 
-/* =========================================
-   PHASE 2: TREE VIEW HELPERS
-   ========================================= */
 
-/**
- * Build logical folder structure from flat notes list
- * Returns object: { "folderName": { ...subfolders..., __files__: [notes] } }
- */
+
+
 export function buildDirectoryStructure(notes) {
     var root = { __files__: [], __path__: '/' };
 
@@ -59,10 +54,7 @@ export function buildDirectoryStructure(notes) {
     return root;
 }
 
-/**
- * Recursive Tree Filter
- * Returns new structure containing only matching items/ancestors
- */
+
 export function filterTreeStructure(structure, query) {
     var newStructure = { __files__: [], __path__: structure.__path__ };
     var hasMatch = false;
@@ -96,10 +88,7 @@ export function filterTreeStructure(structure, query) {
     return { structure: newStructure, _hasMatch: hasMatch };
 }
 
-/**
- * Render HTML for the File Tree
- * Recursive function to build sidebar DOM
- */
+
 export function renderFileTree(structure, basePath, forceExpand) {
     var container = document.createElement('div');
     container.className = 'tree-container';
@@ -268,9 +257,7 @@ export function renderFileTree(structure, basePath, forceExpand) {
     return container;
 }
 
-/**
- * Main Sidebar Renderer (Extracted from Notes.renderSidebar)
- */
+
 export function renderSidebar(query) {
     var sidebarList = document.getElementById('notes-list-sidebar');
     if (!sidebarList) return;
@@ -437,10 +424,7 @@ export function renderSidebar(query) {
     }
 }
 
-/**
- * V88: Render Trash View
- * Replaces sidebar content with trash items
- */
+
 export function renderTrashView() {
     var sidebarList = document.getElementById('notes-list-sidebar');
     if (!sidebarList) return;

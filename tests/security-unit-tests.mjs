@@ -1,17 +1,4 @@
-/**
- * Vinland Security - Unit Tests
- *
- * Tests the XSS-hardening primitives in js/core/Utils.js (escapeHtml,
- * escapeAttr, sanitizeLinkUrl) against injection payloads. These are the
- * helpers the BlockEditor rendering pipeline routes user content through
- * (markdownToHtml links, highlightSyntax wiki links, getCalcPreviewHtml).
- *
- * Run with: node tests/security-unit-tests.mjs
- * Uses Node's built-in assert module (zero dependencies).
- *
- * Importing Utils.js is safe in Node — it only declares module-level state;
- * the DOM-dependent helpers (safeText/getAudioContext) are not invoked here.
- */
+
 
 import assert from 'node:assert/strict';
 import { escapeHtml, escapeAttr, sanitizeLinkUrl } from '../js/core/Utils.js';

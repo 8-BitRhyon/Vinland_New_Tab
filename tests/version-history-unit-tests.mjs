@@ -1,15 +1,4 @@
-/**
- * Vinland VersionHistoryManager - Unit Tests (H5 compaction)
- *
- * Tests the H5 cap/prune logic:
- *   - trimToMax(): pure per-note cap, keeps NEWEST snapshots
- *   - prune() semantics against a shimmed State (orphans removed, oversized
- *     stores trimmed) via the REAL module (no IndexedDB needed for the pure
- *     pieces; the store-level sweep is covered by the Playwright spec).
- *
- * Run with: node tests/version-history-unit-tests.mjs
- * (aggregated by tests/run-all.mjs)
- */
+
 
 import assert from 'node:assert/strict';
 

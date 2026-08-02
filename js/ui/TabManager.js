@@ -4,10 +4,7 @@ import { safeText } from '../core/Utils.js';
 // Placeholder for future NotesController import
 // import { Notes } from "../modules/NotesController.js";
 
-/* =========================================
-   V63.2: TAB MANAGER
-   Handles multi-tab note editing
-   ========================================= */
+
 export const TabManager = {
     tabs: [], // [{noteId, title}]
     activeIndex: -1,
