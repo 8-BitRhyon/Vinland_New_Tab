@@ -53,6 +53,8 @@ datastore by default. Notes, tasks, and media stay in the browser
 
 ## Dependency policy
 
-Vinland ships one vendored runtime dependency (D3 v7). Everything else is
+Vinland ships one vendored runtime dependency: **D3 v7 (BSD-3-Clause)** — its
+copyright notice is preserved in the `d3.v7.min.js` header. Everything else is
 vanilla. If you add a dependency, keep it vendored, license-compatible
-(Apache-2.0 or permissive), and documented in `docs/DEVELOPMENT.md`.
+(Apache-2.0 or permissive), preserve its license notice, and document it in
+`docs/DEVELOPMENT.md`.

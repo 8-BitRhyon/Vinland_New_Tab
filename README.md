@@ -48,7 +48,7 @@ all local.
 |---|---|
 | Manifest | V3 |
 | JS | Vanilla ES modules |
-| Graph | D3 v7 (vendored, 273KB) |
+| Graph | D3 v7 (vendored, 273KB, BSD-3-Clause) |
 | Storage | localStorage (sharded) + IndexedDB (media) |
 | State | One global `State` object on `window` |
 | CSS | Design tokens as CSS vars |

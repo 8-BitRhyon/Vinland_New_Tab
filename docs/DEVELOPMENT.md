@@ -15,8 +15,8 @@ framework, no bundler, no npm artifacts shipped.
 
 - `manifest.json` — MV3, `chrome_url_overrides.newtab = index.html`.
 - `index.html` — the entire shell + CSS + the two script tags that bootstrap
-  the app: `./d3.v7.min.js` (vendored, for graph/canvas) and
-  `js/boot.js` (ES module).
+  the app: `./d3.v7.min.js` (vendored, BSD-3-Clause, notice preserved in the
+  file header — for graph/canvas) and `js/boot.js` (ES module).
 - `js/boot.js` — the **only** entry module. It imports and mounts every
   subsystem onto `window` (e.g. `State`, `Storage`, `ModalManager`,
   `BlockEditor`, `NotesController`, …) and wires global keybindings.
@@ -270,10 +270,15 @@ The core editing engine. Key responsibilities:
 ## 10. Known gotchas (learned the hard way)
 
 - **Block comments were removed from source in the 2026-08 open-source pass.**
-  `scripts/remove-block-comments.mjs` did the harvest; the knowledge lives in
-  this document. If you re-add a block comment, consider whether it belongs
-  here instead — but there is no automated gate; be sensible.
+  A one-shot harvest tool did the stripping; the tool was deleted after use —
+  `git show` the `chore(oss)` commit if you ever need the original text. The
+  knowledge lives in this document. If you re-add a block comment, consider
+  whether it belongs here instead — but there is no automated gate; be
+  sensible.
 - **`/* */` inside template-literal CSS is not a JS comment.** (see §7).
+- **`/* */` inside a template `${...}` expression** is preserved, not stripped
+  (the harvest tool treated templates as opaque). If you see one, it's
+  intentional — it's a real JS comment inside a template expression.
 - **Deletion paths must call `VersionHistoryManager.removeNote()`** and the
   `MetadataCache.removeNote()` guard — orphaned data is otherwise permanent.
 - **Regexes containing `[` char classes** must be tested after any
