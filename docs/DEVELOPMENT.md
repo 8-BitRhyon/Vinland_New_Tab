@@ -94,6 +94,25 @@ framework, no bundler, no npm artifacts shipped.
 - `updateNote`/`removeNote` are called by the notes lifecycle; deletion paths
   must mirror the `MetadataCache` guard pattern.
 
+#### MetadataCache — function inventory (≈0.5k lines)
+
+| Function | What it does |
+|---|---|
+| `init()` | Build the whole tag/link/backlink index from all notes |
+| `parseFrontmatter(content)` | Parse YAML frontmatter (`--- key: value ---`) |
+| `extractTags(content)` | Extract tags — #hashtags + frontmatter tags (handles numeric tags) |
+| `extractWikiLinks(content)` | Extract `[[Page]]` / `[[Page|Alias]]` |
+| `updateNote(note)` | Update metadata for a note (coalesces full-index persistence) |
+| `removeNote(id)` | Remove note from cache |
+| `updateTagIndex()` / `updateLinkIndex()` | Rebuild tag index / link index + backlinks |
+| `get(id)` / `getByTag(tag)` / `getBacklinks(title)` / `getLinkingNotes(title)` / `getAllTags()` | O(1)-ish cached lookups |
+| `search(query)` | Simple text search across notes |
+| `query(prop, value)` | Query notes by frontmatter property |
+| `_notesFingerprint()` | Cheap vault fingerprint: count + newest modified + rolling id hash — detects vault changes |
+| `_markCacheDirty()` / `_flushCache()` | Debounced full-index write (+ unload-hook flush) |
+| `saveCache()` / `loadCache()` | Persist; load only when schema-valid AND fingerprint matches, else rebuild |
+| `getStats()` | Cache statistics |
+
 ### QueryEngine + DataviewQuery
 
 - `QueryEngine` parses `FROM … WHERE … SORT …` strings into a structured
@@ -232,6 +251,28 @@ embedded undo/redo stack.
 | **CommandLineInterface** | The CLI layer that dispatches typed commands (wired to the command registry). |
 | **WorkspaceManager** | Tab/session persistence for the workspace. |
 
+#### QuickOpen — function inventory (≈1.7k lines)
+
+| Function | What it does |
+|---|---|
+| `init()` | Called once from `boot.js` |
+| `toggle()` / `open(searchMode)` / `close()` | Palette open/close; `searchMode` = content search (Cmd+Shift+F) |
+| `searchFromCLI(query)` | Search from the `find <query>` CLI command |
+| `_injectDOM()` | Inject palette DOM on first init |
+| `_showSearchPrompt()` | Content-search prompt footer (guides typing) |
+| `_showInitialResults()` | Recent notes + all commands |
+| `_onInput()` / `_executeSearch()` | Debounced input → full search across notes/tags/commands (25-result cap) |
+| `_render()` | Render results into the DOM |
+| `_getAbsoluteIndex()` / `_updateSelection()` / `_activateResult()` | Selection + execute by absolute index |
+| `_bindEvents()` / `_unbindEvents()` / `_onKeyDown()` | Palette keyboard nav |
+| `_escapeHtml()` | Escape — string-replacement based so it works in browser **and** Node (unit tests) |
+| `_formatDate()` | 'Today' / 'Yesterday' / weekday / short date |
+| `openResultsPage(query)` | Full-page search-results overlay (Cmd+Shift+F) |
+| `_injectResultsPageDOM()` / `_injectResultsPageStyles()` | Results-page DOM + one-time styles |
+| `_saveRecentQuery()` / `_showRecentSearches()` | Recent searches (localStorage, max 10) |
+| `_renderResultsPage()` / `_updateResultsPageSelection()` / `_activateResultsPage()` | Results-page render with highlighting + selection |
+| `_closeResultsPage()` / `_bindResultsPageEvents()` / `_unbindResultsPageEvents()` / `_onResultsPageInput()` | Results-page lifecycle + debounced input |
+
 ---
 
 ## 5. Modules (`js/modules/`)
@@ -291,10 +332,80 @@ embedded undo/redo stack.
   undo/redo, minimap, zoom slider, tag filter bar, auto-save status
   indicator, toolbar collapse toggle, edge hover glow. Node pinning
   (fx/fy freeze), layout reset, camera fit.
+
+#### CanvasManager — function inventory (≈5k lines)
+
+| Function | What it does |
+|---|---|
+| `_snapToGrid(v)` / `_snapNodePosition(node)` | Grid snapping |
+| `_getActiveNote()` | Active note (canvas data lives in `note.canvasData`) |
+| `_saveData()` / `_markDirty()` | Persist + dirty flag |
+| `_startAutoSave()` / `_stopAutoSave()` / `_autoSaveTick()` / `_setAutoSaveStatus()` | Autosave loop + status indicator |
+| `_saveRecoverySnapshot()` / `_checkRecovery()` / `_clearRecoverySnapshot()` | Crash-recovery snapshots |
+| `_getWorldCenter()` | World/camera center |
+| `selectNode()` / `deselectNode()` / `clearSelection()` | Node selection |
+| `deleteSelectedNodes()` / `copySelectedNodes()` / `pasteCopiedNodes()` / `duplicateSelectedNodes()` | Clipboard + bulk ops |
+| `getMouseWorldCoords(e)` | Screen → world coordinates |
+| `_saveHistoryState()` / `undo()` / `redo()` | Canvas history (undo/redo) |
+| `init()` | Lifecycle: imports, toolbar, tag filter, event wiring |
+| `load()` / `doRecover()` / `doDiscard()` | Data loading + recovery prompt decisions |
+| `updateUI()` / `bindToolbar()` | UI refresh + toolbar wiring |
+| `_showNotePicker()` / `_closeNotePicker()` / `_showUrlPicker()` / `_closeUrlPicker()` | Node/URL picker overlays |
+| `_showShortcutsPanel()` / `_closeShortcutsPanel()` | Shortcuts overlay |
+| `_addFileNode()` / `_addEmbedNode()` / `_addGroupNode()` | Node creation |
+| `_bindKeyboardShortcuts()` | Keyboard shortcuts |
+| `_bindCanvasMouseEvents()` / `_bindGlobalMoveEvents()` / `_bindWheelZoom()` / `_bindCanvasContextMenu()` | Pan/lasso, global move/up, wheel zoom, empty-canvas context menu |
+| `closeHandler()` / `bindEvents()` | Event wiring |
+| `_saveViewport()` / `_zoomToSelection()` / `zoomToFit()` | Viewport persistence + zoom |
+| `_initMinimap()` / `_updateMinimap()` / `_syncMinimapViewport()` / `_minimapClick()` | Minimap (click-to-jump) |
+| `updateTransform()` / `addCard()` | Transform + card creation |
+| `_blocksToHtml(blocks)` | BlockEditor blocks → rendered HTML for file-node cards |
+| `_startEdgeDraw()` | Edge drawing |
+| `_getPortToward()` / `_getAutoPorts()` | Port calculation |
+| `_calcBezierControlPoints()` / `_buildEdgePathString()` | Bezier/edge path math |
+| `_resolveEdgeStyles()` / `_renderWaypointHandles()` / `_renderEdgeHoverHint()` | Edge styles, waypoints, hover hint |
+| `renderEdge(edge)` / `_renderEdgeLabel(edge)` | Edge render + label at bezier midpoint |
+| `_showAlignMenu()` / `_alignNodes()` | Node alignment menu + apply |
+| `_autoLayout()` | Auto layout |
+| `_editEdgeLabel()` / `_deleteEdge()` | Edge label editing + delete |
+| `_buildEdgeMenuHTML()` / `_handleEdgeMenuAction()` / `_setupCloseOnOutsideClick()` / `_showEdgeContextMenu()` | Edge context menu |
+| `_convertMarkdownToHtml()` | Markdown → HTML for node cards |
+| `_collectTags()` / `_renderTagFilter()` / `_applyTagFilter()` | Tag filter bar |
+| `_routeWikiLinks()` / `_refreshEdges()` | Wiki-link auto-routing + edge refresh |
+| `_showContextMenu()` | Canvas context menu (rebuilds arrowhead defs) |
+| `_updateBacklinks()` / `_showBacklinks()` / `esc()` / `_closeBacklinks()` / `_updateBacklinksPosition()` / `_convertTextNodeToFile()` / `_updateBacklinksBadge()` | Backlinks panel (esc = Escape-close) + text-node→file conversion |
+| `_showCanvasFormatBar()` / `_hideCanvasFormatBar()` | Rich-text format bar |
+| `_showCommentThread()` / `_hideCommentThread()` | Comment threads |
+
 - **GraphManager** — D3 force-directed knowledge graph derived from wiki
   links: pin/unpin/reset layout, zoom-to-fit, single-click zooms to the
   clicked node's connected subgraph (BFS full chain), folder filter dropdown,
   hover previews.
+
+#### GraphManager — function inventory (≈1k lines)
+
+| Function | What it does |
+|---|---|
+| `saveLayout()` | Persist graph node positions to localStorage |
+| `pinAllNodes()` | Freeze the layout (set `fx/fy`) so it stays exactly as arranged |
+| `resetLayout()` | Clear saved positions + unpin — force simulation re-layouts from scratch |
+| `unpinAllNodes()` | Unpin AND clear saved positions so nodes stay free across renders (mode toggles, reopen) |
+| `init()` | Lifecycle |
+| `_onSearchChange()` / `_clearSearchTimer()` / `_updateMatchCount()` | Node search (debounced re-render) + match count |
+| `open()` / `close()` | Modal open/close (re-render after animation) |
+| `_escapeHtml()` | Escape helper |
+| `_zoomToFit(nodes)` | Smoothly animate the camera to fit nodes (D3 zoom transition, lerp) |
+| `fitView()` | Public fit-all handler (from the 'fit view' button) |
+| `_scheduleZoomFit()` | Zoom-to-fit after the simulation settles |
+| `_getConnectedNodeIds(node)` | BFS to find all nodes connected to a node (full chain) |
+| `_zoomToFitConnected()` | Single-click: zoom to the clicked node's connected subgraph |
+| `_buildFolderOptions()` | Build the folder-filter dropdown from active notes |
+| `_getNotePreview()` / `_showTooltip()` / `_positionTooltip()` / `_hideTooltip()` | Node tooltips (preview text, strip HTML, truncate) |
+| `toggleLocalMode()` | Global ↔ local (1-degree neighbor) view |
+| `getNodeRadius(node)` | Node radius from degree |
+| `render()` | D3 force simulation render — applies saved layout + pins |
+| `dragstarted()` / `dragged()` / `dragended()` | D3 drag handlers |
+
 - **KanbanManager** — multi-column boards with vim nav and drag-and-drop.
 
 ---
