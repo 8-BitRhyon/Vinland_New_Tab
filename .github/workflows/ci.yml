@@ -23,6 +23,11 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      # Docs drift gate: docs/DEVELOPMENT.md function inventories must stay
+      # in sync with the source (regenerate with `npm run docs`).
+      - name: Check function inventories are in sync
+        run: npm run docs:check
+
   # E2E tests (Playwright) — split into 4 parallel shards so the suite
   # finishes well within job time limits. The Playwright config auto-starts
   # `python3 -m http.server 9999` as the web server (see playwright.config.mjs).

@@ -6,7 +6,9 @@
   "scripts": {
     "test": "node tests/run-all.mjs",
     "test:e2e": "npx playwright test",
-    "test:all": "node tests/run-all.mjs"
+    "test:all": "node tests/run-all.mjs",
+    "docs": "node scripts/generate-inventories.mjs",
+    "docs:check": "node scripts/generate-inventories.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
