@@ -51,6 +51,12 @@ const MODULES = [
   { path: 'js/modules/GraphManager.js', header: '#### GraphManager — function inventory' },
   { path: 'js/features/QuickOpen.js', header: '#### QuickOpen — function inventory' },
   { path: 'js/core/MetadataCache.js', header: '#### MetadataCache — function inventory' },
+  { path: 'js/core/Storage.js', header: '#### Storage — function inventory' },
+  { path: 'js/editor/PageManager.js', header: '#### PageManager — function inventory' },
+  { path: 'js/features/BackupManager.js', header: '#### BackupManager — function inventory' },
+  { path: 'js/features/FlashcardManager.js', header: '#### FlashcardManager — function inventory' },
+  { path: 'js/features/DataviewQuery.js', header: '#### DataviewQuery — function inventory' },
+  { path: 'js/ui/Sidebar.js', header: '#### Sidebar — function inventory' },
 ];
 
 // ──────────────────────────────────────────
@@ -61,7 +67,7 @@ const FUNC_PATTERNS = [
   /^\s*([A-Za-z_$][\w$]*)\s*:\s*(?:async\s+)?function\s*\(/, // name: function (
   /^\s*([A-Za-z_$][\w$]*)\s*\(\s*\)\s*\{/, // name() {
   /^\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{$/, // name(params) {
-  /^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/, // function name(
+  /^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/, // [export] function name(
   /^\s*([A-Za-z_$][\w$]*)\s*:\s*(?:async\s+)?\([^)]*\)\s*=>/, // name: (...) =>
   /^\s*(?:get|set)\s+([A-Za-z_$][\w$]*)\s*\(/, // get/set name(
 ];
