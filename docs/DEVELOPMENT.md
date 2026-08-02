@@ -142,6 +142,65 @@ The core editing engine. Key responsibilities:
 - Per-block listeners are the current architecture (container delegation is a
   known optimization opportunity — see the audit doc).
 
+#### BlockEditor — function inventory (≈3.8k lines)
+
+`HistoryManager` lives at the top of this file (lines 1–50) — it is the
+embedded undo/redo stack.
+
+| Function | What it does |
+|---|---|
+| `HistoryManager.push/undo/redo` | Snapshot current block state / undo / redo |
+| `_getActivePage()` | Resolve the active note page (O(1) via `State.getNote`) |
+| `getCalloutIcon(type)` | Icon/SVG for a callout type |
+| `_getTypeLabel(type)` | Block-type badge label for the block chrome |
+| `getCalcPreviewHtml(expr)` | Live `= expr` calculator preview HTML |
+| `safeMathEval(expr)` | CSP-safe arithmetic evaluation (no `eval`) |
+| `highlightSyntax(code, lang)` | Inline syntax highlighting for code content |
+| `htmlToMarkdown(domHtml)` | DOM HTML (execCommand/paste output) → Vinland markdown |
+| `markdownToHtml(md)` | Markdown → HTML for the WYSIWYG; **sanitizes links** (security-critical) |
+| `setSelectionOffsets(…)` | Set caret/text selection by offsets |
+| `applyFormatting(cmd)` | Apply B/I/U/L/inline formatting with immediate visual feedback |
+| `init()` | Lifecycle entry: binds marquee, keydown, container, outside-click, block-mousedown |
+| `processImageFile(file)` | Read an image file into a block (FileReader → data URL) |
+| `handleDrop(e)` | Drag-and-drop of files/text into blocks |
+| `render()` | Render all blocks; smart numbering; find highlights if active |
+| `_updateStats()` | Block/task/word counts for the editor footer |
+| `duplicateBlock(id)` / `focusBlock(id)` | Clone a block / focus a block's contenteditable |
+| `selectBlock/selectRange/selectAll/clearSelection` | Selection system incl. range + multi-select |
+| `updateSelectionVisuals()` / `getSelectedBlocks()` | Multi-select visuals + getter |
+| `reorderBlock(…)/reorderSelectedBlocks(…)` | Drag reorder (splice to correct index) |
+| `renderBlock(block)` | Build block wrapper HTML by type |
+| `_createBlockChrome(block)` | Drag handle, type badge, duplicate, indent, alignment, color chrome |
+| `_renderHeading/Task/List/Quote/Divider/ParagraphBlock` | Per-type block renderers |
+| `_renderCodeBlock(block)` | Markdown → HTML code blocks; enhances with line numbers/copy/Tab (via CodeBlockTools) |
+| `_renderCalloutBlock(block)` | Callouts with body + edit button |
+| `_renderImageBlock(block)` | Image blocks with delete/edit UI |
+| `_renderKanbanBlock(block)` | Inline kanban; board linking persisted; smart Enter injector |
+| `_renderTableBlock(block)` | Tables with resizable column widths + toolbar actions |
+| `_renderQueryBlock(block)` | Dataview query execution + result render inside the block |
+| `_renderEmbedBlock(block)` | `![[Note]]` transclusion preview (read-only render) |
+| `_renderLocalGraph` + `_wireLocalGraphToggle` + `_gatherLocalGraphConnections` + `_buildLocalGraphSim` + `_drawLocalGraphLinks` + `_drawLocalGraphNodes` + `_attachLocalGraphTick` | Local backlink/forward-link graph inside the editor |
+| `_escapeRegExp(s)` | Regex-escape helper (find/replace) |
+| `_findOpen/Close/Search/Next/Prev/UpdateCount/GetBlockEl/UpdateCurrentHighlight/ScrollToCurrent/ToggleReplace/Replace/ReplaceAll/ApplyHighlights/HighlightTextNodes/InitFindBar` | Full find & replace subsystem with `<mark>` highlights + replace-all |
+| `handleKeydown(e)` | Central keydown dispatch → the `_kHandle*` handlers |
+| `_kHandleEscapeClear/CodeTab/CloseTab/TabSwitch` | Esc-clear, Tab-in-code, Cmd+Shift+X close tab, Cmd+1-9 tab switch |
+| `_kHandleFindOpen/Toggle/Navigate/Close` | Find-bar keyboard bindings |
+| `_kHandleCalcEval` | Evaluate `=` block on hotkey |
+| `_kHandleUndoRedo` | Cmd+Z / Cmd+Shift+Z |
+| `_kHandleMultiDelete` | Delete all selected blocks |
+| `_kHandleCopy/Cut/Duplicate/Indent` | Copy/cut selected, duplicate block, indent handling |
+| `_kHandleAltArrowMove` | Move selected blocks with Alt+Arrow |
+| `_kHandleEnterSplit` | Smart Enter: split block, list/quote continuation, empty-item revert to paragraph |
+| `_kHandleBackspaceMerge` | Backspace at block start → merge with previous |
+| `_kHandleArrowNav` | Arrow navigation incl. Cmd+Arrow jump to start/end |
+| `_kHandleFormat` / `_kHandleSlashTrigger` | Formatting hotkeys / `/` slash-menu trigger |
+| `flashBlock(el)` | Brief highlight flash (reorder/type-change feedback) |
+| `checkInputRules(el)` | Markdown input rules — auto-convert paragraphs on trigger patterns (`- `, `# `, `> `, `---` …) |
+| `handleInput(e)` | Input event → WYSIWYG sync, debounced autosave, MetadataCache update, `[[` check |
+| `handleClick(e)` | Click handling incl. focus-last-block behavior |
+| `handlePaste(e)` | Paste entry → routes to image / code / text handlers |
+| `_pHandleImagePaste` / `_pHandleCodePaste` / `_pHandleTextToBlocks` | Paste sub-handlers (image file, code block, multi-block text) |
+
 ### PageManager
 
 - **`parseMarkdownToBlocks`** — converts note markdown into the block array.
@@ -180,6 +239,54 @@ The core editing engine. Key responsibilities:
 - **NotesController** — note CRUD, `openByTitle`, transclusion, template
   resolution, frontmatter injection. Contains standalone helpers (HTML
   escaping, line-break handling). Guards against `sessionStorage` full.
+
+#### NotesController — function inventory (≈2.4k lines)
+
+| Function | What it does |
+|---|---|
+| `_bindShortcuts()` | Cmd+N new note, Cmd+P pin, global editor shortcuts |
+| `_bindPreviewClicks()` | Preview HUD/embed click handling |
+| `_bindEditorInputs()` / `_bindToolbarHandlers()` | Editor input + toolbar (breadcrumb toggle, path edit, maximize) listeners |
+| `_bindSidebarButtons()` / `_bindSidebarSearch()` | Sidebar buttons (folder create, preview toggle) + filter search |
+| `_cleanupAutoNote()` | Garbage-collect auto-created empty notes when switching away |
+| `_savePreviousNote()` | Save or GC the previous note before switching (canvas notes exempt — never GC) |
+| `_resolveNote(id)` | id → note, fallback to first note, or create if empty |
+| `_setupEditorContainers()` | Route to canvas vs standard editor containers; returns true when canvas |
+| `_renderEditor()` | Render the editor in preview or edit mode |
+| `_renderTrashBanner()` | Trash banner + read-only mode for notes in `/Trash` |
+| `_refreshSidebar()` | Refresh sidebar, tags, word count, pin, backlinks, version history |
+| `_setupNoteState()` | Note state: tab, blocks migration (ensure blocks exist), title input |
+| `_pushHistoryState()` / `_handlePopState()` | Browser back/forward navigation between notes |
+| `_checkUrlForNote()` | Deep-link support — restore note from URL params |
+| `openByTitle(title)` | Open a note by title (O(1) via `State.getNoteByTitle`) |
+| `toggleSidebar()` + `_initSidebar()` + `_initSidebarResize()` + `onMouseMove/onMouseUp` | Sidebar show/hide + drag resize (clamped 180–500px) |
+| `getPlainTextPreview(note)` | Plain-text teaser for the Quick Notes list |
+| `_filterSidebarByPath(path)` | Filter sidebar to a specific folder |
+| `_renderBreadcrumb()` | Path breadcrumb in the editor header (last segment not clickable) |
+| `renderNotes()` | Render the sidebar note tree (auto show/hide by count) |
+| `init()` / `bindEvents()` | Lifecycle; restores maximized state |
+| `open(noteId)` | Open a note in the editor modal (alias used externally) |
+| `create(title, template)` | Create a note (title rules, template content, frontmatter strip) |
+| `_findTemplate(name)` / `_applyTemplateToNote(note)` / `createFromTemplate()` | Template notes: find by title/name, copy content, create via TemplateBrowser |
+| `delete(id)` | Delete note — MetadataCache + version-history cleanup wired in |
+| `clearEditor()` | Clear the editor DOM |
+| `save()` | Save: frontmatter sync (PropertiesPanel), MetadataCache update, version snapshot, flashcard incremental rescan, backlinks refresh |
+| `saveExpandedState()` / `registerFolder()` / `unregisterFolder()` | Sidebar folder persistence (explicit folders persist even when empty) |
+| `moveNote(id, path)` / `moveFolder(from, to)` / `deleteFolder(path)` | Note/folder management (folder can't move into itself) |
+| `autoSave()` | Debounced autosave |
+| `togglePreview()` / `togglePin()` | Preview mode / pin toggle with editor re-render |
+| `renderBacklinks()` | Backlinks panel via MetadataCache (merge + dedupe, content snippets) |
+| `_escapeHtml(s)` | Escape helper (alias of `Utils.safeText`, backward-compat) |
+| `getKanbanPreviewHtml(note)` | Rich kanban preview HTML (synced with BlockEditor) |
+| `togglePreviewTask(id)` | Toggle a checkbox in preview |
+| `bindPreviewListeners()` | Preview interactions (delegated kanban clicks, text sync) |
+| `renderMarkdown(md)` | Markdown rendering engine: transclusion `![[…]]`, alignment markers, tables, calc preview, backlinks |
+| `processTableLines(lines)` | Table line parsing (alignments) |
+| `updateWordCount()` / `updateTags()` / `extractTags()` / `filterByTag()` / `updateAllTags()` | Word count + tag pipeline (fenced-code-aware extraction; MetadataCache-backed with manual fallback) |
+| `toggleSelectionMode()` / `toggleSelection()` / `deleteSelected()` | Multi-select note mode |
+| `openGraph()` / `closeGraph()` | Knowledge graph modal |
+| `downloadNotes()` | Export all data (notes, tasks, boards, canvases, config, history) as JSON |
+
 - **CanvasManager** — infinite spatial canvas: nodes/edges, lasso select,
   undo/redo, minimap, zoom slider, tag filter bar, auto-save status
   indicator, toolbar collapse toggle, edge hover glow. Node pinning
@@ -201,6 +308,39 @@ The core editing engine. Key responsibilities:
 - **SettingsUI** — theme presets UI (11 presets), dynamic config lists
   (dock/commands), backup & restore (V101), settings search filter, nav
   badges & updates, sync/backup controls.
+
+#### SettingsUI — function inventory (≈2.2k lines)
+
+This file has a legacy pattern of **redefining functions later in the file**
+(e.g. `openThemeModal`, `initBackground`) — the last definition wins. The
+inventory below describes the effective (final) behavior.
+
+| Function | What it does |
+|---|---|
+| `showNotification(msg, type)` | Global notification with type-based styling |
+| `setUnsavedDots()` / `resetSaveButtonState()` / `markDirty()` | Save-button dirty-state UI (unsaved indicator, SAVED ✓ reset) |
+| `applyTheme(theme)` | Apply a theme object as CSS variables |
+| `updateDynamicIcon()` | Theme-aware dynamic browser icon |
+| `init()` | Lifecycle: bind inputs, shortcuts (Cmd+S save, Cmd+1-6 tab switch, Cmd+F search) |
+| `toggleConfig()` / `toggleHelp()` / `open(tab)` / `close()` | Modal open/close (defaults to Interface tab) |
+| `openThemeModal()` / `closeThemeModal()` | Theme modal (via ModalManager) |
+| `loadConfigToUI()` | Populate the UI from Config (incl. background + persisted search) |
+| `getConfigFromUI()` | Gather UI values → config object |
+| `checkDirty()` | Compare UI vs baseline for dirty tracking |
+| `saveConfigFromUI()` | Persist UI → Config + `saveData`, SAVED ✓ flash, close |
+| `initBackground()` | Background (image/video/color) setup + overlay/filter wiring |
+| `handleBackgroundUpload()` | Background file upload → data URL |
+| `renderBgThumbnails()` | Background picker grid (image/video preview) |
+| `updateBackgroundPreview()` / `loadBackgroundImage()` / `tryLoadVideo()` | Background preview helpers |
+| `renderDockLinksConfig()` / `updateDockLink()` / `removeDockLink()` | Dock quick-launch config list (add/edit/delete) |
+| `renderCustomCommandsList()` / `updateCommand()` / `removeCommand()` | Custom CLI command config list |
+| `renderThemePresets()` / `updateThemeButtons()` / `loadThemePreset(name)` | Theme preset gallery + current-selection state |
+| `handleThemeModalConfirm()` / `getCurrentThemeAsObject()` / `saveCustomTheme()` / `importTheme()` / `deleteCustomTheme()` | Custom theme CRUD (WYSIWYG save from UI values) |
+| `exportAllData()` / `triggerImport()` / `importDataFile(file)` / `importFromSync(data)` | Backup & restore (V101) — export JSON, validate structure, import, Drive-import flow |
+| `bindSearchFilter()` / `updateClearButton()` / `_applySearchFilter()` / `_removeHighlights()` / `_highlightText()` / `acceptNode()` | Settings search filter: per-tab highlight, nav dimming, match badges, no-results state |
+| `updateNavBadges()` | Module/sync badge counts in nav |
+| `bindSyncButtons()` / `loadSyncTab()` / `bindBackupButtons()` | Backup-now + Drive connect/disconnect/push/pull wiring, last-backup + drive info, connection status |
+
 - **HoverPreview** — wiki-link hover previews; styles injected via a style
   tag whose CSS lives in a template literal (section markers like
   `/* Wiki Links */` inside that template are CSS comments — they must stay).
