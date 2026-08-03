@@ -113,11 +113,79 @@ export const BackupManager = {
         return ['https://www.googleapis.com/auth/drive.file'];
     },
 
+    // Unified OAuth client id: Firefox builds read drive_oauth (the custom key
+    // merged in by scripts/package-firefox.sh); Chromium builds read oauth2.
+    _resolveDriveClientId: function() {
+        var manifest = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : null;
+        if (!manifest) return null;
+        return (manifest.drive_oauth && manifest.drive_oauth.client_id) ||
+               (manifest.oauth2 && manifest.oauth2.client_id) || null;
+    },
+
+    // Firefox/WebExtensions OAuth: chrome.identity.getAuthToken is Chrome-only.
+    // Firefox exposes identity.launchWebAuthFlow — a plain OAuth2 implicit
+    // grant; the access token returns in the redirect fragment.
+    _launchWebAuthFlow: function(interactive, callback) {
+        var self = this;
+        if (typeof chrome === 'undefined' || !chrome.identity || !chrome.identity.launchWebAuthFlow || !chrome.runtime.id) {
+            if (callback) callback(false);
+            return;
+        }
+        var clientId = this._resolveDriveClientId();
+        if (!clientId || /YOUR_OAUTH_CLIENT_ID|REPLACE_ME|CHANGE_ME/i.test(clientId)) {
+            console.error('[Backup] Drive auth unavailable: no drive_oauth.client_id in manifest');
+            if (interactive && window.showNotification) {
+                window.showNotification('ERROR: Add your OAuth client ID to the manifest — see docs/browser-support.md');
+            }
+            if (callback) callback(false);
+            return;
+        }
+        // Firefox requires the redirect to https://<extension-id>.extensions.allizom.org/
+        // (runtime.id resolves to the internal UUID, even for about:debugging loads).
+        var redirectUri = 'https://' + chrome.runtime.id + '.extensions.allizom.org/';
+        var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
+            '?client_id=' + encodeURIComponent(clientId) +
+            '&redirect_uri=' + encodeURIComponent(redirectUri) +
+            '&response_type=token' +
+            '&scope=' + encodeURIComponent(this.getDriveAuthScopes().join(' ')) +
+            '&prompt=' + (interactive ? 'consent' : 'none');
+        chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: interactive }, function(redirectUrl) {
+            if (chrome.runtime.lastError || !redirectUrl) {
+                console.error('[Backup] Drive auth error (WebAuth):', chrome.runtime.lastError && chrome.runtime.lastError.message);
+                if (interactive && window.showNotification) {
+                    window.showNotification('DRIVE AUTH FAILED: ' + (chrome.runtime.lastError && chrome.runtime.lastError.message));
+                }
+                if (callback) callback(false);
+                return;
+            }
+            var m = redirectUrl.match(/[#&]access_token=([^&]+)/);
+            if (!m) {
+                console.error('[Backup] Drive auth error (WebAuth): no access_token in redirect');
+                if (interactive && window.showNotification) {
+                    window.showNotification('DRIVE AUTH FAILED: No access_token in redirect');
+                }
+                if (callback) callback(false);
+                return;
+            }
+            self.driveAccessToken = decodeURIComponent(m[1]);
+            self.driveConnected = true;
+            self.saveDriveState();
+            console.log('[Backup] Drive connected successfully (WebAuth flow)');
+            if (interactive && window.showNotification) {
+                window.showNotification('GOOGLE DRIVE CONNECTED');
+            }
+            if (callback) callback(true);
+        });
+    },
+
     connectDrive: function(callback) {
         var self = this;
         var scopes = this.getDriveAuthScopes().join(' ');
 
-        if (typeof chrome === 'undefined' || !chrome.identity || !chrome.identity.getAuthToken) {
+        // Firefox/Zen expose identity.launchWebAuthFlow instead of getAuthToken.
+        var hasChromeTokenApi = typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getAuthToken;
+        var hasWebAuthFlow = typeof chrome !== 'undefined' && chrome.identity && chrome.identity.launchWebAuthFlow;
+        if (!hasChromeTokenApi && !hasWebAuthFlow) {
             if (window.showNotification) {
                 window.showNotification('ERROR: chrome.identity not available (not in extension context)');
             }
@@ -126,16 +194,20 @@ export const BackupManager = {
         }
 
         // Fail fast with an actionable message when OAuth is not configured.
-        // chrome.identity.getAuthToken requires an oauth2 block (with a real
-        // client_id) in manifest.json — otherwise it fails with an opaque error.
-        var manifest = (typeof chrome.runtime !== 'undefined' && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : null;
-        var oauthClientId = manifest && manifest.oauth2 && manifest.oauth2.client_id;
-        if (!oauthClientId || /YOUR_OAUTH_CLIENT_ID|REPLACE_ME|CHANGE_ME/i.test(oauthClientId)) {
-            console.error('[Backup] Drive auth unavailable: manifest.json has no oauth2.client_id');
+        // Chromium needs an oauth2 block; Firefox builds use drive_oauth.
+        var clientId = this._resolveDriveClientId();
+        if (!clientId || /YOUR_OAUTH_CLIENT_ID|REPLACE_ME|CHANGE_ME/i.test(clientId)) {
+            console.error('[Backup] Drive auth unavailable: no OAuth client id in manifest');
             if (window.showNotification) {
-                window.showNotification('ERROR: Add your OAuth client ID to manifest.json — see docs/google-drive-sync.md');
+                window.showNotification('ERROR: Add your OAuth client ID to the manifest — see docs/browser-support.md');
             }
             if (callback) callback(false);
+            return;
+        }
+
+        if (!hasChromeTokenApi) {
+            // Firefox/WebExtensions path (identity.launchWebAuthFlow).
+            this._launchWebAuthFlow(true, callback);
             return;
         }
 
@@ -600,8 +672,28 @@ export const BackupManager = {
     // Used on init to validate restored state and on 401/403 to recover.
     refreshDriveToken: function(callback) {
         var self = this;
-        if (!this.driveConnected || typeof chrome === 'undefined' || !chrome.identity || !chrome.identity.getAuthToken) {
+        var hasChromeTokenApi = typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getAuthToken;
+        var hasWebAuthFlow = typeof chrome !== 'undefined' && chrome.identity && chrome.identity.launchWebAuthFlow;
+        if (!this.driveConnected || (!hasChromeTokenApi && !hasWebAuthFlow)) {
             if (callback) callback(false);
+            return;
+        }
+        if (!hasChromeTokenApi) {
+            // Firefox/WebExtensions: re-run the implicit flow silently
+            // (prompt=none fails fast when there is no valid session).
+            this._launchWebAuthFlow(false, function(ok) {
+                if (!ok) {
+                    console.warn('[Backup] Drive token refresh failed (WebAuth)');
+                    self.driveConnected = false;
+                    self.driveAccessToken = null;
+                    self.driveFileId = null;
+                    self.saveDriveState();
+                    if (callback) callback(false);
+                    return;
+                }
+                console.log('[Backup] Drive token refreshed (WebAuth)');
+                if (callback) callback(true);
+            });
             return;
         }
         var scopes = this.getDriveAuthScopes().join(' ');

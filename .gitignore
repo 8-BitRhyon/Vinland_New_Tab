@@ -22,6 +22,7 @@ test-results/
 
 # Release artifacts
 /dist/
+/dist-firefox/
 test-results/
 
 # Dependencies

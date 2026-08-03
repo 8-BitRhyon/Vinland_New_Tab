@@ -191,15 +191,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.notifications.onClicked.addListener((notificationId) => {
   if (notificationId === 'pomo-complete') {
-    // Activate existing Vinland tab if one exists, otherwise create a new one
+    // Activate an existing Vinland tab if one exists, otherwise create a new
+    // one. chrome.runtime.getURL() resolves the per-engine scheme
+    // (chrome-extension:// in Chromium, moz-extension:// in Firefox/Zen).
     chrome.tabs.query(
-      {
-        url: [
-          `chrome-extension://${chrome.runtime.id}/index.html`,
-          'chrome://newtab/',
-          'chrome://newtab',
-        ],
-      },
+      { url: chrome.runtime.getURL('index.html') },
       (tabs) => {
         if (tabs.length > 0) {
           chrome.tabs.update(tabs[0].id, { active: true });
@@ -224,13 +220,21 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
     // Send the capture to the Vinland new tab page
     // Use runtime.sendMessage to reach the extension page (not content script)
-    chrome.runtime.sendMessage({
-      type: 'QUICK_CAPTURE',
-      text: text
-    }).catch(() => {
+    // Firefox's chrome.* sendMessage may not return a promise — guard .catch().
+    let sendP;
+    try {
+      sendP = chrome.runtime.sendMessage({ type: 'QUICK_CAPTURE', text: text });
+    } catch (e) {
       // No extension page listening - store for pickup on next open
       chrome.storage.local.set({ vinland_pending_capture: text });
-    });
+      return;
+    }
+    if (sendP && typeof sendP.catch === 'function') {
+      sendP.catch(() => {
+        // No extension page listening - store for pickup on next open
+        chrome.storage.local.set({ vinland_pending_capture: text });
+      });
+    }
   }
 });
 

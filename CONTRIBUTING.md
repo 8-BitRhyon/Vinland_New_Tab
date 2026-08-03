@@ -30,7 +30,10 @@ npx playwright install chromium
 ```
 
 Load it: `chrome://extensions` → **Developer mode** → **Load unpacked** →
-select the repo folder. A new tab becomes Vinland.
+select the repo folder. A new tab becomes Vinland. On Firefox-based browsers
+(Zen, Firefox), build with `bash scripts/package-firefox.sh` and load the zip
+via `about:debugging#/runtime/this-firefox` — see
+[`docs/browser-support.md`](docs/browser-support.md) for the full matrix.
 
 ## Running tests
 

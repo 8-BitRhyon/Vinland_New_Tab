@@ -159,3 +159,40 @@ jobs:
           name: vinland-store-zip
           path: dist/*.zip
           retention-days: 7
+
+  # Firefox/Zen build gate — builds the WebExtensions zip by merging
+  # manifest.firefox.json over the Chrome manifest (single source of truth)
+  # and asserts the merged manifest shape: stable gecko id, background.scripts
+  # event page, and NO Chrome-only keys (oauth2, service_worker, type: module).
+  # Zen is Firefox-based; Dia and other Chromium browsers use the store zip
+  # built in package-check. Same python3 + zip/unzip footprint as that job.
+  firefox-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install zip tools
+        run: sudo apt-get update && sudo apt-get install -y zip unzip
+
+      - name: Build Firefox/Zen zip (merge + validate + package)
+        run: bash scripts/package-firefox.sh
+
+      # The merge + manifest shape (gecko id, background.scripts, no
+      # Chrome-only keys) is already asserted inside package-firefox.sh; this
+      # step just confirms the artifact itself carries a parseable manifest.json.
+      - name: Verify packaged manifest.json in the zip
+        run: |
+          unzip -l dist-firefox/*.zip | grep -q 'manifest.json'
+          unzip -p dist-firefox/*.zip manifest.json | python3 -c '
+import json, sys
+json.load(sys.stdin)
+print("packaged manifest.json parses OK")
+'
+
+      - name: Upload Firefox zip artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vinland-firefox-zip
+          path: dist-firefox/*.zip
+          retention-days: 7

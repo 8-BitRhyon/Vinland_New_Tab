@@ -51,7 +51,7 @@ export function startPomodoro(timeInput) {
 
     // Notify background service worker for alarm/notification
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-        chrome.runtime.sendMessage({ type: 'START_POMO', duration: duration }).catch(function() {});
+        notifyBackground({ type: 'START_POMO', duration: duration });
     }
 
     var container = document.getElementById('pomodoro-container');
@@ -61,6 +61,16 @@ export function startPomodoro(timeInput) {
 
     updatePomodoroDisplay();
     POMODORO.interval = setInterval(updatePomodoroDisplay, 100);
+}
+
+// Cross-browser notify: Chrome MV3's chrome.runtime.sendMessage returns a
+// promise, but Firefox's chrome.* alias may return undefined — never assume
+// .catch() exists (a bare .catch() would throw on Zen/Firefox).
+function notifyBackground(message) {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) return;
+    var p;
+    try { p = chrome.runtime.sendMessage(message); } catch (e) { return; }
+    if (p && typeof p.catch === 'function') p.catch(function() {});
 }
 
 // .1: Save Pomodoro state to chrome.storage for cross-tab sync
@@ -187,7 +197,7 @@ export function stopPomodoro() {
     
     // Notify SW to clear alarm
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-        chrome.runtime.sendMessage({ type: 'STOP_POMO' }).catch(function() {});
+        notifyBackground({ type: 'STOP_POMO' });
     }
     
     var container = document.getElementById('pomodoro-container');
@@ -263,7 +273,7 @@ export function acknowledgePomodoroComplete() {
 
     // Notify SW
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-        chrome.runtime.sendMessage({ type: 'ACK_POMO' }).catch(function() {});
+        notifyBackground({ type: 'ACK_POMO' });
     }
 }
 

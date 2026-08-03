@@ -35,6 +35,8 @@ zip -r "$OUT_ZIP" . \
   -x "playwright-report/*" \
   -x "test-results/*" \
   -x "dist/*" \
+  -x "dist-firefox/*" \
+  -x "manifest.firefox.json" \
   -x "*.DS_Store" \
   -x ".github/*" \
   -x ".vscode/*" \
