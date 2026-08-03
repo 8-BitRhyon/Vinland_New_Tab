@@ -199,7 +199,7 @@ every push.
 | FlashcardManager | `js/features/FlashcardManager.js` | 24 |
 | PageActions | `js/ui/PageActions.js` | 24 |
 | BackupManager | `js/features/BackupManager.js` | 23 |
-| KanbanManager | `js/features/kanbanmanager.js` | 23 |
+| KanbanManager | `js/features/KanbanManager.js` | 23 |
 | MetadataCache | `js/core/MetadataCache.js` | 21 |
 | DailyAgenda | `js/features/DailyAgenda.js` | 19 |
 | WorkspaceManager | `js/features/WorkspaceManager.js` | 18 |
@@ -234,10 +234,10 @@ every push.
 | Clock | `js/features/Clock.js` | 4 |
 | CommandRegistry | `js/core/CommandRegistry.js` | 4 |
 | SafeCalc | `js/core/SafeCalc.js` | 4 |
-| CalloutModal | `js/ui/calloutmodal.js` | 4 |
+| CalloutModal | `js/ui/CalloutModal.js` | 4 |
 | boot.js | `js/boot.js` | 3 |
 | Weather | `js/features/Weather.js` | 3 |
-| TaskAggregator | `js/features/taskaggregator.js` | 3 |
+| TaskAggregator | `js/features/TaskAggregator.js` | 3 |
 | Dock | `js/features/Dock.js` | 2 |
 | SystemCommands | `js/config/SystemCommands.js` | 2 |
 | Input | `js/core/Input.js` | 2 |

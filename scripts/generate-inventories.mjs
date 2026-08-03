@@ -61,7 +61,7 @@ const MODULES = [
   { path: 'js/ui/Sidebar.js', header: '#### Sidebar — function inventory' },
   { path: 'js/features/VersionHistoryManager.js', header: '#### VersionHistoryManager — function inventory' },
   { path: 'js/features/WorkspaceManager.js', header: '#### WorkspaceManager — function inventory' },
-  { path: 'js/features/kanbanmanager.js', header: '#### KanbanManager — function inventory' },
+  { path: 'js/features/KanbanManager.js', header: '#### KanbanManager — function inventory' },
   { path: 'js/features/Calendar.js', header: '#### Calendar — function inventory' },
   { path: 'js/features/DailyAgenda.js', header: '#### DailyAgenda — function inventory' },
   { path: 'js/features/TagBrowser.js', header: '#### TagBrowser — function inventory' },
@@ -76,7 +76,7 @@ const MODULES = [
   { path: 'js/features/Bookmarks.js', header: '#### Bookmarks — function inventory' },
   { path: 'js/features/Clock.js', header: '#### Clock — function inventory' },
   { path: 'js/features/Weather.js', header: '#### Weather — function inventory' },
-  { path: 'js/features/taskaggregator.js', header: '#### TaskAggregator — function inventory' },
+  { path: 'js/features/TaskAggregator.js', header: '#### TaskAggregator — function inventory' },
   { path: 'js/features/Dock.js', header: '#### Dock — function inventory' },
   { path: 'js/config/SystemCommands.js', header: '#### SystemCommands — function inventory' },
   { path: 'js/core/AttachmentsManager.js', header: '#### AttachmentsManager — function inventory' },
@@ -97,7 +97,7 @@ const MODULES = [
   { path: 'js/ui/FormatToolbar.js', header: '#### FormatToolbar — function inventory' },
   { path: 'js/ui/HoverPreview.js', header: '#### HoverPreview — function inventory' },
   { path: 'js/ui/Background.js', header: '#### Background — function inventory' },
-  { path: 'js/ui/calloutmodal.js', header: '#### CalloutModal — function inventory' },
+  { path: 'js/ui/CalloutModal.js', header: '#### CalloutModal — function inventory' },
 ];
 
 // ──────────────────────────────────────────
@@ -270,10 +270,9 @@ function regenModule(docLines, mod, report) {
 // ──────────────────────────────────────────
 
 // Display names for files whose filename casing isn't the module name.
+// (kept for legacy-name modules if any appear; the TitleCase file names now
+// match the README display names directly.)
 const DISPLAY = {
-  'js/features/kanbanmanager.js': 'KanbanManager',
-  'js/features/taskaggregator.js': 'TaskAggregator',
-  'js/ui/calloutmodal.js': 'CalloutModal',
   'js/boot.js': 'boot.js',
 };
 
