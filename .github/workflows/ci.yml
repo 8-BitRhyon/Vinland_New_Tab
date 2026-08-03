@@ -182,12 +182,8 @@ jobs:
       # step just confirms the artifact itself carries a parseable manifest.json.
       - name: Verify packaged manifest.json in the zip
         run: |
-          unzip -l dist-firefox/*.zip | grep -q 'manifest.json'
-          unzip -p dist-firefox/*.zip manifest.json | python3 -c '
-import json, sys
-json.load(sys.stdin)
-print("packaged manifest.json parses OK")
-'
+          unzip -l dist-firefox/*.zip | grep -q manifest.json
+          unzip -p dist-firefox/*.zip manifest.json | python3 -c "import json,sys; json.load(sys.stdin); print('packaged manifest.json parses OK')"
 
       - name: Upload Firefox zip artifact
         if: always()
