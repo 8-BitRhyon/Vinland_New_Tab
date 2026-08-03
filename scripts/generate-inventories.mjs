@@ -40,10 +40,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DOC = 'docs/DEVELOPMENT.md';
+const README = 'README.md';
 const CHECK = process.argv.includes('--check');
 
 // Module -> section header prefix (without the `(≈Nk lines)` suffix).
 const MODULES = [
+  { path: 'js/boot.js', header: '#### boot.js — function inventory' },
   { path: 'js/editor/BlockEditor.js', header: '#### BlockEditor — function inventory' },
   { path: 'js/ui/SettingsUI.js', header: '#### SettingsUI — function inventory' },
   { path: 'js/modules/NotesController.js', header: '#### NotesController — function inventory' },
@@ -57,6 +59,45 @@ const MODULES = [
   { path: 'js/features/FlashcardManager.js', header: '#### FlashcardManager — function inventory' },
   { path: 'js/features/DataviewQuery.js', header: '#### DataviewQuery — function inventory' },
   { path: 'js/ui/Sidebar.js', header: '#### Sidebar — function inventory' },
+  { path: 'js/features/VersionHistoryManager.js', header: '#### VersionHistoryManager — function inventory' },
+  { path: 'js/features/WorkspaceManager.js', header: '#### WorkspaceManager — function inventory' },
+  { path: 'js/features/kanbanmanager.js', header: '#### KanbanManager — function inventory' },
+  { path: 'js/features/Calendar.js', header: '#### Calendar — function inventory' },
+  { path: 'js/features/DailyAgenda.js', header: '#### DailyAgenda — function inventory' },
+  { path: 'js/features/TagBrowser.js', header: '#### TagBrowser — function inventory' },
+  { path: 'js/features/CanvasSearch.js', header: '#### CanvasSearch — function inventory' },
+  { path: 'js/features/CodeBlockTools.js', header: '#### CodeBlockTools — function inventory' },
+  { path: 'js/features/Missions.js', header: '#### Missions — function inventory' },
+  { path: 'js/features/TemplateBrowser.js', header: '#### TemplateBrowser — function inventory' },
+  { path: 'js/features/QuickCapture.js', header: '#### QuickCapture — function inventory' },
+  { path: 'js/features/Pomodoro.js', header: '#### Pomodoro — function inventory' },
+  { path: 'js/features/ObsidianImporter.js', header: '#### ObsidianImporter — function inventory' },
+  { path: 'js/features/CommandLine.js', header: '#### CommandLine — function inventory' },
+  { path: 'js/features/Bookmarks.js', header: '#### Bookmarks — function inventory' },
+  { path: 'js/features/Clock.js', header: '#### Clock — function inventory' },
+  { path: 'js/features/Weather.js', header: '#### Weather — function inventory' },
+  { path: 'js/features/taskaggregator.js', header: '#### TaskAggregator — function inventory' },
+  { path: 'js/features/Dock.js', header: '#### Dock — function inventory' },
+  { path: 'js/config/SystemCommands.js', header: '#### SystemCommands — function inventory' },
+  { path: 'js/core/AttachmentsManager.js', header: '#### AttachmentsManager — function inventory' },
+  { path: 'js/core/QueryEngine.js', header: '#### QueryEngine — function inventory' },
+  { path: 'js/core/Config.js', header: '#### Config — function inventory' },
+  { path: 'js/core/Input.js', header: '#### Input — function inventory' },
+  { path: 'js/core/Audio.js', header: '#### Audio — function inventory' },
+  { path: 'js/core/Store.js', header: '#### Store — function inventory' },
+  { path: 'js/core/Utils.js', header: '#### Utils — function inventory' },
+  { path: 'js/core/CommandRegistry.js', header: '#### CommandRegistry — function inventory' },
+  { path: 'js/core/SafeCalc.js', header: '#### SafeCalc — function inventory' },
+  { path: 'js/ui/PageActions.js', header: '#### PageActions — function inventory' },
+  { path: 'js/ui/PropertiesPanel.js', header: '#### PropertiesPanel — function inventory' },
+  { path: 'js/ui/ModalManager.js', header: '#### ModalManager — function inventory' },
+  { path: 'js/ui/SlashMenu.js', header: '#### SlashMenu — function inventory' },
+  { path: 'js/ui/WikiLinkAutocomplete.js', header: '#### WikiLinkAutocomplete — function inventory' },
+  { path: 'js/ui/TabManager.js', header: '#### TabManager — function inventory' },
+  { path: 'js/ui/FormatToolbar.js', header: '#### FormatToolbar — function inventory' },
+  { path: 'js/ui/HoverPreview.js', header: '#### HoverPreview — function inventory' },
+  { path: 'js/ui/Background.js', header: '#### Background — function inventory' },
+  { path: 'js/ui/calloutmodal.js', header: '#### CalloutModal — function inventory' },
 ];
 
 // ──────────────────────────────────────────
@@ -225,6 +266,56 @@ function regenModule(docLines, mod, report) {
 }
 
 // ──────────────────────────────────────────
+// README summary table
+// ──────────────────────────────────────────
+
+// Display names for files whose filename casing isn't the module name.
+const DISPLAY = {
+  'js/features/kanbanmanager.js': 'KanbanManager',
+  'js/features/taskaggregator.js': 'TaskAggregator',
+  'js/ui/calloutmodal.js': 'CalloutModal',
+  'js/boot.js': 'boot.js',
+};
+
+/**
+ * Rebuild the README inventory summary table (module | path | functions).
+ * Counts come from the same extractFunctions() the doc tables use, so the
+ * README can never drift from the inventories.
+ */
+function regenReadme() {
+  const readme = fs.readFileSync(README, 'utf8');
+  const startMarker = '`docs/DEVELOPMENT.md` ships a **function inventory per module**';
+  const endMarker = '## Contributing';
+  const si = readme.indexOf(startMarker);
+  const ei = readme.indexOf(endMarker);
+  if (si === -1 || ei === -1 || ei < si) {
+    throw new Error(`Could not locate README markers (${startMarker} / ${endMarker})`);
+  }
+
+  const rows = MODULES.map((mod) => {
+    const src = fs.readFileSync(mod.path, 'utf8');
+    const name = DISPLAY[mod.path] || mod.path.split('/').pop().replace(/\.js$/, '');
+    return { name, path: mod.path, count: extractFunctions(mod.path).length, lc: src.split('\n').length };
+  });
+  rows.sort((a, b) => b.count - a.count);
+  const total = rows.reduce((s, r) => s + r.count, 0);
+
+  let table = '| Module | Path | Functions |\n|---|---|---:|\n';
+  for (const r of rows) table += `| ${r.name} | \`${r.path}\` | ${r.count} |\n`;
+  table += `| **Total** | | **${total}** |\n`;
+
+  const intro =
+    '`docs/DEVELOPMENT.md` ships a **function inventory per module** (' +
+    total + ' functions across ' + rows.length + ' modules) — auto-generated by ' +
+    '`npm run docs`, drift-gated in CI via `npm run docs:check`. Every row is ' +
+    'hand-curated; a function added in source without regenerating fails the ' +
+    'pipeline (renames are best-effort).\n\n';
+  const newBlock = intro + table;
+  const newReadme = readme.slice(0, si) + newBlock + readme.slice(ei);
+  return newReadme === readme ? false : newReadme;
+}
+
+// ──────────────────────────────────────────
 // Main
 // ──────────────────────────────────────────
 
@@ -238,22 +329,37 @@ for (const mod of MODULES) {
   anyChanged = anyChanged || r.changed;
 }
 
+let readmeChanged = null;
+let readmeDirty = false;
+if (MODULES.length) {
+  try {
+    const next = regenReadme();
+    readmeDirty = next !== false;
+    if (next !== false) readmeChanged = next;
+  } catch (e) {
+    // A broken README wiring must fail --check, not silently pass.
+    readmeDirty = true;
+    report.push(`⚠  README regeneration failed: ${e.message}`);
+  }
+}
+
 console.log(`Vinland inventory generator (${CHECK ? 'check mode' : 'update mode'})`);
 for (const line of report) console.log(line);
 
 if (CHECK) {
-  const drifted = report.some((l) => l.includes('✚') || l.includes('✖') || l.includes('🗑'));
+  const drifted =
+    report.some((l) => l.includes('✚') || l.includes('✖') || l.includes('🗑')) ||
+    readmeDirty;
   console.log(
     drifted
-      ? '\n✖ Drift detected — run `npm run docs` and commit the regenerated tables.'
+      ? '\n✖ Drift detected — run `npm run docs` and commit the regenerated files.'
       : '\n✓ Inventories are in sync with the source.'
   );
   process.exit(drifted ? 1 : 0);
 }
 
-if (anyChanged) {
-  fs.writeFileSync(DOC, docLines.join('\n'));
-  console.log('\n✓ Table(s) regenerated in ' + DOC);
-} else {
-  console.log('\n✓ No drift — ' + DOC + ' already in sync.');
-}
+if (anyChanged) fs.writeFileSync(DOC, docLines.join('\n'));
+if (readmeChanged) fs.writeFileSync(README, readmeChanged);
+if (anyChanged) console.log('\n✓ Table(s) regenerated in ' + DOC);
+if (readmeChanged) console.log('✓ README summary table regenerated');
+if (!anyChanged && !readmeChanged) console.log('\n✓ No drift — docs already in sync.');
