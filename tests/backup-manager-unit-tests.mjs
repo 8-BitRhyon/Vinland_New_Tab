@@ -344,6 +344,153 @@ await test('(m) EXPORT NOW → triggerBackup(auto) downloads local JSON', async 
 });
 
 // ============================================================
+console.log('\n─── Encryption at rest (AES-GCM + PBKDF2) ───');
+
+function freshEncState() {
+  Object.assign(State.CONFIG, {
+    backup_encryption_enabled: true,
+  });
+  BackupManager.clearPassphrase();
+}
+
+await test('(n) encryptBackup → envelope, decryptBackup → original roundtrip', async () => {
+  freshEncState();
+  BackupManager.setPassphrase('test-pass-1234');
+  const original = '{"notes":[{"id":"n1","title":"secret"}]}';
+
+  const envelope = await new Promise((res) => BackupManager.encryptBackup(original, (env) => res(env)));
+  assert.ok(envelope, 'envelope produced');
+  assert.ok(envelope.includes('vinland-enc-v1'), 'marker present');
+  assert.ok(!envelope.includes('secret'), 'plaintext not leaked into envelope');
+
+  const decrypted = await new Promise((res) => BackupManager.decryptBackup(envelope, (plain) => res(plain)));
+  assert.equal(decrypted, original, 'roundtrip matches');
+});
+
+await test('(o) wrong passphrase → passphrase_wrong error', async () => {
+  freshEncState();
+  BackupManager.setPassphrase('correct-pass');
+  const envelope = await new Promise((res) => BackupManager.encryptBackup('{"a":1}', (env) => res(env)));
+
+  BackupManager.clearPassphrase();
+  BackupManager.setPassphrase('wrong-pass!!');
+  const result = await new Promise((res) => BackupManager.decryptBackup(envelope, (p, e, code) => res({ p, code })));
+  assert.equal(result.p, null, 'no plaintext on wrong passphrase');
+  assert.equal(result.code, 'passphrase_wrong', 'auth-tag mismatch classified');
+});
+
+await test('(p) plaintext JSON passes through unchanged (no envelope)', async () => {
+  freshEncState();
+  BackupManager.clearPassphrase();
+  const plain = '{"tasks":[],"notes":[]}';
+  const result = await new Promise((res) => BackupManager.decryptBackup(plain, (p, e, code) => res({ p, code })));
+  assert.equal(result.p, plain, 'plaintext passthrough');
+  assert.equal(result.code, null, 'no error');
+});
+
+await test('(q) encrypted payload without stored passphrase → passphrase_required', async () => {
+  freshEncState();
+  BackupManager.setPassphrase('saved-pass-1');
+  const envelope = await new Promise((res) => BackupManager.encryptBackup('{"b":2}', (env) => res(env)));
+  BackupManager.clearPassphrase(); // drop it — restore on another device
+
+  const result = await new Promise((res) => BackupManager.decryptBackup(envelope, (p, e, code) => res({ p, code })));
+  assert.equal(result.p, null, 'no plaintext without passphrase');
+  assert.equal(result.code, 'passphrase_required', 'user asked to set passphrase');
+  BackupManager.clearPassphrase();
+});
+
+await test('(q2) plaintext JSON containing the marker string passes through', async () => {
+  // Regression guard for the substring-detection false positive: a plaintext
+  // backup whose content mentions the marker must NOT be treated as an envelope.
+  freshEncState();
+  BackupManager.clearPassphrase();
+  const plain = JSON.stringify({
+    notes: [{ id: 'n9', content: 'note mentioning vinland-enc-v1 inside a body' }],
+    tasks: [],
+  });
+  const result = await new Promise((res) => BackupManager.decryptBackup(plain, (p, e, code) => res({ p, code })));
+  assert.equal(result.p, plain, 'plaintext preserved');
+  assert.equal(result.code, null, 'no error');
+});
+
+await test('(q3) malformed envelope → invalid (caller never hangs)', async () => {
+  freshEncState();
+  BackupManager.setPassphrase('some-pass');
+  const bad = JSON.stringify({ marker: 'vinland-enc-v1', salt: '!!not-base64!!', iv: 'x', ct: 'y' });
+  const result = await new Promise((res) => BackupManager.decryptBackup(bad, (p, e, code) => res({ p, code })));
+  assert.equal(result.p, null, 'no plaintext');
+  assert.equal(result.code, 'invalid', 'malformed envelope classified invalid');
+});
+
+await test('(q4) decrypt uses envelope.iterations (not the module constant)', async () => {
+  freshEncState();
+  BackupManager.setPassphrase('iter-test-pass');
+
+  // Force a non-default iteration count at ENCRYPT time (simulates a backup
+  // created by an older/future build), so envelope.iterations carries a value
+  // that differs from ENCRYPTION_ITERATIONS while matching the ciphertext.
+  const realEncrypt = BackupManager._encryptAesGcm.bind(BackupManager);
+  BackupManager._encryptAesGcm = (text, pass) => realEncrypt(text, pass, 12345);
+  const envelope = await new Promise((res) => BackupManager.encryptBackup('{"x":1}', (env) => res(env)));
+  BackupManager._encryptAesGcm = realEncrypt; // restore before decrypt
+  const parsed = JSON.parse(envelope);
+  assert.equal(parsed.iterations, 12345, 'envelope records the actual iteration count');
+
+  // Decrypt WITHOUT any spy: _decryptAesGcm must read envelope.iterations and
+  // re-derive with 12345, not the 150000 constant — otherwise the key would
+  // mismatch the ciphertext and decrypt would fail.
+  const ok = await new Promise((res) => BackupManager.decryptBackup(envelope, (p) => res(p)));
+  assert.equal(ok, '{"x":1}', 'decrypt succeeds using the envelope iteration count');
+});
+
+// ============================================================
+console.log('\n─── Diff-aware scheduled pull ───');
+
+await test('(r) merge adds remote-only entities', async () => {
+  State.NOTES = [{ id: 'n1', title: 'local', modified: 100 }];
+  State.TASKS = [{ text: 'local task' }];
+  State.BOARDS = [{ id: 'b1', title: 'local board', modified: 100 }];
+  const summary = BackupManager._mergeRemoteData({
+    notes: [{ id: 'n2', title: 'remote new', modified: 200 }],
+    tasks: [{ text: 'remote task' }],
+    boards: [{ id: 'b2', title: 'remote board', modified: 200 }],
+  });
+  assert.equal(summary.notes, 1, 'remote note added');
+  assert.equal(summary.tasks, 1, 'remote task added');
+  assert.equal(summary.boards, 1, 'remote board added');
+  assert.equal(summary.changed, true);
+  assert.equal(State.NOTES.length, 2, 'local kept + remote added');
+});
+
+await test('(s) merge: newer modified wins, older remote is skipped', async () => {
+  State.NOTES = [{ id: 'n1', title: 'local-newer', modified: 300 }];
+  const summary = BackupManager._mergeRemoteData({
+    notes: [{ id: 'n1', title: 'remote-older', modified: 100 }],
+  });
+  assert.equal(summary.notes, 0, 'older remote does not clobber');
+  assert.equal(State.NOTES[0].title, 'local-newer', 'local kept');
+});
+
+await test('(t) merge: newer remote replaces local', async () => {
+  State.NOTES = [{ id: 'n1', title: 'local-older', modified: 100 }];
+  const summary = BackupManager._mergeRemoteData({
+    notes: [{ id: 'n1', title: 'remote-newer', modified: 400 }],
+  });
+  assert.equal(summary.notes, 1, 'remote newer replaces');
+  assert.equal(State.NOTES[0].title, 'remote-newer', 'remote content adopted');
+});
+
+await test('(u) merge: no id/timestamp → unchanged, no clobber', async () => {
+  State.NOTES = [{ title: 'no-id-local' }];
+  const summary = BackupManager._mergeRemoteData({
+    notes: [{ title: 'no-id-remote' }], // no id → skipped by _mergeById
+  });
+  assert.equal(summary.notes, 0, 'unkeyable entities skipped');
+  assert.equal(State.NOTES.length, 1, 'local untouched');
+});
+
+// ============================================================
 console.log('\n══════════════════════════════════════════════════');
 console.log(`  BACKUP MANAGER SUITE: ${passed} passed, ${failed} failed`);
 console.log('══════════════════════════════════════════════════\n');

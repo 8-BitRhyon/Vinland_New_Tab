@@ -588,6 +588,7 @@ export const SettingsUI = {
         // Drive sync updating these while the modal is open is not a user edit.
         delete draft.last_backup_time;
         delete draft.drive_last_sync;
+        delete draft.drive_last_pull;
         delete draft.last_backup_prompt;
         var el;
 
@@ -639,6 +640,7 @@ export const SettingsUI = {
         // Modules
         el = document.getElementById('cfg-auto-clear-interval'); if (el) draft.auto_clear_interval = el.value;
         el = document.getElementById('cfg-auto-backup'); if (el) draft.auto_backup_interval = parseInt(el.value, 10) || 0;
+        el = document.getElementById('cfg-auto-pull'); if (el) draft.auto_pull_interval = parseInt(el.value, 10) || 0;
         el = document.getElementById('cfg-backup-reminder'); if (el) draft.backup_reminder_enabled = el.checked;
         el = document.getElementById('cfg-habit'); if (el) draft.habit_id = el.value.trim();
         el = document.getElementById('cfg-life'); if (el) draft.life_id = el.value.trim();
@@ -684,7 +686,10 @@ export const SettingsUI = {
                     // Proceed to save directly, skipping UI field reading
                     Config.save();
                     // Raw JSON may include auto_backup_interval — keep the timer in sync
-                    if (window.BackupManager) window.BackupManager.scheduleAutoBackup();
+                    if (window.BackupManager) {
+                        window.BackupManager.scheduleAutoBackup();
+                        window.BackupManager.scheduleAutoPull();
+                    }
                     Config.applyTheme();
                     if (window.renderMissions) window.renderMissions();
                     State.WEATHER_CACHE = null; 
@@ -760,6 +765,7 @@ export const SettingsUI = {
         // Modules
         el = document.getElementById('cfg-auto-clear-interval'); if (el) CONFIG.auto_clear_interval = el.value;
         el = document.getElementById('cfg-auto-backup'); if (el) CONFIG.auto_backup_interval = parseInt(el.value, 10) || 0;
+        el = document.getElementById('cfg-auto-pull'); if (el) CONFIG.auto_pull_interval = parseInt(el.value, 10) || 0;
         el = document.getElementById('cfg-backup-reminder'); if (el) CONFIG.backup_reminder_enabled = el.checked;
         el = document.getElementById('cfg-habit'); if (el) CONFIG.habit_id = el.value.trim();
         el = document.getElementById('cfg-life'); if (el) CONFIG.life_id = el.value.trim();
@@ -778,7 +784,10 @@ export const SettingsUI = {
         if (window.renderMissions) window.renderMissions();
         if (window.TabManager) TabManager.init();
         // Reschedule the auto-backup timer with the newly saved interval
-        if (window.BackupManager) window.BackupManager.scheduleAutoBackup();
+        if (window.BackupManager) {
+            window.BackupManager.scheduleAutoBackup();
+            window.BackupManager.scheduleAutoPull();
+        }
         
         State.WEATHER_CACHE = null; 
         if (window.fetchWeather) window.fetchWeather();
@@ -2060,6 +2069,51 @@ export const SettingsUI = {
                 });
             };
         }
+
+        // Encryption passphrase — set/clear. These write directly via
+        // BackupManager (never through State.CONFIG, so the key can't leak
+        // into exported backups), then refresh the status line.
+        var passInput = this._syncBtn('cfg-enc-passphrase');
+        var setBtn = this._syncBtn('enc-set-passphrase');
+        if (passInput && setBtn) {
+            setBtn.onclick = function() {
+                if (!window.BackupManager) return;
+                var pass = passInput.value;
+                if (!pass || pass.length < 4) {
+                    self._syncMsg('sync-enc-status-msg', 'Passphrase must be at least 4 characters', 'error');
+                    return;
+                }
+                window.BackupManager.setPassphrase(pass, function(ok) {
+                    if (ok) {
+                        passInput.value = '';
+                        self._syncMsg('sync-enc-status-msg', '✅ Encryption enabled — backups are now encrypted at rest', 'success');
+                    } else {
+                        self._syncMsg('sync-enc-status-msg', '❌ Could not save passphrase', 'error');
+                    }
+                    self.loadSyncTab();
+                });
+            };
+        }
+        var clearBtn = this._syncBtn('enc-clear-passphrase');
+        if (clearBtn) {
+            clearBtn.onclick = function() {
+                if (!window.BackupManager) return;
+                window.BackupManager.clearPassphrase(function() {
+                    self._syncMsg('sync-enc-status-msg', '🔓 Encryption disabled — backups are plain JSON again', 'info');
+                    self.loadSyncTab();
+                });
+            };
+        }
+
+        // Scheduled-pull interval change — staged for the SAVE flow, same as
+        // the auto-backup interval (global change listener → checkDirty).
+        var pullSelect = this._syncBtn('cfg-auto-pull');
+        if (pullSelect) {
+            pullSelect.onchange = function() {
+                self._syncMsg('sync-pull-status', '⏱ Save to apply the pull interval', 'info');
+                setTimeout(function() { self._syncMsg('sync-pull-status', null); }, 3000);
+            };
+        }
     },
 
     loadSyncTab: function() {
@@ -2067,6 +2121,11 @@ export const SettingsUI = {
         var interval = State.CONFIG.auto_backup_interval || 0;
         var intervalSelect = this._syncBtn('cfg-auto-backup');
         if (intervalSelect) intervalSelect.value = interval.toString();
+
+        // Update scheduled-pull interval selector
+        var pullInterval = State.CONFIG.auto_pull_interval || 0;
+        var pullSelect = this._syncBtn('cfg-auto-pull');
+        if (pullSelect) pullSelect.value = pullInterval.toString();
 
         // Update backup reminder toggle
         var reminderEl = this._syncBtn('cfg-backup-reminder');
@@ -2088,6 +2147,26 @@ export const SettingsUI = {
             lastDriveEl.textContent = lastSync
                 ? new Date(lastSync).toLocaleString()
                 : 'never';
+        }
+
+        // Update last-pull info
+        var lastPullEl = this._syncBtn('sync-last-pull');
+        if (lastPullEl) {
+            var lastPull = State.CONFIG.drive_last_pull;
+            lastPullEl.textContent = lastPull
+                ? new Date(lastPull).toLocaleString()
+                : 'never';
+        }
+
+        // Update encryption status (passphrase set? active?)
+        var encStatusEl = this._syncBtn('sync-enc-status');
+        if (encStatusEl) {
+            var bm = window.BackupManager;
+            var active = State.CONFIG.backup_encryption_enabled === true;
+            var hasPass = bm && bm.hasPassphrase();
+            encStatusEl.textContent = active && hasPass
+                ? 'ENCRYPTION ACTIVE — backups are AES-256-GCM encrypted at rest'
+                : 'OFF — backups are stored as plain JSON';
         }
 
         // Update Drive connection status

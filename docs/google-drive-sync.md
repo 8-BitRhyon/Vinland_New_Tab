@@ -121,11 +121,67 @@ to where the fix would land.
 | **Chromium-only OAuth** | Drive sync is unavailable on Firefox/Zen and other MV3 WebExtensions — no `chrome.identity` there | `drive_oauth` manifest key + `launchWebAuthFlow` path exists only in the Firefox manifest; **not implemented in code** | Implement the `launchWebAuthFlow` code path in `BackupManager` (see `docs/browser-support.md` §Configuration) |
 | **No token revocation UI** | "Disconnect" doesn't revoke the Google-side grant; the token lingers until it expires | `disconnectDrive()` clears local state only | Call `identity.removeCachedAuthToken` (Chromium) / revoke endpoint (Firefox) |
 | **Single-file sync, no conflict handling** | Concurrent edits across devices last-write-wins; no merge or conflict markers | `_updateDriveFile()` PATCHes one `vinland-backup.json` | Multi-file sync or revision comparison before push |
-| **No encryption at rest** | The backup JSON contains full note content and sits unencrypted in your Drive | Plain JSON upload under `drive.file` scope | Encrypt with a local passphrase before upload (field-level or blob-level) |
-| **Push is one-way by default** | Auto-backup only pushes; pull (restore) is manual via **RESTORE FROM DRIVE** | `triggerBackup('drive')` uploads; restore requires the button | Optional scheduled pull with diff-aware merge |
+| **No encryption at rest** | ~~The backup JSON contains full note content and sits unencrypted in your Drive~~ | **Resolved** — optional passphrase encrypts every backup blob (AES-256-GCM, PBKDF2) before it leaves the device (see **Encryption at rest** below) | — |
+| **Push is one-way by default** | ~~Auto-backup only pushes; pull (restore) is manual~~ | **Resolved** — optional scheduled pull merges Drive's backup into local state (see **Scheduled pull** below) | — |
 
 **Auto-backup without Drive:** when Drive isn't connected, the interval
 (`auto_backup_interval`) and the proactive reminder
 (`backup_reminder_enabled`, default on, nudge every 7+ days) fall back to
 downloading a local `vinland-backup.json` — so backups work for everyone,
 with or without OAuth. See `BackupManager.maybePromptBackup()`.
+
+---
+
+## Encryption at rest (optional passphrase)
+
+**Settings → SYNC → ENCRYPTION AT REST.** When enabled, every backup blob —
+local downloads **and** Drive uploads — is encrypted with **AES-256-GCM** using
+a key derived from your passphrase via **PBKDF2-SHA256** (150,000 iterations,
+random 16-byte salt + 12-byte IV per file). The result is a self-describing
+envelope that begins with the marker `vinland-enc-v1`.
+
+**How the passphrase is handled:**
+
+- Stored only in `chrome.storage.local` (localStorage fallback in dev) —
+  **never** in `State.CONFIG`, so it can never leak into a backup's `config`
+  export or sync to another device via `chrome.storage.sync`.
+- Encrypting is automatic once set: `downloadBackup()`, `syncToDrive()`,
+  and the auto-backup interval all go through `encryptBackup()`.
+- Decrypting is automatic too when the passphrase is present (`decryptBackup()`
+  detects the envelope marker). Restoring on a second device requires setting
+  the same passphrase there first — otherwise you get a clear
+  `passphrase_required` / `passphrase_wrong` notice and nothing is overwritten.
+- Clearing the passphrase disables encryption (`backup_encryption_enabled`),
+  but already-encrypted Drive backups can no longer be read without the key.
+
+> ⚠️ The passphrase is the key. There is no recovery mechanism — losing it
+> means losing the encrypted backups. Keep a copy somewhere safe.
+
+---
+
+## Scheduled pull (diff-aware converge)
+
+**Settings → SYNC → AUTO PULL FROM DRIVE** (same interval options as the
+auto-backup). When Drive is connected, `BackupManager.autoPullFromDrive()`
+downloads the remote backup, decrypts it if needed, and **diff-merges** it
+into local state — so two devices editing the same vault converge instead of
+clobbering each other.
+
+**Merge rules (per entity):**
+
+| Collection | Key | Conflict resolution |
+|---|---|---|
+| `notes` | `id` | Newer `modified` wins; remote-only added; local-only kept |
+| `boards` | `id` | Newer `modified` wins (same as notes) |
+| `canvases` | `id` | Newer `modified` wins |
+| `tasks` | `text` | Newer `modified` wins; tasks without a key are skipped (avoids dupes) |
+
+- Entities without a usable key (no `id` for notes, no `text` for tasks) are
+  skipped rather than duplicated.
+- `config` is **never** merged on a scheduled pull — that's a deliberate
+  full-restore decision (`RESTORE FROM DRIVE`), not a background-sync one.
+- A summary toast reports what was pulled (e.g. `SYNC: pulled 2 notes, 1
+  task, 0 boards from Drive`). `drive_last_pull` is recorded for the status
+  row in Settings.
+- The pull respects the same failure discipline as push: a missing/wrong
+  passphrase or an auth error aborts without touching local data.

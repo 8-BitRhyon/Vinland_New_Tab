@@ -335,3 +335,96 @@ test('10. Backup reminder modal appears at boot when last backup is overdue', as
     window.State && window.State.CONFIG ? window.State.CONFIG.last_backup_prompt : null);
   expect(typeof promptTs).toBe('number');
 });
+
+// ══════════════════════════════════════════
+// Test 11: Encryption card — set/clear passphrase drives the status + config
+// ══════════════════════════════════════════
+test('11. Encryption passphrase set/clear updates status and config flag', async ({ page }) => {
+  await openSettings(page);
+  await navigateToTab(page, 'sync');
+
+  await expect(page.locator('#cfg-enc-passphrase')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('#sync-enc-status')).toContainText('OFF');
+
+  // Too-short passphrase is rejected
+  await page.locator('#cfg-enc-passphrase').fill('abc');
+  await page.locator('#enc-set-passphrase').click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('#sync-enc-status-msg')).toContainText('at least 4');
+
+  // Valid passphrase enables encryption at rest
+  await page.locator('#cfg-enc-passphrase').fill('my-secret-passphrase');
+  await page.locator('#enc-set-passphrase').click();
+  await page.waitForTimeout(500);
+  await expect(page.locator('#sync-enc-status')).toContainText('ENCRYPTION ACTIVE');
+
+  const enabled = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.backup_encryption_enabled : null);
+  expect(enabled).toBe(true);
+
+  // The passphrase itself must NOT be in CONFIG (it would leak into backups)
+  const cfgStr = await page.evaluate(() => JSON.stringify(window.State.CONFIG || {}));
+  expect(cfgStr.includes('my-secret-passphrase')).toBe(false);
+
+  // Clear disables
+  await page.locator('#enc-clear-passphrase').click();
+  await page.waitForTimeout(500);
+  await expect(page.locator('#sync-enc-status')).toContainText('OFF');
+  const disabled = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.backup_encryption_enabled : null);
+  expect(disabled).toBe(false);
+
+  await closeSettings(page);
+});
+
+// ══════════════════════════════════════════
+// Test 12: Auto-pull interval persists + diff-aware merge works
+// ══════════════════════════════════════════
+test('12. Auto-pull interval persists and autoPullFromDrive merges remote notes', async ({ page }) => {
+  // Auto-pull select renders and persists via the SAVE flow
+  await openSettings(page);
+  await navigateToTab(page, 'sync');
+
+  await expect(page.locator('#cfg-auto-pull')).toBeVisible({ timeout: 3000 });
+  await page.locator('#cfg-auto-pull').selectOption('30');
+  await page.waitForTimeout(400);
+  await page.locator('#header-save-btn').click();
+  await page.waitForTimeout(800);
+
+  let pullInterval = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.auto_pull_interval : null);
+  expect(pullInterval).toBe(30);
+  await closeSettings(page);
+
+  // Stub a connected Drive whose backup holds a newer remote note, then run
+  // the real autoPullFromDrive → diff-merge path.
+  await page.evaluate(() => {
+    const bm = window.BackupManager;
+    bm.driveConnected = true;
+    bm.driveAccessToken = 'test-token';
+    // Local note is older
+    window.State.NOTES = [{ id: 'n1', title: 'local-older', modified: 100 }];
+    // Stub the Drive download with a plaintext (unencrypted) backup payload
+    bm._getDriveFileContent = (cb) => cb(true, JSON.stringify({
+      notes: [{ id: 'n1', title: 'remote-newer', modified: 500 }],
+      tasks: [{ text: 'remote-only task' }],
+      boards: [],
+    }), null);
+  });
+
+  const result = await page.evaluate(() => new Promise((resolve) => {
+    window.BackupManager.autoPullFromDrive((ok, summary) => resolve({ ok, summary }));
+  }));
+  expect(result.ok).toBe(true);
+  expect(result.summary.notes).toBe(1);
+  expect(result.summary.tasks).toBe(1);
+
+  const merged = await page.evaluate(() => ({
+    noteTitle: (window.State.NOTES || [])[0] && (window.State.NOTES)[0].title,
+    hasRemoteTask: (window.State.TASKS || []).some(t => t.text === 'remote-only task'),
+    lastPull: window.State.CONFIG.drive_last_pull,
+  }));
+  expect(merged.noteTitle).toBe('remote-newer');
+  expect(merged.hasRemoteTask).toBe(true);
+  expect(merged.lastPull).toBeTruthy();
+});

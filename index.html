@@ -13024,8 +13024,21 @@
                     ></span
                   ></label>
                 </div>
+                <div class="sync-row">
+                  <label for="cfg-auto-pull" class="config-label">AUTO PULL FROM DRIVE</label>
+                  <select id="cfg-auto-pull" class="config-input config-select sync-select">
+                    <option value="0">OFF</option>
+                    <option value="5">Every 5 min</option>
+                    <option value="15">Every 15 min</option>
+                    <option value="30">Every 30 min</option>
+                    <option value="60">Every hour</option>
+                    <option value="180">Every 3 hours</option>
+                    <option value="360">Every 6 hours</option>
+                    <option value="1440">Once daily</option>
+                  </select>
+                </div>
                 <div class="sync-hint">
-                  Pushes a backup to Google Drive at the selected interval (or downloads a local JSON if Drive isn't connected). When the interval is OFF, remind you to export a local JSON snapshot if your last backup is more than 7 days old.
+                  Pushes a backup to Google Drive at the selected interval (or downloads a local JSON if Drive isn't connected). When the interval is OFF, remind you to export a local JSON snapshot if your last backup is more than 7 days old. Auto-pull merges Drive's backup into local state — newer edits win per note/task/board.
                 </div>
                 <div class="sync-status-row">
                   <div class="sync-status-item">
@@ -13036,7 +13049,12 @@
                     <span class="sync-status-label">LAST DRIVE SYNC</span>
                     <span class="sync-status-value" id="sync-last-drive">never</span>
                   </div>
+                  <div class="sync-status-item">
+                    <span class="sync-status-label">LAST AUTO PULL</span>
+                    <span class="sync-status-value" id="sync-last-pull">never</span>
+                  </div>
                 </div>
+                <div id="sync-pull-status" class="sync-msg" style="display:none;"></div>
                 <button id="sync-backup-now-btn" class="sync-btn sync-btn-primary">
                   <span class="sync-btn-text">BACKUP NOW</span>
                   <span class="sync-spinner" style="display:none;">◌</span>
@@ -13076,6 +13094,32 @@
                 <div class="sync-footnote">
                   Note: Google Drive sync requires setup in Google Cloud Console.
                 </div>
+              </div>
+            </div>
+
+            <!-- Encryption at Rest Card -->
+            <div class="sync-card">
+              <div class="sync-card-header">
+                <span class="sync-card-icon">🔐</span>
+                <span>ENCRYPTION AT REST</span>
+              </div>
+              <div class="sync-card-body">
+                <div class="sync-hint">
+                  Optionally encrypt every backup (downloads and Drive) with a
+                  local passphrase. Backups are AES-256-GCM encrypted with a
+                  PBKDF2-derived key. The passphrase is stored only on this
+                  device — it is never written into the backup itself or synced,
+                  so restoring on another device requires entering it again.
+                </div>
+                <div id="sync-enc-status" class="sync-status-badge" style="margin-bottom:10px;">OFF — backups are stored as plain JSON</div>
+                <div class="sync-row">
+                  <input type="password" id="cfg-enc-passphrase" class="config-input" placeholder="Passphrase (min 4 chars)" autocomplete="new-password" />
+                </div>
+                <div class="sync-button-group">
+                  <button id="enc-set-passphrase" class="sync-btn sync-btn-primary">SET PASSPHRASE</button>
+                  <button id="enc-clear-passphrase" class="sync-btn sync-btn-danger">CLEAR</button>
+                </div>
+                <div id="sync-enc-status-msg" class="sync-msg" style="display:none;"></div>
               </div>
             </div>
           </div>

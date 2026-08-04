@@ -7,6 +7,19 @@ import { saveData } from '../core/Storage.js';
 const BACKUP_FOLDER_NAME = 'Vinland Backup';
 const BACKUP_FILE_NAME = 'vinland-backup.json';
 
+// Encryption at rest.
+// The passphrase is deliberately kept OUT of State.CONFIG — buildBackupData()
+// exports `config: State.CONFIG`, so storing it there would ship the key
+// alongside the ciphertext. It lives in chrome.storage.local with a
+// localStorage fallback so unit tests (no chrome) can exercise it.
+const PASSPHRASE_STORAGE_KEY = 'vinland_backup_passphrase';
+const ENCRYPTION_ALGO = 'AES-GCM';
+const ENCRYPTION_KDF = 'PBKDF2';
+const ENCRYPTION_HASH = 'SHA-256';
+const ENCRYPTION_ITERATIONS = 600000; // OWASP 2023 guidance for PBKDF2-SHA256
+const ENCRYPTION_BITS = 256;
+const ENVELOPE_MARKER = 'vinland-enc-v1';
+
 export const BackupManager = {
     intervalId: null,
     lastBackupTime: null,
@@ -19,8 +32,12 @@ export const BackupManager = {
     init: function() {
         // Restore Drive connection state from chrome.storage.local
         this.loadDriveState();
+        // Load the encryption passphrase (chrome.storage.local is async)
+        this.loadPassphrase();
         // Start auto-backup timer if enabled
         this.scheduleAutoBackup();
+        // Start scheduled pull if enabled
+        this.scheduleAutoPull();
         // Nudge the user if the last backup is stale
         this.maybePromptBackup();
     },
@@ -106,6 +123,396 @@ export const BackupManager = {
         };
     },
 
+    // ──────────────────────────────────────────────
+    // Encryption at rest (optional passphrase)
+    // ──────────────────────────────────────────────
+
+    // Web Crypto is only available on secure contexts. Guard so the feature
+    // degrades to plaintext (with a clear notice) in unsupported environments.
+    _cryptoAvailable: function() {
+        return typeof crypto !== 'undefined' && crypto.subtle &&
+            typeof crypto.subtle.importKey === 'function';
+    },
+
+    // Persist the passphrase. NEVER in State.CONFIG (would ship with backups).
+    setPassphrase: function(passphrase, callback) {
+        if (!passphrase || typeof passphrase !== 'string' || passphrase.length < 4) {
+            if (callback) callback(false);
+            return;
+        }
+        var self = this;
+        var persist = function() {
+            self.passphrase = passphrase;
+            State.CONFIG.backup_encryption_enabled = true;
+            saveConfig();
+            if (callback) callback(true);
+        };
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            var obj = {};
+            obj[PASSPHRASE_STORAGE_KEY] = passphrase;
+            chrome.storage.local.set(obj, persist);
+        } else {
+            try { localStorage.setItem(PASSPHRASE_STORAGE_KEY, passphrase); } catch (e) {}
+            persist();
+        }
+    },
+
+    clearPassphrase: function(callback) {
+        this.passphrase = null;
+        State.CONFIG.backup_encryption_enabled = false;
+        saveConfig();
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.remove(PASSPHRASE_STORAGE_KEY, function() {
+                if (callback) callback(true);
+            });
+        } else {
+            try { localStorage.removeItem(PASSPHRASE_STORAGE_KEY); } catch (e) {}
+            if (callback) callback(true);
+        }
+    },
+
+    // Resolve the passphrase synchronously if available (in-memory or local
+    // storage) and report availability. Async chrome.storage is NOT awaited
+    // here — encryption can't be applied until loadPassphrase has run.
+    hasPassphrase: function() {
+        if (this.passphrase) return true;
+        try {
+            return !!(typeof localStorage !== 'undefined' && localStorage.getItem(PASSPHRASE_STORAGE_KEY));
+        } catch (e) { return false; }
+    },
+
+    // Async resolver for the passphrase (chrome.storage.local is async).
+    loadPassphrase: function(callback) {
+        var self = this;
+        if (this.passphrase) { if (callback) callback(this.passphrase); return; }
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get([PASSPHRASE_STORAGE_KEY], function(result) {
+                self.passphrase = result[PASSPHRASE_STORAGE_KEY] || null;
+                if (callback) callback(self.passphrase);
+            });
+        } else {
+            var stored = null;
+            try { stored = localStorage.getItem(PASSPHRASE_STORAGE_KEY); } catch (e) {}
+            this.passphrase = stored || null;
+            if (callback) callback(this.passphrase);
+        }
+    },
+
+    // Wrap a plaintext string in the encryption envelope. Returns a Promise
+    // of the envelope JSON string. Resolves to the original text unchanged if
+    // encryption is disabled / no passphrase / Web Crypto unavailable.
+    // NOTE: the sync hasPassphrase() fast-path is intentionally NOT a gate
+    // here — on a fresh restart chrome.storage.local is still loading, and a
+    // false negative would silently degrade an encrypted setup to plaintext.
+    // Always resolve through loadPassphrase() and decide there.
+    encryptBackup: function(plaintext, callback) {
+        var self = this;
+        if (!State.CONFIG.backup_encryption_enabled || !this._cryptoAvailable()) {
+            if (callback) callback(null, plaintext); // not encrypted
+            return;
+        }
+        this.loadPassphrase(function(passphrase) {
+            if (!passphrase) {
+                // Encryption is ON but no passphrase resolved (storage error,
+                // cleared key, load race). NEVER silently downgrade — the user
+                // believes this backup is protected. Warn loudly so the gap is
+                // visible instead of shipping a plaintext blob they think is
+                // encrypted.
+                console.error('[Backup] ENCRYPTION MISMATCH: backup_encryption_enabled is true but no passphrase is set — backup went out PLAINTEXT. Set your passphrase in Settings → SYNC.');
+                if (window.showNotification) {
+                    window.showNotification('⚠ ENCRYPTION OFF: passphrase not found — backup saved unencrypted');
+                }
+                if (callback) callback(null, plaintext);
+                return;
+            }
+            self._encryptAesGcm(plaintext, passphrase)
+                .then(function(envelope) {
+                    if (callback) callback(envelope, null);
+                })
+                .catch(function(err) {
+                    console.error('[Backup] Encryption failed:', err);
+                    if (window.showNotification) {
+                        window.showNotification('⚠ ENCRYPTION FAILED — backup saved unencrypted');
+                    }
+                    if (callback) callback(null, plaintext); // fail open to plaintext
+                });
+        });
+    },
+
+    // Reverse of encryptBackup: given file content, return the plaintext JSON
+    // string. Detects the envelope marker; passthrough for plaintext. On a
+    // wrong/missing passphrase, calls back (null, null, errorCode).
+    decryptBackup: function(content, callback) {
+        var self = this;
+        if (typeof content !== 'string') {
+            if (callback) callback(null, null, 'invalid');
+            return;
+        }
+        var trimmed = content.trim();
+        // Fast path: content that can't be an envelope (doesn't parse to an
+        // object starting with the marker) passes through as plaintext.
+        if (trimmed.indexOf('{') !== 0) {
+            if (callback) callback(trimmed, null, null);
+            return;
+        }
+        var envelope;
+        try { envelope = JSON.parse(trimmed); } catch (e) {
+            // Not JSON at all — plaintext (a bare string, CSV, etc.).
+            if (callback) callback(trimmed, null, null);
+            return;
+        }
+        // Structural check on the PARSED object — never a substring search, so
+        // a plaintext backup whose note body happens to contain the marker
+        // string can't be misclassified as an envelope.
+        if (!envelope || typeof envelope !== 'object' || envelope.marker !== ENVELOPE_MARKER ||
+            typeof envelope.salt !== 'string' || typeof envelope.iv !== 'string' ||
+            typeof envelope.ct !== 'string') {
+            if (callback) callback(trimmed, null, null); // plaintext passthrough
+            return;
+        }
+        this.loadPassphrase(function(passphrase) {
+            if (!passphrase) {
+                if (callback) callback(null, null, 'passphrase_required');
+                return;
+            }
+            try {
+                self._decryptAesGcm(envelope, passphrase)
+                    .then(function(plain) {
+                        if (callback) callback(plain, null, null);
+                    })
+                    .catch(function(err) {
+                        console.error('[Backup] Decryption failed:', err);
+                        // Auth tag mismatch → wrong passphrase or corrupted file.
+                        if (callback) callback(null, null, 'passphrase_wrong');
+                    });
+            } catch (e) {
+                // Malformed envelope (bad base64, etc.) — never let the caller
+                // hang waiting for a callback that would never fire.
+                console.error('[Backup] Decrypt invocation failed:', e);
+                if (callback) callback(null, null, 'invalid');
+            }
+        });
+    },
+
+    _deriveKey: function(passphrase, saltBytes, iterations) {
+        var enc = new TextEncoder();
+        iterations = iterations || ENCRYPTION_ITERATIONS;
+        return crypto.subtle.importKey(
+            'raw', enc.encode(passphrase), { name: ENCRYPTION_KDF }, false,
+            ['deriveKey']
+        ).then(function(baseKey) {
+            return crypto.subtle.deriveKey(
+                {
+                    name: ENCRYPTION_KDF,
+                    salt: saltBytes,
+                    iterations: iterations,
+                    hash: ENCRYPTION_HASH
+                },
+                baseKey,
+                { name: ENCRYPTION_ALGO, length: ENCRYPTION_BITS },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        });
+    },
+
+    _b64encode: function(bytes) {
+        var bin = '';
+        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin);
+    },
+
+    _b64decode: function(b64) {
+        var bin = atob(b64);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+    },
+
+    _encryptAesGcm: function(plaintext, passphrase, iterations) {
+        var self = this;
+        var enc = new TextEncoder();
+        iterations = iterations || ENCRYPTION_ITERATIONS;
+        var salt = crypto.getRandomValues(new Uint8Array(16));
+        var iv = crypto.getRandomValues(new Uint8Array(12));
+        return this._deriveKey(passphrase, salt, iterations).then(function(key) {
+            return crypto.subtle.encrypt(
+                { name: ENCRYPTION_ALGO, iv: iv }, key, enc.encode(plaintext)
+            );
+        }).then(function(ciphertext) {
+            return JSON.stringify({
+                marker: ENVELOPE_MARKER,
+                algo: ENCRYPTION_ALGO,
+                kdf: ENCRYPTION_KDF,
+                hash: ENCRYPTION_HASH,
+                // Record the ACTUAL iteration count used so decrypt always
+                // re-derives with the same value — never the module constant.
+                iterations: iterations,
+                salt: self._b64encode(salt),
+                iv: self._b64encode(iv),
+                ct: self._b64encode(new Uint8Array(ciphertext))
+            });
+        });
+    },
+
+    _decryptAesGcm: function(envelope, passphrase) {
+        var self = this;
+        var dec = new TextDecoder();
+        var salt = this._b64decode(envelope.salt);
+        var iv = this._b64decode(envelope.iv);
+        var ct = this._b64decode(envelope.ct);
+        // Use the envelope's own iteration count so a future ENCRYPTION_ITERATIONS
+        // bump never breaks decryption of backups created with the old value.
+        var iterations = (envelope && envelope.iterations) || ENCRYPTION_ITERATIONS;
+        return this._deriveKey(passphrase, salt, iterations).then(function(key) {
+            return crypto.subtle.decrypt({ name: ENCRYPTION_ALGO, iv: iv }, key, ct);
+        }).then(function(plain) {
+            return dec.decode(plain);
+        });
+    },
+
+    // ──────────────────────────────────────────────
+    // Scheduled pull + diff-aware merge
+    // ──────────────────────────────────────────────
+
+    scheduleAutoPull: function() {
+        this.stopAutoPull();
+        var interval = State.CONFIG.auto_pull_interval;
+        if (!interval || interval <= 0) return;
+        var ms = interval * 60 * 1000;
+        console.log('[Backup] Auto-pull scheduled every ' + interval + ' min');
+        this.pullIntervalId = setInterval(function() {
+            if (!BackupManager.driveConnected) return;
+            BackupManager.autoPullFromDrive();
+        }, ms);
+    },
+
+    stopAutoPull: function() {
+        if (this.pullIntervalId) {
+            clearInterval(this.pullIntervalId);
+            this.pullIntervalId = null;
+        }
+    },
+
+    // Pull remote backup and merge into local state. Diff-aware: newer
+    // `modified` wins per entity; remote-only entities are added; local-only
+    // are kept. Reports a count summary. Never overwrites config (that's a
+    // full-restore decision, not a sync one).
+    autoPullFromDrive: function(callback) {
+        var self = this;
+        if (!this.driveConnected || !this.driveAccessToken) {
+            if (callback) callback(false, null);
+            return;
+        }
+        this._getDriveFileContent(function(success, content, errorCode) {
+            if (!success || !content) {
+                if (callback) callback(false, null);
+                return;
+            }
+            self.decryptBackup(content, function(plain, err, code) {
+                if (!plain) {
+                    if (code === 'passphrase_required' && window.showNotification) {
+                        window.showNotification('SYNC: backup is encrypted — set your passphrase first');
+                    } else if (code === 'passphrase_wrong' && window.showNotification) {
+                        window.showNotification('SYNC: wrong passphrase — nothing merged');
+                    }
+                    if (callback) callback(false, null);
+                    return;
+                }
+                var data;
+                try { data = JSON.parse(plain); } catch (e) {
+                    console.error('[Backup] Auto-pull: bad JSON:', e);
+                    if (callback) callback(false, null);
+                    return;
+                }
+                var summary = self._mergeRemoteData(data);
+                if (summary.changed) {
+                    if (window.saveData) window.saveData();
+                }
+                State.CONFIG.drive_last_pull = new Date().toISOString();
+                saveConfig();
+                if (window.showNotification && summary.changed) {
+                    window.showNotification('SYNC: pulled ' + summary.notes + ' notes, ' +
+                        summary.tasks + ' tasks, ' + summary.boards + ' boards from Drive');
+                }
+                if (callback) callback(true, summary);
+            });
+        });
+    },
+
+    // Keyed merge. notes/boards/canvases by `id`; tasks by `text` (this app's
+    // tasks have no id). Newer `modified` wins; ties keep local.
+    _mergeRemoteData: function(remote) {
+        var summary = { notes: 0, tasks: 0, boards: 0, changed: false };
+
+        if (remote.notes && Array.isArray(remote.notes)) {
+            var notes = State.NOTES || [];
+            summary.notes = this._mergeById(notes, remote.notes, 'id');
+            if (summary.notes > 0) State.NOTES = notes;
+        }
+        if (remote.tasks && Array.isArray(remote.tasks)) {
+            var tasks = State.TASKS || [];
+            summary.tasks = this._mergeById(tasks, remote.tasks, 'text');
+            if (summary.tasks > 0) State.TASKS = tasks;
+        }
+        if (remote.boards && Array.isArray(remote.boards)) {
+            var boards = State.BOARDS || [];
+            summary.boards = this._mergeById(boards, remote.boards, 'id');
+            if (summary.boards > 0) State.BOARDS = boards;
+        }
+        if (remote.canvases && Array.isArray(remote.canvases) && State.CANVASES) {
+            // Canvases changes count toward persistence too — a canvases-only
+            // pull must still trigger saveData().
+            summary.canvases = this._mergeById(State.CANVASES, remote.canvases, 'id');
+        }
+        summary.changed = summary.notes > 0 || summary.tasks > 0 ||
+            summary.boards > 0 || (summary.canvases || 0) > 0;
+        return summary;
+    },
+
+    // Merge remote array into local array keyed by keyName. Returns count of
+    // entities changed (added or updated). Mutates local in place.
+    _mergeById: function(local, remote, keyName) {
+        var localIndex = {};
+        for (var i = 0; i < local.length; i++) {
+            var k = local[i] && local[i][keyName];
+            if (k !== undefined && k !== null) localIndex[String(k)] = local[i];
+        }
+        var changed = 0;
+        for (var j = 0; j < remote.length; j++) {
+            var r = remote[j];
+            if (!r) continue;
+            var rk = r[keyName];
+            if (rk === undefined || rk === null) {
+                // No key — can't match; skip (protects against duplicates).
+                continue;
+            }
+            var existing = localIndex[String(rk)];
+            if (!existing) {
+                local.push(r);
+                localIndex[String(rk)] = r;
+                changed++;
+            } else if (this._newerWins(r, existing)) {
+                var idx = local.indexOf(existing);
+                local[idx] = r;
+                localIndex[String(rk)] = r;
+                changed++;
+            }
+        }
+        return changed;
+    },
+
+    // Newer `modified` wins; if either lacks a timestamp, prefer local (keep
+    // existing) to avoid clobbering on uncertain data.
+    _newerWins: function(remote, local) {
+        var rm = remote.modified || remote.updated_at;
+        var lm = local.modified || local.updated_at;
+        if (!rm || !lm) return false;
+        var rms = typeof rm === 'string' ? new Date(rm).getTime() : rm;
+        var lms = typeof lm === 'string' ? new Date(lm).getTime() : lm;
+        return rms > lms;
+    },
+
     
 
     triggerBackup: function(mode) {
@@ -128,26 +535,33 @@ export const BackupManager = {
     
 
     downloadBackup: function() {
+        var self = this;
         var data = this.buildBackupData();
-        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
+        var plain = JSON.stringify(data, null, 2);
+        this.encryptBackup(plain, function(envelope, notEncrypted) {
+            var payload = envelope || plain;
+            var encrypted = !!envelope;
+            var blob = new Blob([payload], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
 
-        var filename = 'vinland-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+            var filename = 'vinland-backup-' + new Date().toISOString().slice(0, 10) +
+                (encrypted ? '.enc' : '') + '.json';
 
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
 
-        // Show toast notification
-        if (window.showNotification) {
-            window.showNotification('BACKUP: ' + filename);
-        }
+            // Show toast notification
+            if (window.showNotification) {
+                window.showNotification('BACKUP: ' + filename + (encrypted ? ' [ENCRYPTED]' : ''));
+            }
 
-        console.log('[Backup] Downloaded: ' + filename);
+            console.log('[Backup] Downloaded: ' + filename + (encrypted ? ' (encrypted)' : ''));
+        });
     },
 
     
@@ -319,6 +733,21 @@ export const BackupManager = {
         }
 
         var data = this.buildBackupData();
+        var plain = JSON.stringify(data);
+
+        // Encrypt at rest before anything touches the wire. The upload
+        // functions accept the pre-serialized payload string as `data`.
+        this.encryptBackup(plain, function(envelope) {
+            var payload = envelope || plain;
+            self._pushPayload(payload, callback);
+        });
+    },
+
+    // Shared push logic — takes a final payload string (plain or encrypted
+    // envelope) and drives the create-or-update flow against Drive.
+    _pushPayload: function(payload, callback) {
+        var self = this;
+        var data = payload; // pre-serialized string (encrypted or plain)
 
         if (this.driveFileId) {
             // Update existing file
@@ -383,21 +812,35 @@ export const BackupManager = {
 
         this._getDriveFileContent(function(success, content, errorCode) {
             if (success && content) {
-                try {
-                    var data = JSON.parse(content);
-                    // Trigger import via the existing import machinery
-                    if (window.SettingsUI && window.SettingsUI.importFromSync) {
-                        window.SettingsUI.importFromSync(data);
+                // Decrypt at rest if the remote blob is an envelope.
+                self.decryptBackup(content, function(plain, err, code) {
+                    if (!plain) {
+                        if (code === 'passphrase_required' && window.showNotification) {
+                            window.showNotification('SYNC ERROR: backup is encrypted — set your passphrase first');
+                        } else if (code === 'passphrase_wrong' && window.showNotification) {
+                            window.showNotification('SYNC ERROR: wrong passphrase');
+                        } else if (window.showNotification) {
+                            window.showNotification('SYNC ERROR: Corrupted backup file');
+                        }
+                        if (callback) callback(false);
+                        return;
                     }
-                    self._onSyncComplete('pull');
-                    if (callback) callback(true);
-                } catch (e) {
-                    console.error('[Backup] Failed to parse Drive backup:', e);
-                    if (window.showNotification) {
-                        window.showNotification('SYNC ERROR: Corrupted backup file');
+                    try {
+                        var data = JSON.parse(plain);
+                        // Trigger import via the existing import machinery
+                        if (window.SettingsUI && window.SettingsUI.importFromSync) {
+                            window.SettingsUI.importFromSync(data);
+                        }
+                        self._onSyncComplete('pull');
+                        if (callback) callback(true);
+                    } catch (e) {
+                        console.error('[Backup] Failed to parse Drive backup:', e);
+                        if (window.showNotification) {
+                            window.showNotification('SYNC ERROR: Corrupted backup file');
+                        }
+                        if (callback) callback(false);
                     }
-                    if (callback) callback(false);
-                }
+                });
             } else {
                 var msg = 'NO BACKUP FOUND ON DRIVE';
                 if (errorCode === 'auth') {
@@ -456,8 +899,15 @@ export const BackupManager = {
             });
     },
 
+    // Accepts either a backup-data object (legacy unit-test callers) or a
+    // pre-serialized payload string (encrypted or plain, from syncToDrive).
+    _serializeBody: function(data) {
+        return typeof data === 'string' ? data : JSON.stringify(data);
+    },
+
     _createDriveFile: function(data, callback) {
         var self = this;
+        var body = this._serializeBody(data);
 
         this._ensureBackupFolder(function(folderId) {
             if (!folderId) {
@@ -494,7 +944,7 @@ export const BackupManager = {
                         'Authorization': 'Bearer ' + self.driveAccessToken,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: body
                 })
                 .then(function(res) { return res.json(); })
                 .then(function(result) {
@@ -521,6 +971,7 @@ export const BackupManager = {
     _updateDriveFile: function(data, callback, retried) {
         var self = this;
         var url = 'https://www.googleapis.com/upload/drive/v3/files/' + this.driveFileId + '?uploadType=media';
+        var body = this._serializeBody(data);
 
         fetch(url, {
             method: 'PATCH',
@@ -528,7 +979,7 @@ export const BackupManager = {
                 'Authorization': 'Bearer ' + self.driveAccessToken,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: body
         })
         .then(function(res) {
             if (res.status === 404) {

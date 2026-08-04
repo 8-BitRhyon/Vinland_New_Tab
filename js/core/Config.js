@@ -59,6 +59,15 @@ const DEFAULT_CONFIG = {
     backup_reminder_enabled: true,
     backup_reminder_days: 7,
     last_backup_prompt: null,
+    // Optional encryption at rest: backup blobs are AES-GCM encrypted with a
+    // PBKDF2-derived key. The passphrase itself is NEVER stored in CONFIG (it
+    // would leak into buildBackupData's `config` export) — see
+    // BackupManager.setPassphrase/clearPassphrase (chrome.storage.local).
+    backup_encryption_enabled: false,
+    // Optional scheduled pull from Drive (minutes, 0 = off). Diff-aware merge:
+    // notes/boards by id+modified, tasks by text. Lets two devices converge.
+    auto_pull_interval: 0,
+    drive_last_pull: null,
     daily_note_template: ""
 };
 
