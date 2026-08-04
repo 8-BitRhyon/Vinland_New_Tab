@@ -247,6 +247,103 @@ await test('(g) fetch rejection → callback(false), no create', async () => {
 });
 
 // ============================================================
+console.log('\n─── BackupManager.maybePromptBackup: proactive reminder ───');
+
+// maybePromptBackup reads State.CONFIG and calls the bare global
+// showConfirmModal. Wire both up for these tests.
+const { State } = await import('../js/core/Store.js');
+
+function freshReminderState() {
+  // Merge over the existing config (don't replace wholesale — other suites may
+  // share this process, and replaced configs lose merged defaults like version).
+  Object.assign(State.CONFIG, {
+    first_run: false,
+    backup_reminder_enabled: true,
+    backup_reminder_days: 7,
+    last_backup_time: null,
+    last_backup_prompt: null,
+  });
+  globalThis.showConfirmModal = () => {};
+}
+
+// (m) overrides BackupManager.triggerBackup — restore it afterwards so the
+// shared module object is left untouched for any other suite in this process.
+const _realTriggerBackup = BackupManager.triggerBackup;
+
+await test('(h) overdue (never backed up) → prompt shown, last_backup_prompt recorded', async () => {
+  freshReminderState();
+  let shown = null;
+  globalThis.showConfirmModal = (title, msg, onConfirm) => { shown = { title, msg, onConfirm }; };
+
+  BackupManager.maybePromptBackup();
+
+  assert.ok(shown, 'modal invoked');
+  assert.ok(shown.title.includes('BACKUP REMINDER'), 'title set');
+  assert.ok(shown.msg.includes('7'), 'message mentions the day window');
+  assert.equal(typeof shown.onConfirm, 'function', 'EXPORT NOW callback wired');
+  assert.ok(State.CONFIG.last_backup_prompt, 'prompt timestamp persisted');
+});
+
+await test('(i) recent backup → no prompt', async () => {
+  freshReminderState();
+  State.CONFIG.last_backup_time = Date.now() - 60 * 60 * 1000; // 1h ago
+  let shown = false;
+  globalThis.showConfirmModal = () => { shown = true; };
+
+  BackupManager.maybePromptBackup();
+
+  assert.equal(shown, false, 'no modal for a fresh backup');
+  assert.equal(State.CONFIG.last_backup_prompt, null, 'no prompt timestamp written');
+});
+
+await test('(j) reminders disabled → no prompt even when overdue', async () => {
+  freshReminderState();
+  State.CONFIG.backup_reminder_enabled = false;
+  let shown = false;
+  globalThis.showConfirmModal = () => { shown = true; };
+
+  BackupManager.maybePromptBackup();
+
+  assert.equal(shown, false, 'reminder toggle respected');
+});
+
+await test('(k) first-run tour active → no prompt', async () => {
+  freshReminderState();
+  State.CONFIG.first_run = true;
+  let shown = false;
+  globalThis.showConfirmModal = () => { shown = true; };
+
+  BackupManager.maybePromptBackup();
+
+  assert.equal(shown, false, 'suppressed during first-run');
+});
+
+await test('(l) prompted within window → no repeat nag', async () => {
+  freshReminderState();
+  State.CONFIG.last_backup_prompt = Date.now() - 60 * 60 * 1000; // 1h ago
+  let shown = false;
+  globalThis.showConfirmModal = () => { shown = true; };
+
+  BackupManager.maybePromptBackup();
+
+  assert.equal(shown, false, 'one nudge per window');
+});
+
+await test('(m) EXPORT NOW → triggerBackup(auto) downloads local JSON', async () => {
+  freshReminderState();
+  let mode = null;
+  let confirmed = false;
+  BackupManager.triggerBackup = (m) => { mode = m; confirmed = true; };
+  globalThis.showConfirmModal = (t, m, onConfirm) => onConfirm();
+
+  BackupManager.maybePromptBackup();
+
+  assert.equal(confirmed, true, 'EXPORT NOW fires the backup');
+  assert.equal(mode, 'auto', 'local download path (not Drive push)');
+  BackupManager.triggerBackup = _realTriggerBackup; // restore shared module
+});
+
+// ============================================================
 console.log('\n══════════════════════════════════════════════════');
 console.log(`  BACKUP MANAGER SUITE: ${passed} passed, ${failed} failed`);
 console.log('══════════════════════════════════════════════════\n');

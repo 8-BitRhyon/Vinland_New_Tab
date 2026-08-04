@@ -105,3 +105,27 @@ including canvases — same shape as the local **EXPORT CONFIG** file.
 | Badge says Not connected after restart | Expected — the token isn't persisted. Click **CONNECT DRIVE** once per session (or it will prompt on first sync). |
 | *"DRIVE NOT CONNECTED"* on sync | Token unavailable; same fix as above. |
 | Duplicate `vinland-backup.json` files in Drive | Old bug (auth errors treated as "file deleted") — fixed in this build. Delete extras manually once. |
+
+---
+
+## Known gaps & limitations
+
+These are honest, verified limitations of the current Drive integration.
+They exist because Chromium's `chrome.identity` is single-purpose and the
+MVP targets one Cloudflare-free, zero-infrastructure deploy. Each row links
+to where the fix would land.
+
+| Gap | Impact | Current behavior | Fix path |
+|---|---|---|---|
+| **Token not persisted** | Every browser restart you must **CONNECT DRIVE** again (silent re-auth is attempted but the cached token is gone) | `loadDriveState()` marks the extension disconnected when `getAuthToken({interactive:false})` finds nothing | Persist a refresh token (Firefox `launchWebAuthFlow` supports `offline_access`) or reuse Chrome's `getAuthToken` after an explicit interactive grant |
+| **Chromium-only OAuth** | Drive sync is unavailable on Firefox/Zen and other MV3 WebExtensions — no `chrome.identity` there | `drive_oauth` manifest key + `launchWebAuthFlow` path exists only in the Firefox manifest; **not implemented in code** | Implement the `launchWebAuthFlow` code path in `BackupManager` (see `docs/browser-support.md` §Configuration) |
+| **No token revocation UI** | "Disconnect" doesn't revoke the Google-side grant; the token lingers until it expires | `disconnectDrive()` clears local state only | Call `identity.removeCachedAuthToken` (Chromium) / revoke endpoint (Firefox) |
+| **Single-file sync, no conflict handling** | Concurrent edits across devices last-write-wins; no merge or conflict markers | `_updateDriveFile()` PATCHes one `vinland-backup.json` | Multi-file sync or revision comparison before push |
+| **No encryption at rest** | The backup JSON contains full note content and sits unencrypted in your Drive | Plain JSON upload under `drive.file` scope | Encrypt with a local passphrase before upload (field-level or blob-level) |
+| **Push is one-way by default** | Auto-backup only pushes; pull (restore) is manual via **RESTORE FROM DRIVE** | `triggerBackup('drive')` uploads; restore requires the button | Optional scheduled pull with diff-aware merge |
+
+**Auto-backup without Drive:** when Drive isn't connected, the interval
+(`auto_backup_interval`) and the proactive reminder
+(`backup_reminder_enabled`, default on, nudge every 7+ days) fall back to
+downloading a local `vinland-backup.json` — so backups work for everyone,
+with or without OAuth. See `BackupManager.maybePromptBackup()`.

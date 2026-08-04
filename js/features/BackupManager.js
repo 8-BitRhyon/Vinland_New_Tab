@@ -21,6 +21,50 @@ export const BackupManager = {
         this.loadDriveState();
         // Start auto-backup timer if enabled
         this.scheduleAutoBackup();
+        // Nudge the user if the last backup is stale
+        this.maybePromptBackup();
+    },
+
+    // Proactive backup reminder. Shown once per window at boot when the last
+    // backup is missing or older than backup_reminder_days and the user has
+    // not been prompted within that window. Suppressed during the first-run
+    // tour and under automation. CANCEL defers; EXPORT NOW downloads a JSON
+    // snapshot via the normal backup path.
+    maybePromptBackup: function() {
+        if (State.CONFIG.first_run) return;
+        if (typeof navigator !== 'undefined' && navigator.webdriver) return;
+        if (State.CONFIG.backup_reminder_enabled === false) return;
+
+        var days = Math.max(1, State.CONFIG.backup_reminder_days || 7);
+        var windowMs = days * 86400000;
+        var now = Date.now();
+
+        var overdue = !State.CONFIG.last_backup_time ||
+            (now - State.CONFIG.last_backup_time > windowMs);
+        if (!overdue) return;
+
+        // Don't nag repeatedly within the same window.
+        if (State.CONFIG.last_backup_prompt &&
+            (now - State.CONFIG.last_backup_prompt < windowMs)) return;
+
+        // Guard BEFORE persisting the prompt timestamp: if the modal system
+        // isn't available, don't record a nudge we never showed (otherwise
+        // reminders would be silently suppressed for the whole window).
+        if (typeof showConfirmModal !== 'function') return;
+
+        State.CONFIG.last_backup_prompt = now;
+        saveConfig();
+
+        var self = this;
+        showConfirmModal(
+            'BACKUP REMINDER',
+            'It\'s been ' + days + '+ days since your last backup. Export a ' +
+            'JSON snapshot of your notes, tasks, and boards?',
+            function() { self.triggerBackup('auto'); }, // EXPORT NOW
+            function() { /* CANCEL: defer; next nudge in N days */ },
+            'EXPORT NOW',
+            null
+        );
     },
 
     

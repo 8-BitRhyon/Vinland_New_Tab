@@ -253,3 +253,85 @@ test('8. Backup Now triggers download via BackupManager', async ({ page }) => {
 
   await closeSettings(page);
 });
+
+// ══════════════════════════════════════════
+// Test 9: Backup reminder toggle renders + persists via SAVE flow
+// ══════════════════════════════════════════
+test('9. Backup reminder toggle renders and persists via the SAVE flow', async ({ page }) => {
+  await openSettings(page);
+  await navigateToTab(page, 'sync');
+
+  const reminderToggle = page.locator('#cfg-backup-reminder');
+  // The checkbox is a visually-hidden switch input — assert the visible label.
+  const reminderSwitch = page.locator('label.switch', { has: reminderToggle });
+  await expect(reminderSwitch).toBeVisible({ timeout: 3000 });
+
+  // Default: enabled (unchecked state is false — assert current CONFIG value)
+  const initial = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.backup_reminder_enabled : null);
+  expect(initial).not.toBe(false);
+
+  // Toggle OFF by clicking the visible switch (as a user would), then save
+  // via the header SAVE button (dirty-tracked flow).
+  await reminderSwitch.click();
+  await page.waitForTimeout(400);
+  expect(await reminderToggle.isChecked()).toBe(false);
+
+  let staged = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.backup_reminder_enabled : null);
+  expect(staged).not.toBe(false); // staged, not yet persisted
+
+  await page.locator('#header-save-btn').click();
+  await page.waitForTimeout(800);
+
+  const after = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.backup_reminder_enabled : null);
+  expect(after).toBe(false);
+
+  await closeSettings(page);
+});
+
+// ══════════════════════════════════════════
+// Test 10: Backup reminder modal appears at boot when overdue
+// ══════════════════════════════════════════
+test('10. Backup reminder modal appears at boot when last backup is overdue', async ({ page }) => {
+  // maybePromptBackup is suppressed under automation — strip the flag like the
+  // onboarding spec does so the real first-load path is exercised.
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'webdriver', {
+      get: () => undefined,
+    });
+  });
+
+  await page.addInitScript(() => {
+    // Simulate a returning user: first-run finished, never backed up.
+    const cfg = {
+      first_run: false,
+      backup_reminder_enabled: true,
+      backup_reminder_days: 7,
+      last_backup_time: null,
+      last_backup_prompt: null,
+    };
+    localStorage.setItem('OPERATOR_CONFIG_V3', JSON.stringify(cfg));
+  });
+
+  await page.goto(APP_URL);
+
+  // The confirm modal is shown by maybePromptBackup during init.
+  await expect(page.locator('#confirm-modal')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('#confirm-title')).toContainText('BACKUP REMINDER', { timeout: 5000 });
+  await expect(page.locator('#confirm-msg')).toContainText('7+ days', { timeout: 5000 });
+
+  // Primary button label is EXPORT NOW; CANCEL dismisses cleanly.
+  const actions = page.locator('#confirm-modal .modal-actions');
+  await expect(actions.locator('.primary-btn')).toContainText('EXPORT NOW');
+  await actions.locator('.btn', { hasText: 'CANCEL' }).click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#confirm-modal')).not.toBeVisible();
+
+  // The prompt timestamp was persisted (guard-order regression guard: if the
+  // modal had never shown, last_backup_prompt would still be null).
+  const promptTs = await page.evaluate(() =>
+    window.State && window.State.CONFIG ? window.State.CONFIG.last_backup_prompt : null);
+  expect(typeof promptTs).toBe('number');
+});

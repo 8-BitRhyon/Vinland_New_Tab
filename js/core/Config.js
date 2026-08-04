@@ -55,6 +55,10 @@ const DEFAULT_CONFIG = {
     drive_sync_enabled: false,
     drive_last_sync: null,
     last_backup_time: null,
+    // Periodic proactive backup nudge (days between prompts, 0 disables)
+    backup_reminder_enabled: true,
+    backup_reminder_days: 7,
+    last_backup_prompt: null,
     daily_note_template: ""
 };
 

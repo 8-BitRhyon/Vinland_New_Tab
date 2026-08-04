@@ -588,6 +588,7 @@ export const SettingsUI = {
         // Drive sync updating these while the modal is open is not a user edit.
         delete draft.last_backup_time;
         delete draft.drive_last_sync;
+        delete draft.last_backup_prompt;
         var el;
 
         // Fonts
@@ -638,6 +639,7 @@ export const SettingsUI = {
         // Modules
         el = document.getElementById('cfg-auto-clear-interval'); if (el) draft.auto_clear_interval = el.value;
         el = document.getElementById('cfg-auto-backup'); if (el) draft.auto_backup_interval = parseInt(el.value, 10) || 0;
+        el = document.getElementById('cfg-backup-reminder'); if (el) draft.backup_reminder_enabled = el.checked;
         el = document.getElementById('cfg-habit'); if (el) draft.habit_id = el.value.trim();
         el = document.getElementById('cfg-life'); if (el) draft.life_id = el.value.trim();
         el = document.getElementById('cfg-trello'); if (el) draft.trello_board = el.value.trim();
@@ -758,6 +760,7 @@ export const SettingsUI = {
         // Modules
         el = document.getElementById('cfg-auto-clear-interval'); if (el) CONFIG.auto_clear_interval = el.value;
         el = document.getElementById('cfg-auto-backup'); if (el) CONFIG.auto_backup_interval = parseInt(el.value, 10) || 0;
+        el = document.getElementById('cfg-backup-reminder'); if (el) CONFIG.backup_reminder_enabled = el.checked;
         el = document.getElementById('cfg-habit'); if (el) CONFIG.habit_id = el.value.trim();
         el = document.getElementById('cfg-life'); if (el) CONFIG.life_id = el.value.trim();
         el = document.getElementById('cfg-trello'); if (el) CONFIG.trello_board = el.value.trim();
@@ -2064,6 +2067,10 @@ export const SettingsUI = {
         var interval = State.CONFIG.auto_backup_interval || 0;
         var intervalSelect = this._syncBtn('cfg-auto-backup');
         if (intervalSelect) intervalSelect.value = interval.toString();
+
+        // Update backup reminder toggle
+        var reminderEl = this._syncBtn('cfg-backup-reminder');
+        if (reminderEl) reminderEl.checked = State.CONFIG.backup_reminder_enabled !== false;
 
         // Update last backup info
         var lastBackupEl = this._syncBtn('sync-last-backup');

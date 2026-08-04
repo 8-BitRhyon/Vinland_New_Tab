@@ -13016,8 +13016,16 @@
                     <option value="1440">Once daily</option>
                   </select>
                 </div>
+                <div class="sync-row">
+                  <span class="toggle-label">BACKUP REMINDERS</span>
+                  <label class="switch"
+                    ><input type="checkbox" id="cfg-backup-reminder" /><span
+                      class="slider"
+                    ></span
+                  ></label>
+                </div>
                 <div class="sync-hint">
-                  Pushes a backup to Google Drive at the selected interval (or downloads a local JSON if Drive isn't connected).
+                  Pushes a backup to Google Drive at the selected interval (or downloads a local JSON if Drive isn't connected). When the interval is OFF, remind you to export a local JSON snapshot if your last backup is more than 7 days old.
                 </div>
                 <div class="sync-status-row">
                   <div class="sync-status-item">
