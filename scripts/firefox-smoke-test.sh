@@ -77,10 +77,12 @@ WEBEXT_PID=$!
 # Error patterns surfaced on Firefox stderr (which web-ext pipes through):
 #   JavaScript error: <url>, line N: <ErrorType>: <msg>   — thrown exceptions
 #   console.error: <extension-id>: <msg>                  — explicit console.error
-# The 'JavaScript error:' prefix covers every uncaught exception class
-# (TypeError, ReferenceError, SyntaxError, RangeError, …), so we only need the
-# generic prefix plus the explicit console.error channel.
-ERROR_RE='JavaScript error:|console.error:'
+# Only EXTENSION-context errors are release blockers. Headless Firefox emits
+# its own benign internal errors (e.g. BackupService.sys.mjs under
+# resource:// — a known headless-only quirk with no connection to the add-on),
+# so errors in resource:// / chrome:// files are filtered out. The extension's
+# files live under moz-extension://, so that prefix is the gate.
+ERROR_RE='JavaScript error: moz-extension:|console.error: [0-9a-f-]+@temporary-addon|console.error: vinland@rhyon.dev'
 
 INSTALLED=0
 ERRORS=0
