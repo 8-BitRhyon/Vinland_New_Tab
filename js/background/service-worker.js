@@ -1,6 +1,29 @@
 
 
 // ──────────────────────────────────────────
+// Cross-browser alarm shim
+// ──────────────────────────────────────────
+// Firefox does NOT expose alarms on the callback-style `chrome.*` namespace —
+// it lives only on the promise-based `browser.alarms`. Chromium has no
+// `browser.*` and uses callback-style `chrome.alarms`. Resolve the right one
+// once, then call it uniformly. `settleAlarms()` adapts completion handling:
+// promise APIs (Firefox) vs callback APIs (Chromium).
+
+const __alarms = (typeof browser !== 'undefined' && browser && browser.alarms)
+  ? browser.alarms
+  : (typeof chrome !== 'undefined' && chrome.alarms ? chrome.alarms : null);
+
+function settleAlarms(apiResult, cb) {
+  if (apiResult && typeof apiResult.then === 'function') {
+    // Firefox: promise-based, no callback argument.
+    apiResult.then(() => { if (cb) cb(); }, () => {});
+  } else if (cb) {
+    // Chromium: callback-style API (result is undefined).
+    cb();
+  }
+}
+
+// ──────────────────────────────────────────
 // Lifecycle
 // ──────────────────────────────────────────
 
@@ -31,7 +54,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
   if (details.reason === 'update') {
     // Clear any stale alarms from previous versions
-    chrome.alarms.clearAll(() => {
+    settleAlarms(__alarms.clearAll(), () => {
       console.log('[SW] Previous version alarms cleared.');
     });
 
@@ -69,9 +92,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         pomodoroAcknowledged: false,
       });
 
-      // chrome.alarms requires at least 1 minute delay
+      // alarms require at least 1 minute delay
       if (durationMinutes >= 1) {
-        chrome.alarms.create('pomo-end', {
+        __alarms.create('pomo-end', {
           delayInMinutes: durationMinutes,
         });
         console.log('[SW] Pomo alarm set for', durationMinutes, 'minutes');
@@ -82,7 +105,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'STOP_POMO': {
-      chrome.alarms.clear('pomo-end');
+      __alarms.clear('pomo-end');
       chrome.storage.local.set({
         pomodoro: {
           active: false,
@@ -97,7 +120,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'PAUSE_POMO': {
-      chrome.alarms.clear('pomo-end');
+      __alarms.clear('pomo-end');
       chrome.storage.local.set({
         pomodoro: {
           active: true,
@@ -128,7 +151,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
 
       if (remainingMinutes >= 1) {
-        chrome.alarms.create('pomo-end', {
+        __alarms.create('pomo-end', {
           delayInMinutes: remainingMinutes,
         });
       }
@@ -159,7 +182,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Pomodoro completion alarm → notification
 // ──────────────────────────────────────────
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+__alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'pomo-end') {
     console.log('[SW] Pomo alarm fired - showing notification');
 

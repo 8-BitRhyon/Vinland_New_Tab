@@ -45,6 +45,7 @@ const CHECK = process.argv.includes('--check');
 
 // Module -> section header prefix (without the `(≈Nk lines)` suffix).
 const MODULES = [
+  { path: 'js/background/service-worker.js', header: '#### ServiceWorker — function inventory' },
   { path: 'js/boot.js', header: '#### boot.js — function inventory' },
   { path: 'js/editor/BlockEditor.js', header: '#### BlockEditor — function inventory' },
   { path: 'js/ui/SettingsUI.js', header: '#### SettingsUI — function inventory' },

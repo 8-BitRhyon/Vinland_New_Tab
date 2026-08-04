@@ -40,7 +40,10 @@ holds only the Firefox delta, merged over `manifest.json` at package time:
   reads the standard `oauth2` block instead).
 
 CI runs the Firefox build on every push (the `firefox-build` job), so the
-merge + manifest shape can never silently break.
+merge + manifest shape can never silently break. A second job,
+`firefox-smoke`, then loads the packaged zip into a headless real Firefox via
+web-ext and asserts the add-on installs and its background script boots with
+zero JavaScript errors (see Verification).
 
 ---
 
@@ -89,7 +92,7 @@ extension support as secondary:
 | Background | MV3 service worker (`type: module`) | MV3 event page (`background.scripts`) |
 | New-tab override | `chrome_url_overrides.newtab` | same key, supported |
 | Storage | `chrome.storage.local` + `sync` | same (sync quota is more generous in Firefox) |
-| Notifications / alarms / context menus / bookmarks / tabs | ✅ | ✅ (same callback API) |
+| Notifications / alarms / context menus / bookmarks / tabs | ✅ | ✅ (callback API; alarms needs the `alarms` permission in the manifest) |
 | declarativeNetRequest | ✅ | ✅ Firefox 127+ (Zen is on 153) |
 | Drive OAuth | `chrome.identity.getAuthToken` + `oauth2` manifest block | `chrome.identity.launchWebAuthFlow` + `drive_oauth` manifest key |
 | Side effects of Drive | token cached + revocable | no token cache/revocation API — re-auth on expiry |
@@ -140,6 +143,16 @@ opens the consent page again.
   smoke.
 - The `firefox-build` CI job merges + validates the Firefox manifest and
   asserts its shape (gecko id, `background.scripts`, no Chrome-only keys).
+- **`firefox-smoke` CI job** (runtime gate): `bash scripts/firefox-smoke-test.sh`
+  unzips the packaged zip, loads it into a headless real Firefox via web-ext
+  (Mozilla's own tool), and asserts (a) the add-on installs as a temporary
+  add-on and (b) no `JavaScript error:` / `TypeError` lines appear on
+  Firefox's stderr — which is where the background script's boot errors
+  surface. This is the half of the gate that static shape checks can't
+  cover; it caught a real bug on day one (`chrome.alarms` undefined in
+  Firefox + a missing `alarms` manifest permission, which broke the pomodoro
+  alarm on *both* engines). Requires `web-ext` (devDependency) and a real
+  Firefox binary (`FIREFOX_BINARY`, or auto-detected).
 - Optional maintainer check: `npx web-ext lint --source-dir dist-firefox/stage`
   (Mozilla's own validator) — not wired into CI to avoid a network
   dependency.

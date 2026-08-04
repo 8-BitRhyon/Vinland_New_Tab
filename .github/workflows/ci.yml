@@ -192,3 +192,42 @@ jobs:
           name: vinland-firefox-zip
           path: dist-firefox/*.zip
           retention-days: 7
+
+  # Firefox runtime smoke test — loads the PACKAGED zip (the same artifact
+  # firefox-build uploads) into a headless real Firefox via Mozilla's web-ext
+  # and asserts: (1) the add-on installs as a temporary add-on, and (2) the
+  # background script boots with ZERO JavaScript errors on Firefox's stderr.
+  # This is the runtime half of the Firefox/Zen gate that package-firefox.sh's
+  # static shape assertions cannot cover — it already caught a real bug
+  # (chrome.alarms undefined in Firefox + missing 'alarms' manifest permission).
+  # Playwright's bundled Firefox cannot load extensions at all, so web-ext +
+  # a real Firefox binary is the reliable path here.
+  firefox-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install zip tools
+        run: sudo apt-get update && sudo apt-get install -y zip unzip
+
+      - name: Install Firefox
+        uses: mozilla-actions/setup-firefox@v1
+        with:
+          firefox-version: 'latest'
+
+      - name: Build Firefox/Zen zip (merge + validate + package)
+        run: bash scripts/package-firefox.sh
+
+      # FIREFOX_BINARY is set by mozilla-actions/setup-firefox. web-ext is a
+      # devDependency (npm ci above). Firefox runs headless via MOZ_HEADLESS=1.
+      - name: Run Firefox runtime smoke test (web-ext + headless Firefox)
+        run: bash scripts/firefox-smoke-test.sh
+        timeout-minutes: 5

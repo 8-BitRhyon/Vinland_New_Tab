@@ -18,7 +18,8 @@
     "notifications",
     "declarativeNetRequest",
     "identity",
-    "contextMenus"
+    "contextMenus",
+    "alarms"
   ],
   "oauth2": {
     "client_id": "YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com",
