@@ -233,10 +233,10 @@ export const QueryEngine = {
             
             case '=':
             case '==':
-                return value == clause.value;
+                return this._equalsCoerced(value, clause.value);
             
             case '!=':
-                return value != clause.value;
+                return !this._equalsCoerced(value, clause.value);
             
             case '>':
                 return value > clause.value;
@@ -268,6 +268,26 @@ export const QueryEngine = {
             default:
                 return false;
         }
+    },
+
+    // L2: explicit replacement for the old loose `==` — same useful behaviors
+    // (number vs numeric-string, boolean passthrough) but with no silent
+    // coercion of unrelated types. Equal types compare strictly; numbers and
+    // numeric strings compare numerically; everything else must string-match.
+    _equalsCoerced: function(a, b) {
+        if (typeof a === typeof b) return a === b;
+        // Number vs numeric string → compare numerically.
+        if (typeof a === 'number' && typeof b === 'string') {
+            return b.trim() !== '' && !isNaN(Number(b)) && a === Number(b);
+        }
+        if (typeof b === 'number' && typeof a === 'string') {
+            return a.trim() !== '' && !isNaN(Number(a)) && Number(a) === b;
+        }
+        // Boolean vs 'true'/'false' string (frontmatter may store either).
+        if (typeof a === 'boolean') return String(a) === b;
+        if (typeof b === 'boolean') return a === String(b);
+        // Arrays/objects: strict reference equality only (no deep coercion).
+        return false;
     },
     
     

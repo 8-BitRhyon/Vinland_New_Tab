@@ -60,7 +60,7 @@ export function startPomodoro(timeInput) {
     if (pauseBtn) pauseBtn.textContent = 'PAUSE';
 
     updatePomodoroDisplay();
-    POMODORO.interval = setInterval(updatePomodoroDisplay, 100);
+    POMODORO.interval = setInterval(updatePomodoroDisplay, 250); // L4: 4Hz is enough — endTime math drives accuracy
 }
 
 // Cross-browser notify: Chrome MV3's chrome.runtime.sendMessage returns a
@@ -120,7 +120,7 @@ export function loadPomodoroState() {
 
                 updatePomodoroDisplay();
                 if (POMODORO.interval) clearInterval(POMODORO.interval);
-                POMODORO.interval = setInterval(updatePomodoroDisplay, 100);
+                POMODORO.interval = setInterval(updatePomodoroDisplay, 250); // L4: 4Hz is enough — endTime math drives accuracy
             } else {
                 if (POMODORO.active) stopPomodoro();
             }

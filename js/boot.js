@@ -479,7 +479,6 @@ async function boot() {
   if (SettingsUI) SettingsUI.init();
 
   // 2.5 Register Commands (New Registry System)
-  // 2.5 Register Commands (New Registry System)
   SystemCommands.register();
   if (QuickOpen) QuickOpen.init();
   if (Calendar) Calendar.init();

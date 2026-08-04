@@ -47,6 +47,7 @@ const CHECK = process.argv.includes('--check');
 const MODULES = [
   { path: 'js/background/service-worker.js', header: '#### ServiceWorker — function inventory' },
   { path: 'js/boot.js', header: '#### boot.js — function inventory' },
+  { path: 'js/editor/CalcPreview.js', header: '#### CalcPreview — function inventory' },
   { path: 'js/editor/BlockEditor.js', header: '#### BlockEditor — function inventory' },
   { path: 'js/ui/SettingsUI.js', header: '#### SettingsUI — function inventory' },
   { path: 'js/modules/NotesController.js', header: '#### NotesController — function inventory' },

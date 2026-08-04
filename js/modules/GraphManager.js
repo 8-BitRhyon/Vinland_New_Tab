@@ -546,9 +546,10 @@ export const GraphManager = {
             val: 1
         }));
 
-        // Add Boards if available
-        if (typeof window.BOARDS !== 'undefined' && Array.isArray(window.BOARDS)) {
-            window.BOARDS.forEach(b => {
+        // Add Boards if available (L7: State.BOARDS is the real source — the
+        // old window.BOARDS global was never assigned anywhere).
+        if (Array.isArray(State.BOARDS)) {
+            State.BOARDS.forEach(b => {
                  allNodes.push({ id: b.id, name: b.title, type: 'board', group: 'BOARD', val: 2 });
             });
         }

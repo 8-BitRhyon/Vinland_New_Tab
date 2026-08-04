@@ -6,9 +6,23 @@ let SESSION_START = Date.now();
 let LAST_STREAK_CHECK_DATE = new Date().toDateString();
 
 export const Clock = {
+    _timer: null,
+
     init: function() {
         this.updateTime();
-        setInterval(() => this.updateTime(), 1000);
+        this.startTicking();
+    },
+
+    // L5: align to the next second boundary instead of firing 1000ms after
+    // init — a mid-second start drifts the clock by up to a second per boot.
+    startTicking: function() {
+        var self = this;
+        if (this._timer) clearInterval(this._timer);
+        var msToBoundary = 1000 - (Date.now() % 1000);
+        setTimeout(function() {
+            self.updateTime();
+            self._timer = setInterval(() => self.updateTime(), 1000);
+        }, msToBoundary);
     },
 
     updateTime: function() {

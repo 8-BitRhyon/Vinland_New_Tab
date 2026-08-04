@@ -1,5 +1,9 @@
 import { State } from './Store.js';
 
+// L1: The storage key is intentionally kept as the legacy OPERATOR_CONFIG_V3
+// name even though CONFIG_VERSION has advanced to 4. Renaming it would orphan
+// every existing user's saved settings on upgrade — the `version` field inside
+// the payload is what consumers check, so the key stays stable.
 const CONFIG_KEY = 'OPERATOR_CONFIG_V3';
 const CONFIG_VERSION = 4;
 

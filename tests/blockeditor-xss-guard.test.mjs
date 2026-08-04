@@ -27,20 +27,28 @@ function test(name, fn) {
 const src = readFileSync(resolve(__dirname, '../js/editor/BlockEditor.js'), 'utf8');
 const lines = src.split('\n');
 
+// getCalcPreviewHtml moved to CalcPreview.js (L8 monolith decomposition).
+const calcSrc = readFileSync(resolve(__dirname, '../js/editor/CalcPreview.js'), 'utf8');
+const calcLines = calcSrc.split('\n');
+
 // Extract the body of a named method between `name: function` and the next
 // top-level `},` at the same indent — good enough for sink presence checks.
-function methodBody(methodName) {
-  const start = lines.findIndex((l) => new RegExp(`^\\s+${methodName}:\\s*function`).test(l));
+function methodBodyFrom(sourceLines, methodName) {
+  const start = sourceLines.findIndex((l) => new RegExp(`^\\s+${methodName}:\\s*function|^export function ${methodName}\\s*\\(`).test(l));
   if (start === -1) return null;
-  const indent = lines[start].match(/^\s*/)[0].length;
+  const indent = sourceLines[start].match(/^\s*/)[0].length;
   let end = -1;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (/^\s*}\s*,?\s*$/.test(lines[i]) && lines[i].match(/^\s*/)[0].length === indent) {
+  for (let i = start + 1; i < sourceLines.length; i++) {
+    if (/^\s*}\s*,?\s*$/.test(sourceLines[i]) && sourceLines[i].match(/^\s*/)[0].length === indent) {
       end = i;
       break;
     }
   }
-  return end === -1 ? null : lines.slice(start, end + 1).join('\n');
+  return end === -1 ? null : sourceLines.slice(start, end + 1).join('\n');
+}
+
+function methodBody(methodName) {
+  return methodBodyFrom(lines, methodName);
 }
 
 // ============================================================
@@ -83,8 +91,9 @@ test('wiki-link data-note-title is quote-escaped', () => {
 console.log('\n─── getCalcPreviewHtml ───');
 
 test('calc preview escapes expr and result', () => {
-  const body = methodBody('getCalcPreviewHtml');
-  assert.ok(body, 'getCalcPreviewHtml method must exist');
+  // L8: the function now lives in CalcPreview.js — assert the module source.
+  const body = methodBodyFrom(calcLines, 'getCalcPreviewHtml');
+  assert.ok(body, 'getCalcPreviewHtml must exist in CalcPreview.js');
   assert.match(body, /escapeHtml\(expr\)/, 'expression span must be escaped');
   assert.match(body, /escapeHtml\(result\)/, 'result span must be escaped');
   assert.ok(!/calc-expression">'\s*\+\s*expr\s*\+/.test(body),

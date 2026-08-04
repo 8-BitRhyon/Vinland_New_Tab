@@ -1,3 +1,4 @@
+// L1: mirrors Config.js — the payload version, not the storage key name.
 const CONFIG_VERSION = 4;
 
 const DEFAULT_CONFIG = {
