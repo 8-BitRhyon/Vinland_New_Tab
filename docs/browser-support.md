@@ -7,7 +7,7 @@ browser and every Firefox-based (WebExtensions) browser** as a new-tab page.
 |---|---|---|---|
 | Chrome | Chromium | ✅ full | `chrome://extensions` → Load unpacked, or Chrome Web Store |
 | Edge, Brave, Opera, Vivaldi, Arc | Chromium | ✅ full | Load unpacked (or CWS if published) |
-| **Dia** | Chromium | ✅ full | Load unpacked if available, or Chrome Web Store (see notes) |
+| **Dia** | Chromium | ⚠️ experimental | Chrome Web Store only — CLI sideloading is disabled (see notes) |
 | **Zen** | Firefox | ✅ full | `about:debugging#/runtime/this-firefox` → Load Temporary Add-on |
 | Firefox | Gecko | ✅ full | Same as Zen; or a signed XPI from addons.mozilla.org |
 | Waterfox, LibreWolf, Tor | Gecko | ✅ full (Tor: no DNR) | Same as Zen |
@@ -70,18 +70,30 @@ install, either:
 `chrome://extensions` → **Developer mode** → **Load unpacked** → select the
 repo folder (or the unzipped `dist/` artifact).
 
-### Dia
+### Dia (experimental)
 
-Dia is Chromium-based and accepts standard Chrome extensions, but treats
-extension support as secondary:
+Dia (The Browser Company, now Atlassian; `company.thebrowser.dia`, v1.42.1
+verified) is Chromium-based and **does** support extensions — but only from
+the **Chrome Web Store**. There is no developer-mode sideload:
 
-- If Dia exposes **Load unpacked** in its extensions page, use it with the
-  Chromium zip (`dist/`).
-- Otherwise install Vinland from the Chrome Web Store in Chrome — Chromium
-  extensions don't auto-migrate between browsers, so you must reinstall it
-  manually inside Dia.
-- Vinland's AI-free, terminal-first design means no conflict with Dia's
-  built-in AI sidebar.
+- `--load-extension` and `--remote-debugging-port` CLI flags are stripped,
+  so neither `dist/` load-unpacked nor CLI automation can install Vinland.
+- Dia ships its own extension manager at `dia://extensions`. Extensions do
+  **not** auto-migrate from Chrome — each must be reinstalled manually
+  inside Dia from the store.
+- **New-tab override unverified.** Vinland's core hook is
+  `chrome_url_overrides.newtab`, but Dia's new tab is a native workspace
+  surface (morning brief, AI sidebar) rather than a traditional URL page —
+  it may never route through the override. Until this is tested with a
+  published store build, treat Vinland on Dia as **experimental**.
+- If the override doesn't fire, Vinland currently has no in-product
+  fallback (an action-icon fallback that opens `index.html` in a pinned tab
+  is planned).
+
+Prerequisite: publish Vinland to the Chrome Web Store. After that, install
+it inside Dia via `dia://extensions` and check whether a new tab renders
+Vinland — that is the only decisive test. Vinland's AI-free, terminal-first
+design means no conflict with Dia's built-in AI sidebar.
 
 ---
 

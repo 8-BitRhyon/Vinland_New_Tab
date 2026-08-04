@@ -134,7 +134,8 @@ want it to, because you can change it. That's the point of open source.
 | Browser | Engine | Build | Load |
 |---|---|---|---|
 | **Chrome** | Chromium | `bash scripts/package-release.sh` → `dist/vinland-v<version>.zip` | `chrome://extensions` → Load unpacked (or Chrome Web Store) |
-| **Edge / Brave / Opera / Vivaldi / Arc / Dia** | Chromium | `bash scripts/package-release.sh` → `dist/vinland-v<version>.zip` | Same as Chrome — Load unpacked (or CWS if published) |
+| **Edge / Brave / Opera / Vivaldi / Arc** | Chromium | `bash scripts/package-release.sh` → `dist/vinland-v<version>.zip` | Same as Chrome — Load unpacked (or CWS if published) |
+| **Dia** ⚠️ | Chromium | `bash scripts/package-release.sh` → `dist/vinland-v<version>.zip` | **Chrome Web Store only** — no developer-mode sideload; install via `dia://extensions` (experimental, see notes) |
 | **Zen / Firefox / Waterfox / LibreWolf** | Gecko | `bash scripts/package-firefox.sh` → `dist-firefox/vinland-firefox-v<version>.zip` | `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → select the zip |
 
 Both scripts are CI-gated on every push: `package-check` (store zip, 80MB guard)
@@ -184,9 +185,14 @@ every push.
 
 Vinland is a cross-browser Manifest V3 extension:
 
-- **Chromium family** (Chrome, Edge, Brave, Opera, Arc, **Dia**): the same
+- **Chromium family** (Chrome, Edge, Brave, Opera, Arc): the same
   `vinland-v<version>.zip` loads unpacked — or install from the Chrome Web
   Store.
+- **Dia** ⚠️: Chrome Web Store only — developer-mode sideload is disabled
+  (CLI flags are stripped), so install via `dia://extensions`. The new-tab
+  override is unverified on Dia's native workspace, so treat it as
+  experimental — see
+  [`docs/browser-support.md`](docs/browser-support.md).
 - **Firefox family** (**Zen**, Firefox, Waterfox, LibreWolf): build the
   WebExtensions zip and load it as a temporary add-on:
 
