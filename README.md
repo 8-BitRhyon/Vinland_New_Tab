@@ -229,6 +229,7 @@ compatibility matrix, per-browser install steps, and Drive OAuth setup.
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | **Start here for code** — architecture, module map, invariants, gotchas, testing, packaging |
 | [`docs/design.md`](docs/design.md) | Canonical design document — state/storage model, theming, feature specs |
 | [`docs/codebase-audit-2026-08-02.md`](docs/codebase-audit-2026-08-02.md) | Performance/robustness audit with resolved items |
+| [`docs/ux-audit-2026-08-04.md`](docs/ux-audit-2026-08-04.md) | UX assessment roadmap status + proposed discoverability sprint |
 | [`docs/browser-support.md`](docs/browser-support.md) | Browser matrix (Chrome, Dia, Zen, Firefox) — installs, packaging, Drive OAuth config |
 | [`AGENTS.md`](AGENTS.md) | Agent-CLI instructions (Claude Code, Cursor, etc.) |
 
