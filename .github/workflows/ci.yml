@@ -219,15 +219,18 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zip unzip
 
       - name: Install Firefox
-        uses: mozilla-actions/setup-firefox@v1
+        id: install-firefox
+        uses: browser-actions/setup-firefox@v1
         with:
           firefox-version: 'latest'
 
       - name: Build Firefox/Zen zip (merge + validate + package)
         run: bash scripts/package-firefox.sh
 
-      # FIREFOX_BINARY is set by mozilla-actions/setup-firefox. web-ext is a
+      # browser-actions/setup-firefox exposes the binary path as the
+      # `firefox-path` output; pass it through as FIREFOX_BINARY (the smoke
+      # script also falls back to `firefox` on PATH). web-ext is a
       # devDependency (npm ci above). Firefox runs headless via MOZ_HEADLESS=1.
       - name: Run Firefox runtime smoke test (web-ext + headless Firefox)
-        run: bash scripts/firefox-smoke-test.sh
+        run: FIREFOX_BINARY="${{ steps.install-firefox.outputs.firefox-path }}" bash scripts/firefox-smoke-test.sh
         timeout-minutes: 5
