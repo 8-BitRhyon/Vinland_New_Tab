@@ -240,4 +240,25 @@ test.describe('CLI command sweep', () => {
     // The typed args must survive Tab (regression: it used to reset to `task `).
     await expect(cmdInput).toHaveValue('task Buy groceries');
   });
+
+  // ── CLI polish (discoverability sprint) ─────────────────────────
+  test('suggestion rows show the command arg hint', async ({ page }) => {
+    await openApp(page);
+    const cmdInput = page.locator('#cmd-input');
+    await cmdInput.fill('note');
+    // The `note` command hint is `[content]` and must render in the row.
+    await expect(page.locator('#suggestions .cmd-args').first()).toBeVisible();
+    await expect(page.locator('#suggestions .cmd-args').first()).toContainText('[content]');
+  });
+
+  test('suggestion dropdown shows the keyboard footer', async ({ page }) => {
+    await openApp(page);
+    const cmdInput = page.locator('#cmd-input');
+    await cmdInput.fill('note');
+    const footer = page.locator('#suggestions .suggestions-footer');
+    await expect(footer).toBeVisible();
+    await expect(footer).toContainText('navigate');
+    await expect(footer).toContainText('run');
+    await expect(footer).toContainText('fill');
+  });
 });

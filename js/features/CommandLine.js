@@ -196,7 +196,7 @@ export const CommandLine = {
                 var scoreLabel = result.score >= 70 ? 'BEST' : result.score >= 40 ? 'CLOSE' : 'WEAK';
                 var scoreClass = 'score-' + (result.score >= 70 ? 'high' : result.score >= 40 ? 'med' : 'low');
                 div.innerHTML = '<span class="cmd-trigger" style="color:#fff;font-weight:bold;">' + triggerHtml + '</span>' +
-                    '<span class="cmd-title" style="color:#888;"> - ' + titleHtml + '</span>' +
+                    '<span class="cmd-title" style="color:#888;"> - ' + titleHtml + (cmd.hint ? ' <span class="cmd-args">' + safeText(cmd.hint) + '</span>' : '') + '</span>' +
                     '<span class="type-badge score-badge ' + scoreClass + '">' + scoreLabel + '</span>' +
                     '<span class="kbd-hint">⇥ fill · ⏎ run</span>';
                 
@@ -214,6 +214,13 @@ export const CommandLine = {
             }
             box.appendChild(div);
         }
+
+        // Footer: keyboard affordances (mouse users get the same hint the
+        // QuickOpen palette already shows).
+        var footer = document.createElement('div');
+        footer.className = 'suggestions-footer';
+        footer.innerHTML = '<span class="sf-hint"><kbd>↑</kbd><kbd>↓</kbd> navigate · <kbd>⏎</kbd> run · <kbd>⇥</kbd> fill · <kbd>Esc</kbd> close</span>';
+        box.appendChild(footer);
         
         box.style.display = 'block';
         currentSuggestions = allSuggestions; 

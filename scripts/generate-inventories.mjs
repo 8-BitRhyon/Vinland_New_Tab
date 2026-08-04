@@ -75,6 +75,7 @@ const MODULES = [
   { path: 'js/features/ObsidianImporter.js', header: '#### ObsidianImporter — function inventory' },
   { path: 'js/features/CommandLine.js', header: '#### CommandLine — function inventory' },
   { path: 'js/features/OnboardingTour.js', header: '#### OnboardingTour — function inventory' },
+  { path: 'js/features/QuickToolbar.js', header: '#### QuickToolbar — function inventory' },
   { path: 'js/features/Bookmarks.js', header: '#### Bookmarks — function inventory' },
   { path: 'js/features/Clock.js', header: '#### Clock — function inventory' },
   { path: 'js/features/Weather.js', header: '#### Weather — function inventory' },
@@ -200,9 +201,11 @@ function findSection(docLines, header) {
   if (hi === -1) return null;
   let i = hi + 1;
   // Stop at the next section header too: a section that has no table yet
-  // must not swallow the following section's rows.
+  // must not swallow the following section's rows. If we reach a header
+  // before finding the table, treat the section as absent (return null) so
+  // the generator reports 'add it manually' instead of corrupting the doc.
   while (i < docLines.length && !docLines[i].includes('| Function |') && !docLines[i].startsWith('####')) i++;
-  if (i >= docLines.length) return null;
+  if (i >= docLines.length || !docLines[i].includes('| Function |')) return null;
   const headerRowIdx = i;
   const sepIdx = i + 1; // '|---|---|'
   const rows = [];

@@ -17,7 +17,10 @@ const SEED_NOTE_TITLE = "Welcome to Vinland";
 const SEED_BOARD_TITLE = "Welcome Board";
 const DEMO_COMMAND = "task Buy groceries";
 
-const SHORTCUTS = [
+// Shared keyboard-shortcut registry: rendered in the tour's final step and
+// echoed into the help modal at boot (see boot.js renderHelpShortcuts), so
+// the two surfaces can never drift.
+export const SHORTCUTS = [
   ["/", "Focus the command line"],
   ["Ctrl/⌘+K", "Focus the command line"],
   ["Ctrl/⌘+P", "Quick open a note"],

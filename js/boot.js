@@ -17,6 +17,7 @@ import { Bookmarks } from "./features/Bookmarks.js";
 import { Pomodoro } from "./features/Pomodoro.js";
 import { CommandLine } from "./features/CommandLine.js";
 import { OnboardingTour } from "./features/OnboardingTour.js";
+import { QuickToolbar } from "./features/QuickToolbar.js";
 import { Clock } from "./features/Clock.js";
 import { PageActions } from "./ui/PageActions.js";
 import { SlashMenu } from "./ui/SlashMenu.js";
@@ -61,6 +62,20 @@ import { AttachmentsManager } from "./core/AttachmentsManager.js";
 
 // 2. EXPORT TO WINDOW (Fixes HTML onclick="" errors)
 window.State = State;
+window.OnboardingTour = OnboardingTour;
+window.QuickToolbar = QuickToolbar;
+
+// Echo the shared shortcut registry into the help modal's KEYBOARD SHORTCUTS
+// section so `help` and the tour always agree.
+function renderHelpShortcuts() {
+  var tbody = document.getElementById('help-shortcuts');
+  if (!tbody || !OnboardingTour.SHORTCUTS) return;
+  OnboardingTour.SHORTCUTS.forEach(function (s) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="help-cmd">' + s[0] + '</td><td>' + s[1] + '</td>';
+    tbody.appendChild(tr);
+  });
+}
 window.saveData = saveData;
 window.markNoteDirty = markNoteDirty;
 window.markAllNotesDirty = markAllNotesDirty;
@@ -496,6 +511,8 @@ async function boot() {
   if (renderMissions) renderMissions();
   if (checkStreakReset) checkStreakReset();
   if (window.renderDock) window.renderDock(); // Link render
+  if (QuickToolbar) QuickToolbar.init();
+  renderHelpShortcuts();
   if (SettingsUI.initBackground) SettingsUI.initBackground();
 
   // D. Initialize Weather

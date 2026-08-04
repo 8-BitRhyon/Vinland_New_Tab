@@ -6583,6 +6583,37 @@
         color: #000;
       }
 
+      /* ── Command arg hints in suggestion rows ── */
+      .suggestion-item .cmd-args {
+        color: var(--secondary-color);
+        opacity: 0.6;
+        font-style: italic;
+      }
+      .suggestion-item:hover .cmd-args,
+      .suggestion-item.active .cmd-args {
+        color: #000;
+        opacity: 0.7;
+      }
+
+      /* ── Suggestion dropdown footer (keyboard affordances) ── */
+      .suggestions-footer {
+        padding: 8px 14px;
+        border-top: 1px solid #1a1a1a;
+        font-size: 0.62rem;
+        color: var(--secondary-color);
+        display: flex;
+        justify-content: flex-end;
+      }
+      .suggestions-footer kbd {
+        border: 1px solid var(--secondary-color);
+        border-radius: 3px;
+        padding: 0 4px;
+        font-family: inherit;
+        font-size: 0.58rem;
+        color: var(--main-color);
+        margin: 0 1px;
+      }
+
       /* Dataview Query Block Elements */
       .block-query-container {
         border: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
@@ -7763,6 +7794,46 @@
       }
       .tour-keys .k {
         color: var(--main-color);
+      }
+
+      /* QUICK-ACCESS TOOLBAR (mouse parity) */
+      .quick-toolbar {
+        position: fixed;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        z-index: var(--z-widget, 1000);
+        pointer-events: none;
+      }
+      .quick-toolbar .qt-btn {
+        pointer-events: auto;
+        width: 34px;
+        height: 34px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid #333;
+        color: var(--secondary-color);
+        font-family: var(--font-main);
+        font-size: 0.62rem;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.15s var(--motion-ease);
+        border-radius: 4px;
+      }
+      .quick-toolbar .qt-btn:hover {
+        color: var(--main-color);
+        border-color: var(--main-color);
+        box-shadow: 0 0 10px rgba(var(--main-color-rgb, 0, 255, 65), 0.35);
+        transform: translateX(-2px);
+      }
+      .quick-toolbar .qt-btn:active {
+        transform: translateX(-2px) scale(var(--press-scale));
+      }
+      body.zen-mode .quick-toolbar {
+        display: none;
       }
 
       /* KEYBOARD HINT */
@@ -12730,6 +12801,14 @@
               ></label>
             </div>
             <div class="toggle-row">
+              <span class="toggle-label">SHOW QUICK TOOLBAR</span>
+              <label class="switch"
+                ><input type="checkbox" id="cfg-show-toolbar" /><span
+                  class="slider"
+                ></span
+              ></label>
+            </div>
+            <div class="toggle-row">
               <span class="toggle-label">SHOW SECONDS</span>
               <label class="switch"
                 ><input type="checkbox" id="cfg-show-seconds" /><span
@@ -13250,34 +13329,37 @@
             KEYBOARD SHORTCUTS
           </div>
           <table class="help-table">
-            <tr>
-              <td class="help-cmd">Esc</td>
-              <td>Close modal / Clear input</td>
-            </tr>
-            <tr>
-              <td class="help-cmd">Ctrl+K or /</td>
-              <td>Focus command input</td>
-            </tr>
-            <tr>
-              <td class="help-cmd">Up / Down</td>
-              <td>History or Suggestions</td>
-            </tr>
-            <tr>
-              <td class="help-cmd">Cmd + E</td>
-              <td>Toggle Knowledge Graph</td>
-            </tr>
-            <tr>
-              <td class="help-cmd">Cmd + \</td>
-              <td>Toggle Sidebar</td>
-            </tr>
-            <tr>
-              <td class="help-cmd">Cmd + B/I/U/K</td>
-              <td>Text Styling (Bold, Link, etc)</td>
-            </tr>
-            <tr>
-              <td class="help-cmd">Shift + Enter</td>
-              <td>New Block (Editor)</td>
-            </tr>
+            <tbody id="help-shortcuts">
+              <tr>
+                <td class="help-cmd">Esc</td>
+                <td>Close modal / Clear input</td>
+              </tr>
+              <tr>
+                <td class="help-cmd">Up / Down</td>
+                <td>History or Suggestions</td>
+              </tr>
+              <tr>
+                <td class="help-cmd">Tab / Shift+Tab</td>
+                <td>Fill suggestion / walk backward</td>
+              </tr>
+              <tr>
+                <td class="help-cmd">Cmd + E</td>
+                <td>Toggle note preview (editor)</td>
+              </tr>
+              <tr>
+                <td class="help-cmd">Cmd + \</td>
+                <td>Toggle Sidebar</td>
+              </tr>
+              <tr>
+                <td class="help-cmd">Cmd + B/I/U/K</td>
+                <td>Text Styling (Bold, Link, etc)</td>
+              </tr>
+              <tr>
+                <td class="help-cmd">Shift + Enter</td>
+                <td>New Block (Editor)</td>
+              </tr>
+              <!-- Shared global shortcuts are appended here by renderHelpShortcuts() at boot -->
+            </tbody>
           </table>
         </div>
         <div

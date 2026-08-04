@@ -454,6 +454,7 @@ export const SettingsUI = {
 
         // Toggles
         el = document.getElementById('cfg-show-bm'); if(el) el.checked = CONFIG.show_bookmarks !== false;
+        el = document.getElementById('cfg-show-toolbar'); if(el) el.checked = CONFIG.show_toolbar !== false;
         el = document.getElementById('cfg-blur-overlay'); if(el) el.checked = CONFIG.enable_blur_overlay !== false;
         el = document.getElementById('cfg-hide-completed'); if(el) el.checked = CONFIG.hide_completed_tasks || false;
         el = document.getElementById('cfg-show-seconds'); if(el) el.checked = CONFIG.show_seconds || false;
@@ -596,6 +597,7 @@ export const SettingsUI = {
 
         // Toggles
         el = document.getElementById('cfg-show-bm'); if(el) draft.show_bookmarks = el.checked;
+        el = document.getElementById('cfg-show-toolbar'); if(el) draft.show_toolbar = el.checked;
         el = document.getElementById('cfg-blur-overlay'); if(el) draft.enable_blur_overlay = el.checked;
         el = document.getElementById('cfg-hide-completed'); if(el) draft.hide_completed_tasks = el.checked;
         el = document.getElementById('cfg-show-seconds'); if(el) draft.show_seconds = el.checked;
@@ -714,6 +716,8 @@ export const SettingsUI = {
 
         // Toggles
         el = document.getElementById('cfg-show-bm'); if(el) CONFIG.show_bookmarks = el.checked;
+        el = document.getElementById('cfg-show-toolbar'); if(el) CONFIG.show_toolbar = el.checked;
+        if (window.QuickToolbar && window.QuickToolbar._sync) window.QuickToolbar._sync();
         el = document.getElementById('cfg-blur-overlay'); if(el) CONFIG.enable_blur_overlay = el.checked;
         el = document.getElementById('cfg-hide-completed'); if(el) CONFIG.hide_completed_tasks = el.checked;
         el = document.getElementById('cfg-show-seconds'); if(el) CONFIG.show_seconds = el.checked;

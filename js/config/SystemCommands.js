@@ -263,6 +263,19 @@ export const SystemCommands = {
 
     // --- HELP ---
     CommandRegistry.register({
+      id: "info:tour",
+      trigger: "tour",
+      title: "Replay Onboarding Tour",
+      action: () => {
+        if (window.OnboardingTour && window.OnboardingTour.start) {
+          window.OnboardingTour.start();
+        } else if (window.ModalManager) {
+          window.ModalManager.open("welcome-modal");
+        }
+      },
+    });
+
+    CommandRegistry.register({
       id: "info:help",
       trigger: "help",
       title: "Open Operator Manual",
