@@ -129,6 +129,19 @@ want it to, because you can change it. That's the point of open source.
 
 ## Install
 
+### Quick start — which package script per browser
+
+| Browser | Engine | Build | Load |
+|---|---|---|---|
+| **Chrome** | Chromium | `bash scripts/package-release.sh` → `dist/vinland-v<version>.zip` | `chrome://extensions` → Load unpacked (or Chrome Web Store) |
+| **Edge / Brave / Opera / Vivaldi / Arc / Dia** | Chromium | `bash scripts/package-release.sh` → `dist/vinland-v<version>.zip` | Same as Chrome — Load unpacked (or CWS if published) |
+| **Zen / Firefox / Waterfox / LibreWolf** | Gecko | `bash scripts/package-firefox.sh` → `dist-firefox/vinland-firefox-v<version>.zip` | `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → select the zip |
+
+Both scripts are CI-gated on every push: `package-check` (store zip, 80MB guard)
+and `firefox-build` + `firefox-smoke` (Firefox manifest merge, plus a headless
+runtime smoke test that loads the packaged zip via web-ext). Full matrix and
+Drive OAuth setup: [`docs/browser-support.md`](docs/browser-support.md).
+
 ### From a release zip (recommended)
 
 Grab the latest `vinland-v<version>.zip` from the
