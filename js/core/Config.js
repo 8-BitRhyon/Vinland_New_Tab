@@ -6,6 +6,8 @@ const CONFIG_VERSION = 4;
 // Default Configuration
 const DEFAULT_CONFIG = {
     version: CONFIG_VERSION,
+    // First-run onboarding gate (kept in sync with Store.js's canonical default)
+    first_run: true,
     user_name: "",
     theme_color: "#00FF41",
     secondary_color: "#888888",

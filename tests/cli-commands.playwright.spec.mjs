@@ -209,4 +209,35 @@ test.describe('CLI command sweep', () => {
     // After reload the CLI input must come back (fresh boot).
     await expect(page.locator('#cmd-input')).toBeVisible({ timeout: 15000 });
   });
+
+  // ── Tab completion (onboarding UX) ──────────────────────────────
+  test('Tab completes a command trigger into the input', async ({ page }) => {
+    await openApp(page);
+    const cmdInput = page.locator('#cmd-input');
+    await cmdInput.fill('ta');
+    await cmdInput.press('Tab');
+    // Registry-first match for 'ta' is the task command → trigger + space.
+    await expect(cmdInput).toHaveValue('task ');
+  });
+
+  test('Tab fills a highlighted suggestion (trigger only, no execution)', async ({ page }) => {
+    await openApp(page);
+    const cmdInput = page.locator('#cmd-input');
+    await cmdInput.fill('pomo');
+    // Arrow down highlights the first suggestion, Tab fills its trigger.
+    await cmdInput.press('ArrowDown');
+    await cmdInput.press('Tab');
+    await expect(cmdInput).toHaveValue('pomo ');
+    // No modal opened and no toast fired → nothing executed.
+    await expect(page.locator('#notif-toast')).toHaveCount(0);
+  });
+
+  test('Tab never clobbers args already typed after the trigger', async ({ page }) => {
+    await openApp(page);
+    const cmdInput = page.locator('#cmd-input');
+    await cmdInput.fill('task Buy groceries');
+    await cmdInput.press('Tab');
+    // The typed args must survive Tab (regression: it used to reset to `task `).
+    await expect(cmdInput).toHaveValue('task Buy groceries');
+  });
 });

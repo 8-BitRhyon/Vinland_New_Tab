@@ -6568,6 +6568,21 @@
         opacity: 1;
       }
 
+      /* ── Tab-completion / run key hints ── */
+      .suggestion-item .kbd-hint {
+        margin-left: 6px;
+        font-size: 0.6rem;
+        opacity: 0.55;
+        white-space: nowrap;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .suggestion-item:hover .kbd-hint,
+      .suggestion-item.active .kbd-hint {
+        opacity: 1;
+        color: #000;
+      }
+
       /* Dataview Query Block Elements */
       .block-query-container {
         border: 1px solid rgba(var(--main-color-rgb, 0, 255, 65), 0.3);
@@ -7613,6 +7628,141 @@
 
       .welcome-start-btn:hover {
         box-shadow: 0 0 20px var(--main-color);
+      }
+
+      /* FIRST-RUN ONBOARDING TOUR */
+      #welcome-modal.tour-active {
+        width: 560px;
+      }
+      .tour-step {
+        display: none;
+      }
+      .tour-step.active {
+        display: block;
+        animation: tourIn 0.25s var(--motion-ease);
+      }
+      @keyframes tourIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: none; }
+      }
+      .tour-title {
+        color: var(--main-color);
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin-bottom: 14px;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+      .tour-text {
+        color: #aaa;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        margin-bottom: 18px;
+      }
+      .tour-text kbd,
+      .tour-keys kbd {
+        border: 1px solid var(--secondary-color);
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-family: inherit;
+        font-size: 0.72rem;
+        color: var(--main-color);
+      }
+      .tour-demo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0a0a0a;
+        border: 1px solid #333;
+        padding: 12px 14px;
+        margin: 14px 0;
+        font-family: var(--font-main);
+        font-size: 0.9rem;
+      }
+      .tour-demo .prompt {
+        color: var(--main-color);
+      }
+      .tour-typed {
+        color: var(--main-color);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .tour-caret {
+        width: 8px;
+        height: 16px;
+        background: var(--main-color);
+        animation: tourBlink 1s steps(2) infinite;
+      }
+      @keyframes tourBlink {
+        50% { opacity: 0; }
+      }
+      .tour-hint {
+        color: var(--dim-color);
+        font-size: 0.75rem;
+        margin: 10px 0 16px;
+        text-align: center;
+      }
+      .tour-actions {
+        display: flex;
+        gap: 10px;
+      }
+      .tour-btn {
+        flex: 1;
+        background: var(--main-color);
+        color: #000;
+        border: none;
+        padding: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 0.95rem;
+        letter-spacing: 1px;
+        font-family: var(--font-main);
+        transition: box-shadow 0.2s;
+      }
+      .tour-btn:hover {
+        box-shadow: 0 0 18px var(--main-color);
+      }
+      .tour-btn.ghost {
+        background: transparent;
+        color: var(--secondary-color);
+        border: 1px solid #333;
+      }
+      .tour-btn.ghost:hover {
+        color: var(--main-color);
+        border-color: var(--main-color);
+        box-shadow: none;
+      }
+      .tour-progress {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 16px;
+      }
+      .tour-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #333;
+      }
+      .tour-dot.on {
+        background: var(--main-color);
+        box-shadow: 0 0 6px var(--main-color);
+      }
+      .tour-keys {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 16px;
+        color: #aaa;
+        font-size: 0.8rem;
+        line-height: 2;
+      }
+      .tour-keys li {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px dashed #222;
+      }
+      .tour-keys .k {
+        color: var(--main-color);
       }
 
       /* KEYBOARD HINT */

@@ -143,7 +143,7 @@ export const CommandLine = {
                 var isFolder = s.data.type === 'folder';
                 var badge = isFolder ? 'FOLDER' : 'BOOKMARK';
                 var icon = isFolder ? '📁 ' : '';
-                div.innerHTML = '<span>' + icon + safeText(s.data.title) + '</span><span class="type-badge">' + badge + '</span>';
+                div.innerHTML = '<span>' + icon + safeText(s.data.title) + '</span><span class="type-badge">' + badge + '</span><span class="kbd-hint">⏎ open</span>';
                 
                 div.onclick = (function(data) {
                     return function() {
@@ -197,7 +197,8 @@ export const CommandLine = {
                 var scoreClass = 'score-' + (result.score >= 70 ? 'high' : result.score >= 40 ? 'med' : 'low');
                 div.innerHTML = '<span class="cmd-trigger" style="color:#fff;font-weight:bold;">' + triggerHtml + '</span>' +
                     '<span class="cmd-title" style="color:#888;"> - ' + titleHtml + '</span>' +
-                    '<span class="type-badge score-badge ' + scoreClass + '">' + scoreLabel + '</span>';
+                    '<span class="type-badge score-badge ' + scoreClass + '">' + scoreLabel + '</span>' +
+                    '<span class="kbd-hint">⇥ fill · ⏎ run</span>';
                 
                 div.onclick = (function(cmd, result) {
                     return function() {
@@ -216,6 +217,44 @@ export const CommandLine = {
         
         box.style.display = 'block';
         currentSuggestions = allSuggestions; 
+    },
+
+    // Accept the suggestion at `idx`. With { execute: true } (Enter), commands
+    // that take no args run immediately and bookmark URLs navigate; with
+    // { execute: false } (Tab), the input is filled with the trigger / title so
+    // the user can review before running.
+    acceptSuggestion: function (idx, opts) {
+        opts = opts || {};
+        const input = document.getElementById('cmd-input');
+        const s = currentSuggestions[idx];
+        if (!s || !input) return;
+
+        if (s.type === 'bookmark') {
+            if (s.data.type === 'folder') {
+                input.value = 'b ' + s.data.title + '/';
+                this.handleInput({ target: input });
+                return;
+            }
+            if (opts.execute) {
+                window.location.href = s.data.url;
+                return;
+            }
+            input.value = 'b ' + s.data.title + ' ';
+            this.handleInput({ target: input });
+            return;
+        }
+
+        const cmd = s.data.command;
+        const needsArgs = cmd.hint && !input.value.includes(' ');
+        if (!opts.execute || needsArgs) {
+            // Don't clobber args the user already typed after the trigger
+            // (e.g. `task buy milk` must not be reset to `task ` on Tab).
+            if (input.value.trim().startsWith(cmd.trigger + ' ')) return;
+            input.value = cmd.trigger + ' ';
+            this.handleInput({ target: input });
+            return;
+        }
+        this.execute(cmd, '');
     },
 
     handleKeydown: function(e) {
@@ -261,26 +300,47 @@ export const CommandLine = {
             return;
         }
 
+        // Tab: fill the highlighted (or first) suggestion, or complete the best
+        // command trigger from the registry when nothing is highlighted.
+        // Shift+Tab: walk the suggestion selection backward without filling.
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const boxTab = document.getElementById('suggestions');
+            const itemsTab = boxTab ? boxTab.querySelectorAll('.suggestion-item') : [];
+            if (itemsTab.length > 0) {
+                if (e.shiftKey) {
+                    if (suggestionIndex > -1 && itemsTab[suggestionIndex]) itemsTab[suggestionIndex].classList.remove('active');
+                    suggestionIndex = suggestionIndex > 0 ? suggestionIndex - 1 : itemsTab.length - 1;
+                    if (itemsTab[suggestionIndex]) {
+                        itemsTab[suggestionIndex].classList.add('active');
+                        itemsTab[suggestionIndex].scrollIntoView({ block: 'nearest' });
+                    }
+                    return;
+                }
+                const idx = suggestionIndex >= 0 ? suggestionIndex : 0;
+                this.acceptSuggestion(idx, { execute: false });
+                return;
+            }
+            const rawVal = input.value;
+            if (rawVal.trim()) {
+                const m = CommandRegistry.search(rawVal);
+                if (m.length > 0 && m[0].command && m[0].command.trigger) {
+                    const t = m[0].command.trigger;
+                    // Same clobber guard as acceptSuggestion: never wipe args.
+                    if (rawVal.trim().startsWith(t + ' ')) return;
+                    input.value = t + ' ';
+                    input.focus();
+                    this.handleInput({ target: input });
+                }
+            }
+            return;
+        }
+
         if (e.key === 'Enter') {
             // Suggestion Selection
             if (suggestionIndex >= 0 && currentSuggestions[suggestionIndex]) {
                 e.preventDefault();
-                const s = currentSuggestions[suggestionIndex];
-                if (s.type === 'bookmark') {
-                    if (s.data.type === 'folder') {
-                        input.value = `b ${s.data.title}/`;
-                        this.handleInput({ target: input });
-                        return;
-                    }
-                    window.location.href = s.data.url;
-                    return;
-                }
-                const cmd = s.data.command;
-                if (cmd.hint && !input.value.includes(' ')) {
-                     input.value = cmd.trigger + ' '; // Autocomplete trigger
-                     return;
-                }
-                this.execute(cmd, '');
+                this.acceptSuggestion(suggestionIndex, { execute: true });
                 return;
             }
 

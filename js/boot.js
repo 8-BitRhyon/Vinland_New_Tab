@@ -16,6 +16,7 @@ import { PageManager } from "./editor/PageManager.js";
 import { Bookmarks } from "./features/Bookmarks.js";
 import { Pomodoro } from "./features/Pomodoro.js";
 import { CommandLine } from "./features/CommandLine.js";
+import { OnboardingTour } from "./features/OnboardingTour.js";
 import { Clock } from "./features/Clock.js";
 import { PageActions } from "./ui/PageActions.js";
 import { SlashMenu } from "./ui/SlashMenu.js";
@@ -506,9 +507,10 @@ async function boot() {
 
   bindGlobals(); // Bind static HTML buttons
 
-  // E. First-run onboarding: show the welcome modal once
+  // E. First-run onboarding: seed sample content + run the guided tour once
   if (State.CONFIG.first_run) {
-    if (window.ModalManager) window.ModalManager.open('welcome-modal');
+    if (OnboardingTour && OnboardingTour.start) OnboardingTour.start();
+    else if (window.ModalManager) window.ModalManager.open('welcome-modal');
   }
 
   // F. Load Chrome Sync config (merges from other Chrome instances)
