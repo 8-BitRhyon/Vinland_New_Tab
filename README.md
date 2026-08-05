@@ -1,6 +1,7 @@
 # Vinland
 
 [![CI](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml/badge.svg)](https://github.com/8-BitRhyon/Vinland_New_Tab/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/8-BitRhyon/Vinland_New_Tab)](https://github.com/8-BitRhyon/Vinland_New_Tab/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 > A Manifest V3 new-tab command center. Keyboard-first, local-first, no framework, no bundler.
