@@ -223,7 +223,7 @@ That's it. No build step, no dependencies to install.
 
 ## 6. Release checklist (final gate)
 
-- [ ] `manifest.json` bumped; `package.json` mirrored; `CHANGELOG.md` updated
+- [ ] `bash scripts/bump-version.sh <version>` ran — `manifest.json` bumped, `package.json` mirrored, `CHANGELOG.md` retitled (§2.1)
 - [ ] Local validation green (`npm test`, affected E2E, `npm run docs:check`)
 - [ ] Pushed; full CI matrix green (incl. `package-check`, `firefox-smoke`, `release-candidate`)
 - [ ] `./scripts/package-release.sh` built the zip; composition report reviewed; size < 80 MB
