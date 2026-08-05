@@ -9,7 +9,7 @@
 1. Bump `manifest.json` (authoritative) + mirror `package.json`, update `CHANGELOG.md`.
 2. Commit + push. Wait for the full CI matrix to go green.
 3. `./scripts/package-release.sh` → `dist/vinland-v<version>.zip`.
-4. `gh release create v<version>` + `gh release upload` the zip.
+4. Push — the release workflow auto-tags + builds + **drafts** v<version>; review and publish.
 5. Verify the **tag ref** (not the release metadata) points at the intended commit.
 
 ## 1. Version sources
@@ -81,12 +81,27 @@ unzip -p dist/vinland-v<version>.zip manifest.json | grep '"version"'           
 
 ### 2.5 Create the release (new version)
 
+**Automated path (default).** `.github/workflows/release.yml` drafts the release for
+you whenever `manifest.json`'s version changes on `main`:
+
+1. Detects the bump by diffing the version against the last `v*` tag.
+2. Creates/pushes the `v<version>` tag on the pushed commit (skips if it exists).
+3. Builds the zip via `./scripts/package-release.sh`.
+4. Generates notes via `scripts/make-release-notes.sh <old> <new>` (template + commit list).
+5. Creates a **draft** release with the zip attached — never publishes automatically.
+
+Then review the draft (add a "What's new" section), confirm CI on `main` is green,
+and hit **Publish**. Re-run a failed attempt with `workflow_dispatch` + `force: true`.
+
+**Manual fallback** (same shape the workflow runs):
+
 ```bash
-gh release create v<version> \
-  --title "Vinland v<version>" \
+bash scripts/make-release-notes.sh 19.57 19.58 > /tmp/vinland-release-notes.md
+gh release create v19.58 \
+  --title "Vinland v19.58" \
   --notes-file /tmp/vinland-release-notes.md \
-  --latest
-gh release upload v<version> dist/vinland-v<version>.zip
+  --draft \
+  dist/vinland-v19.58.zip
 ```
 
 `gh release create` tags `main` automatically — the tag **is** the release. If a tag
@@ -198,6 +213,6 @@ That's it. No build step, no dependencies to install.
 - [ ] Local validation green (`npm test`, affected E2E, `npm run docs:check`)
 - [ ] Pushed; full CI matrix green (incl. `package-check`, `firefox-smoke`, `release-candidate`)
 - [ ] `./scripts/package-release.sh` built the zip; composition report reviewed; size < 80 MB
-- [ ] `gh release create` (or tag-move per §3) + `gh release upload --clobber` where needed
+- [ ] Release drafted (automatically by `.github/workflows/release.yml`, or manually per §2.5) with the zip attached
 - [ ] `git ls-remote --tags origin | grep v<version>` shows the intended commit
 - [ ] Release notes cover: what's new, install instructions (Chrome + Firefox), honest caveats
