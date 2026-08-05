@@ -90,8 +90,16 @@ you whenever `manifest.json`'s version changes on `main`:
 4. Generates notes via `scripts/make-release-notes.sh <old> <new>` (template + commit list).
 5. Creates a **draft** release with the zip attached — never publishes automatically.
 
-Then review the draft (add a "What's new" section), confirm CI on `main` is green,
-and hit **Publish**. Re-run a failed attempt with `workflow_dispatch` + `force: true`.
+Then review the draft (add a "What's new" section) and hit **Publish** — the workflow
+already waited for CI to pass on the commit before tagging, so the tag never points
+at a red build.
+
+**Recovery.** Re-run a failed attempt with `workflow_dispatch` + `force: true`. If a
+*previous* run got as far as tagging and then failed, remove the stray tag + draft
+first: `git push origin :refs/tags/v<version>` and `gh release delete v<version> --yes`.
+`force` does not overwrite an existing release — if a draft exists but its zip upload
+failed, delete the draft and re-dispatch, or attach manually with
+`gh release upload v<version> dist/vinland-v<version>.zip`.
 
 **Manual fallback** (same shape the workflow runs):
 

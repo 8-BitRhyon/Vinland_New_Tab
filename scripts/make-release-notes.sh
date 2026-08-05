@@ -18,7 +18,12 @@ set -euo pipefail
 OLD="${1:-}"
 NEW="${2:?usage: make-release-notes.sh <old_version> <new_version>}"
 
-REPO=$(git remote get-url origin | sed -E 's#.*github.com[:/]##; s#\.git$##' | grep -v '^$' || echo '8-BitRhyon/Vinland_New_Tab')
+REPO=$(git remote get-url origin | sed -E 's#.*github.com[:/]##; s#\.git$##' || true)
+# Guard: only trust the derived value if it looks like owner/repo (a non-
+# github.com remote, or an empty one, falls back to the canonical repo).
+if [[ ! "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+  REPO="8-BitRhyon/Vinland_New_Tab"
+fi
 
 if [ -n "$OLD" ]; then
   RANGE="v$OLD..HEAD"
@@ -28,9 +33,13 @@ fi
 
 # Commit list since the previous release (capped at 50 lines so the body
 # stays scannable; older work belongs in CHANGELOG.md anyway).
+COUNT=$(git rev-list --count "$RANGE" 2>/dev/null || true)
 COMMITS=$(git log --oneline "$RANGE" 2>/dev/null | head -50) || true
 if [ -z "$COMMITS" ]; then
   COMMITS="(no commits listed — fill in what changed manually)"
+elif [ -n "$COUNT" ] && [ "$COUNT" -gt 50 ]; then
+  COMMITS=$(printf '%s
+…and %d more commits (%s)' "$COMMITS" $((COUNT - 50)) "$RANGE")
 fi
 
 cat <<NOTES
