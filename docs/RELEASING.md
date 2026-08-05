@@ -25,14 +25,20 @@
 ### 2.1 Bump the version
 
 ```bash
-# manifest.json (source of truth — e.g. 19.58):
-#   "version": "19.58"
-# package.json mirror:
-#   "version": "19.58.0"
+bash scripts/bump-version.sh 19.58
 ```
 
-Move the `[Unreleased]` section of `CHANGELOG.md` under a new `## [19.58]` heading
-(with a `- 2026-…` date), then start a fresh `[Unreleased]`.
+The helper edits all three version surfaces together (exact-string JSON replaces,
+so the diff stays minimal):
+
+1. `manifest.json` → `"version": "19.58"` (authoritative — the CWS version).
+2. `package.json` → `"version": "19.58.0"` (3-part mirror).
+3. `CHANGELOG.md` → retitles `## [Unreleased]` to `## [V19.58] — <date>` and adds a
+   fresh `## [Unreleased]` section on top.
+
+It refuses to run against the current version and does not commit. After running:
+fill in the new `[Unreleased]` section, then commit + push — the release workflow
+(§2.5) takes it from there.
 
 ### 2.2 Validate locally before pushing
 
