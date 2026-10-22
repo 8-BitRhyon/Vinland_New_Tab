@@ -434,12 +434,56 @@ function bindGlobals() {
   const cliHintDismiss = document.getElementById("command-hint-dismiss");
   if (cliHintDismiss) cliHintDismiss.onclick = dismissCliHints;
 
-  // 10. Welcome Modal: dismiss ends first-run onboarding
+  // 10. Welcome Modal: dismiss ends first-run onboarding and closes modal
   const welcomeDismiss = document.getElementById("welcome-dismiss");
-  if (welcomeDismiss && State.CONFIG.first_run) {
+  if (welcomeDismiss) {
     welcomeDismiss.addEventListener("click", function () {
-      State.CONFIG.first_run = false;
-      if (typeof Config !== "undefined" && Config.save) Config.save();
+      if (State.CONFIG && State.CONFIG.first_run) {
+        State.CONFIG.first_run = false;
+        if (typeof Config !== "undefined" && Config.save) Config.save();
+      }
+      if (window.ModalManager) window.ModalManager.close("welcome-modal");
+      else {
+        const modal = welcomeDismiss.closest(".modal");
+        if (modal) modal.style.display = "none";
+      }
+    });
+  }
+
+  // 11. Pomodoro HUD click-to-dismiss
+  const pomoHud = document.getElementById("pomo-hud");
+  if (pomoHud) {
+    pomoHud.addEventListener("click", function () {
+      this.classList.remove("active");
+    });
+  }
+
+  // 12. Error Recovery Modal buttons
+  const errReload = document.getElementById("error-modal-reload");
+  if (errReload) {
+    errReload.addEventListener("click", function () {
+      window.location.reload();
+    });
+  }
+  const errBackup = document.getElementById("error-modal-backup");
+  if (errBackup) {
+    errBackup.addEventListener("click", function () {
+      var d = Date.now();
+      var blob = new Blob([JSON.stringify(window.State && window.State.NOTES || [])]);
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "vinland-backup-" + d + ".json";
+      a.click();
+    });
+  }
+  const errDismiss = document.getElementById("error-modal-dismiss");
+  if (errDismiss) {
+    errDismiss.addEventListener("click", function () {
+      if (window.ModalManager) window.ModalManager.close("error-modal");
+      else {
+        const modal = errDismiss.closest(".modal");
+        if (modal) modal.style.display = "none";
+      }
     });
   }
 }

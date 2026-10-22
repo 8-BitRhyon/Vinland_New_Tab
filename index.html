@@ -13530,7 +13530,7 @@
           </ul>
         </div>
 
-        <button class="welcome-start-btn" id="welcome-dismiss" onclick="if(window.ModalManager) window.ModalManager.close('welcome-modal'); else this.closest('.modal').style.display='none';">
+        <button class="welcome-start-btn" id="welcome-dismiss">
           BEGIN SESSION
         </button>
       </div>
@@ -14471,7 +14471,7 @@
     </div>
 
     <!-- POMODORO HUD (V61) -->
-    <div id="pomo-hud" onclick="this.classList.remove('active')">
+    <div id="pomo-hud">
       <div class="hud-scanlines"></div>
       <div class="hud-header">
         <span>SIGNAL // ALERT</span>
@@ -14500,9 +14500,9 @@
           <div id="error-modal-detail" style="display:none;background:rgba(255,51,85,0.06);border:1px solid rgba(255,51,85,0.15);border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:0.65rem;color:var(--dim-color,#555);font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto;"></div>
         </div>
         <div style="display:flex;gap:8px;padding:12px 24px 20px;flex-wrap:wrap;">
-          <button class="btn primary-btn" id="error-modal-reload" onclick="window.location.reload()" style="flex:1;">&#x21BB; Reload</button>
-          <button class="btn" id="error-modal-backup" onclick="var d=Date.now();var blob=new Blob([JSON.stringify(window.State&&window.State.NOTES||[])]);var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vinland-backup-'+d+'.json';a.click();" style="flex:1;">&#x2B07; Download Data</button>
-          <button class="btn" id="error-modal-dismiss" onclick="if(window.ModalManager)window.ModalManager.close('error-modal');" style="flex:1;">&#x2716; Dismiss</button>
+          <button class="btn primary-btn" id="error-modal-reload" style="flex:1;">&#x21BB; Reload</button>
+          <button class="btn" id="error-modal-backup" style="flex:1;">&#x2B07; Download Data</button>
+          <button class="btn" id="error-modal-dismiss" style="flex:1;">&#x2716; Dismiss</button>
         </div>
       </div>
     </div>
